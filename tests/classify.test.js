@@ -32,8 +32,18 @@ describe('classifyPrompt', () => {
 
   it('classifies debug prompts', () => {
     assert.equal(classifyPrompt('debug this function'), 'debug');
-    assert.equal(classifyPrompt('why is this slow'), 'debug');
     assert.equal(classifyPrompt('investigate the memory leak'), 'debug');
+    assert.equal(classifyPrompt('add some logging'), 'debug');
+  });
+
+  it('does not classify bare "why" as debug (F-10)', () => {
+    assert.equal(classifyPrompt('why is the sky blue'), 'other');
+    assert.equal(classifyPrompt('why is this slow'), 'other');
+  });
+
+  it('does not classify "look at" as review (F-11)', () => {
+    assert.equal(classifyPrompt('look at this feature'), 'feature');
+    assert.equal(classifyPrompt('look at this'), 'other');
   });
 
   it('classifies config prompts', () => {

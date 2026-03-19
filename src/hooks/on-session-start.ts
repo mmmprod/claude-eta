@@ -1,15 +1,59 @@
 /**
  * SessionStart hook — injects passive velocity context for the project.
  * Fires on startup/resume/clear/compact so Claude always has calibration data.
+ * Also updates project metadata (file count, LOC bucket) for analytics.
  */
+import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { readStdin } from '../stdin.js';
-import { loadProject } from '../store.js';
+import { loadProject, saveProject } from '../store.js';
 import { computeStats, formatStatsContext, CALIBRATION_THRESHOLD } from '../stats.js';
+import { locBucket } from '../anonymize.js';
 
 interface SessionStartStdin {
   session_id?: string;
   cwd?: string;
+}
+
+const IGNORE_DIRS = new Set([
+  'node_modules', '.git', 'dist', 'build', '.next', 'coverage',
+  '__pycache__', 'vendor', '.cache', '.turbo', '.output',
+]);
+
+const MAX_FILES = 50_000;
+
+/** Count source files and total bytes for LOC estimation */
+function countSourceFiles(dir: string): { fileCount: number; totalBytes: number } {
+  let fileCount = 0;
+  let totalBytes = 0;
+
+  function walk(d: string): void {
+    if (fileCount >= MAX_FILES) return;
+    let entries: fs.Dirent[];
+    try {
+      entries = fs.readdirSync(d, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const entry of entries) {
+      if (fileCount >= MAX_FILES) return;
+      if (entry.isDirectory()) {
+        if (!IGNORE_DIRS.has(entry.name) && !entry.name.startsWith('.')) {
+          walk(path.join(d, entry.name));
+        }
+      } else if (entry.isFile()) {
+        fileCount++;
+        try {
+          totalBytes += fs.statSync(path.join(d, entry.name)).size;
+        } catch {
+          /* skip unreadable files */
+        }
+      }
+    }
+  }
+
+  walk(dir);
+  return { fileCount, totalBytes };
 }
 
 async function main(): Promise<void> {
@@ -20,6 +64,13 @@ async function main(): Promise<void> {
   const project = path.basename(cwd);
   const data = loadProject(project);
   const completed = data.tasks.filter((t) => t.duration_seconds != null).length;
+
+  // Update project metadata (file count, LOC bucket)
+  const { fileCount, totalBytes } = countSourceFiles(cwd);
+  const estimatedLoc = Math.round(totalBytes / 40);
+  data.file_count = fileCount;
+  data.loc_bucket = locBucket(estimatedLoc);
+  saveProject(data);
 
   if (completed === 0) {
     // First-run welcome

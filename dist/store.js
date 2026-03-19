@@ -95,9 +95,14 @@ export function clearActiveTask() {
 }
 /** Increment counters on the active task (called by PostToolUse hook) */
 export function incrementActive(increments) {
-    const active = getActiveTask();
-    if (!active)
+    const activePath = getActivePath();
+    let active;
+    try {
+        active = JSON.parse(fs.readFileSync(activePath, 'utf-8'));
+    }
+    catch {
         return;
+    }
     if (increments.tool_calls != null)
         active.tool_calls += increments.tool_calls;
     if (increments.files_read != null)
@@ -108,7 +113,10 @@ export function incrementActive(increments) {
         active.files_created += increments.files_created;
     if (increments.errors != null)
         active.errors += increments.errors;
-    fs.writeFileSync(getActivePath(), JSON.stringify(active), 'utf-8');
+    // Atomic write: temp file + rename prevents corruption from concurrent access
+    const tmpPath = activePath + '.tmp';
+    fs.writeFileSync(tmpPath, JSON.stringify(active), 'utf-8');
+    fs.renameSync(tmpPath, activePath);
 }
 /** Close the active task: flush counters to project data, clear active file.
  *  Returns the updated project data (caller can reuse it). */
@@ -138,7 +146,7 @@ export function setLastCompleted(info) {
     fs.writeFileSync(getLastCompletedPath(), JSON.stringify(info), 'utf-8');
 }
 /** Read and delete in one shot. Discards stale files (e.g. from a crashed session). */
-export function consumeLastCompleted(maxAgeMs = 5 * 60 * 1000) {
+export function consumeLastCompleted(maxAgeMs = 30 * 60 * 1000) {
     const p = getLastCompletedPath();
     try {
         const mtime = fs.statSync(p).mtimeMs;

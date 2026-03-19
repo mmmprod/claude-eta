@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import * as path from 'node:path';
 import * as os from 'node:os';
 import * as fs from 'node:fs';
-import { addTask } from '../dist/store.js';
+import { addTask, loadProject, saveProject } from '../dist/store.js';
 
 const PII_FIELDS = ['prompt_summary', 'session_id', 'task_id', 'timestamp_start', 'timestamp_end'];
 const DATA_DIR = path.join(os.homedir(), '.claude', 'plugins', 'claude-eta', 'data');
@@ -93,6 +93,38 @@ describe('anonymizeProject', () => {
     const records = anonymizeProject(project, '1.0.0');
 
     assert.equal(records[0].model, 'claude-sonnet-4');
+    cleanup(project);
+  });
+
+  it('includes project_file_count and project_loc_bucket when set (F-03)', async () => {
+    const project = 'export-test-meta';
+    addTask(project, makeTask({ project }));
+
+    // Set project metadata
+    const data = loadProject(project);
+    data.file_count = 42;
+    data.loc_bucket = 'small';
+    saveProject(data);
+
+    const { anonymizeProject } = await import('../dist/cli/export.js');
+    const records = anonymizeProject(project, '1.0.0');
+
+    assert.ok(records.length > 0);
+    assert.equal(records[0].project_file_count, 42);
+    assert.equal(records[0].project_loc_bucket, 'small');
+    cleanup(project);
+  });
+
+  it('returns null for project metadata when not set (F-03)', async () => {
+    const project = 'export-test-nometa';
+    addTask(project, makeTask({ project }));
+
+    const { anonymizeProject } = await import('../dist/cli/export.js');
+    const records = anonymizeProject(project, '1.0.0');
+
+    assert.ok(records.length > 0);
+    assert.equal(records[0].project_file_count, null);
+    assert.equal(records[0].project_loc_bucket, null);
     cleanup(project);
   });
 });

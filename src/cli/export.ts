@@ -21,11 +21,18 @@ export interface AnonymizedRecord {
   errors: number;
   model: string | null;
   project_hash: string;
+  project_file_count: number | null;
+  project_loc_bucket: string | null;
   plugin_version: string;
   contributor_hash: string;
 }
 
-function anonymizeTask(task: TaskEntry, projName: string, pluginVersion: string): AnonymizedRecord | null {
+export function anonymizeTask(
+  task: TaskEntry,
+  projName: string,
+  pluginVersion: string,
+  projectMeta?: { file_count?: number; loc_bucket?: string },
+): AnonymizedRecord | null {
   if (task.duration_seconds == null || task.duration_seconds <= 0) return null;
 
   return {
@@ -38,6 +45,8 @@ function anonymizeTask(task: TaskEntry, projName: string, pluginVersion: string)
     errors: task.errors,
     model: normalizeModel(task.model),
     project_hash: projectHash(projName),
+    project_file_count: projectMeta?.file_count ?? null,
+    project_loc_bucket: projectMeta?.loc_bucket ?? null,
     plugin_version: pluginVersion,
     contributor_hash: contributorHash(),
   };
@@ -45,8 +54,9 @@ function anonymizeTask(task: TaskEntry, projName: string, pluginVersion: string)
 
 export function anonymizeProject(projName: string, pluginVersion: string): AnonymizedRecord[] {
   const data = loadProject(projName);
+  const meta = { file_count: data.file_count, loc_bucket: data.loc_bucket };
   return data.tasks
-    .map((t) => anonymizeTask(t, projName, pluginVersion))
+    .map((t) => anonymizeTask(t, projName, pluginVersion, meta))
     .filter((r): r is AnonymizedRecord => r !== null);
 }
 
