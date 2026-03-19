@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.1](https://github.com/mmmprod/claude-eta/compare/claude-eta-v0.3.0...claude-eta-v0.3.1) (2026-03-19)
+
+
+### Bug Fixes
+
+* add fetch timeout and cache-first logic to community features ([#23](https://github.com/mmmprod/claude-eta/issues/23)) ([7e1f178](https://github.com/mmmprod/claude-eta/commit/7e1f17827022c9f2906ef7045e7bf269a497c790))
+
 ## [0.3.0](https://github.com/mmmprod/claude-eta/compare/claude-eta-v0.2.0...claude-eta-v0.3.0) (2026-03-19)
 
 
