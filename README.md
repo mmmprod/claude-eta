@@ -8,11 +8,18 @@ A Claude Code plugin that silently tracks your real task durations, then uses th
 
 ## Install
 
-```bash
+Open your terminal (the app where you use Claude Code) and paste this:
+
+```
 claude plugin add claude-eta
 ```
 
-That's it. No config. It starts working immediately.
+Press Enter. Done. There is nothing else to do.
+
+No account needed. No API key. No config file.
+It starts tracking the moment you send your next prompt.
+
+> **Don't have Claude Code yet?** Install it first: https://docs.anthropic.com/en/docs/claude-code/overview
 
 ## What happens after install
 
