@@ -1,0 +1,21 @@
+name: Refresh community baselines
+on:
+  schedule:
+    - cron: '0 */6 * * *'
+  workflow_dispatch: {}
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call Edge Function
+        env:
+          FUNCTION_URL: ${{ secrets.SUPABASE_FUNCTION_URL }}
+          ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          SECRET: ${{ secrets.REFRESH_SECRET }}
+        run: |
+          curl -s -f -X POST \
+            "${FUNCTION_URL}/refresh-baselines" \
+            -H "Authorization: Bearer ${ANON_KEY}" \
+            -H "x-refresh-secret: ${SECRET}" \
+            -H "Content-Type: application/json"

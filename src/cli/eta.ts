@@ -5,9 +5,16 @@
  * Usage:
  *   node dist/cli/eta.js [session|history|stats] [cwd]
  */
+import * as fs from 'node:fs';
 import * as path from 'node:path';
+import * as os from 'node:os';
 import { loadProject } from '../store.js';
+import { showExport } from './export.js';
+import { showContribute, executeContribute } from './contribute.js';
+import { showCompare } from './compare.js';
 import type { TaskEntry, TaskClassification } from '../types.js';
+
+const EXPORT_DIR = path.join(os.homedir(), '.claude', 'plugins', 'claude-eta', 'export');
 
 // ── Formatting helpers ────────────────────────────────────────
 
@@ -137,17 +144,87 @@ function showInspect(data: { project: string; created: string; tasks: TaskEntry[
     console.log(JSON.stringify(last, null, 2));
     console.log('```');
   }
+
+  // Show latest export if it exists
+  try {
+    const files = fs
+      .readdirSync(EXPORT_DIR)
+      .filter((f) => f.startsWith('velocity-'))
+      .sort();
+    if (files.length > 0) {
+      const latest = path.join(EXPORT_DIR, files[files.length - 1]);
+      const stat = fs.statSync(latest);
+      console.log(`\n### Latest export\n`);
+      console.log(`File: \`${latest}\``);
+      console.log(`Size: ${stat.size} bytes, modified: ${stat.mtime.toISOString()}`);
+    }
+  } catch {
+    // No export dir yet
+  }
+}
+
+function getPluginVersion(): string {
+  try {
+    const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, '..', '..', 'package.json'), 'utf-8')) as {
+      version: string;
+    };
+    return pkg.version;
+  } catch {
+    return 'unknown';
+  }
 }
 
 const FEEDBACK_LINE = '\n---\nFeedback? Bug? https://github.com/mmmprod/claude-eta/issues';
 
 // ── Main ──────────────────────────────────────────────────────
 
-function main(): void {
+async function main(): Promise<void> {
   const mode = process.argv[2] ?? 'session';
   const cwd = process.argv[3] ?? process.cwd();
   const project = path.basename(cwd);
+  const confirm = process.argv.includes('--confirm');
+  const pluginVersion = getPluginVersion();
 
+  // Help
+  if (mode === 'help') {
+    console.log(`## claude-eta commands\n`);
+    console.log(`| Command                      | Description                                    |`);
+    console.log(`|------------------------------|------------------------------------------------|`);
+    console.log(`| \`/eta\`                       | Current session stats                          |`);
+    console.log(`| \`/eta history\`               | Last 20 tasks with durations                   |`);
+    console.log(`| \`/eta stats\`                 | Averages by task type                          |`);
+    console.log(`| \`/eta inspect\`               | What data is stored (transparency)             |`);
+    console.log(`| \`/eta compare\`               | Your stats vs community baselines              |`);
+    console.log(`| \`/eta export\`                | Anonymize & save to local JSON                 |`);
+    console.log(`| \`/eta contribute\`            | Preview what would be shared                   |`);
+    console.log(`| \`/eta contribute --confirm\`  | Upload anonymized data (opt-in)                |`);
+    console.log(`| \`/eta help\`                  | This help                                      |`);
+    console.log(`\nAll data is 100% local by default. Community features (\`compare\`, \`contribute\`) are opt-in.`);
+    console.log(FEEDBACK_LINE);
+    return;
+  }
+
+  // Async commands (don't need local task data to exist)
+  switch (mode) {
+    case 'contribute':
+      if (confirm) {
+        await executeContribute(project, pluginVersion);
+      } else {
+        await showContribute(project, pluginVersion);
+      }
+      console.log(FEEDBACK_LINE);
+      return;
+    case 'compare':
+      await showCompare(project);
+      console.log(FEEDBACK_LINE);
+      return;
+    case 'export':
+      showExport(project, pluginVersion);
+      console.log(FEEDBACK_LINE);
+      return;
+  }
+
+  // Sync commands
   const data = loadProject(project);
 
   if (data.tasks.length === 0) {
@@ -173,4 +250,4 @@ function main(): void {
   console.log(FEEDBACK_LINE);
 }
 
-main();
+void main();
