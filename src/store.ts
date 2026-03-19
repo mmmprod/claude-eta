@@ -1,7 +1,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
-import type { ProjectData, TaskEntry } from './types.js';
+import type { ProjectData, TaskEntry, ActiveTask } from './types.js';
 
 const DATA_DIR = path.join(os.homedir(), '.claude', 'plugins', 'claude-eta', 'data');
 
@@ -18,6 +18,8 @@ function ensureDataDir(): void {
 function getProjectPath(project: string): string {
   return path.join(DATA_DIR, `${slugify(project)}.json`);
 }
+
+// ── Project data ──────────────────────────────────────────────
 
 export function loadProject(project: string): ProjectData {
   ensureDataDir();
@@ -56,21 +58,33 @@ export function updateLastTask(project: string, updates: Partial<TaskEntry>): vo
   saveProject(data);
 }
 
-export function getActivePath(): string {
+// ── Active task tracking (_active.json) ───────────────────────
+
+function getActivePath(): string {
   return path.join(DATA_DIR, '_active.json');
 }
 
 export function setActiveTask(project: string, taskId: string): void {
   ensureDataDir();
-  fs.writeFileSync(getActivePath(), JSON.stringify({ project, taskId, start: Date.now() }), 'utf-8');
+  const active: ActiveTask = {
+    project,
+    taskId,
+    start: Date.now(),
+    tool_calls: 0,
+    files_read: 0,
+    files_edited: 0,
+    files_created: 0,
+    errors: 0,
+  };
+  fs.writeFileSync(getActivePath(), JSON.stringify(active), 'utf-8');
 }
 
-export function getActiveTask(): { project: string; taskId: string; start: number } | null {
+export function getActiveTask(): ActiveTask | null {
   const activePath = getActivePath();
   if (!fs.existsSync(activePath)) return null;
 
   try {
-    return JSON.parse(fs.readFileSync(activePath, 'utf-8'));
+    return JSON.parse(fs.readFileSync(activePath, 'utf-8')) as ActiveTask;
   } catch {
     return null;
   }
@@ -81,4 +95,18 @@ export function clearActiveTask(): void {
   if (fs.existsSync(activePath)) {
     fs.unlinkSync(activePath);
   }
+}
+
+/** Increment counters on the active task (called by PostToolUse hook) */
+export function incrementActive(increments: Partial<Pick<ActiveTask, 'tool_calls' | 'files_read' | 'files_edited' | 'files_created' | 'errors'>>): void {
+  const active = getActiveTask();
+  if (!active) return;
+
+  if (increments.tool_calls) active.tool_calls += increments.tool_calls;
+  if (increments.files_read) active.files_read += increments.files_read;
+  if (increments.files_edited) active.files_edited += increments.files_edited;
+  if (increments.files_created) active.files_created += increments.files_created;
+  if (increments.errors) active.errors += increments.errors;
+
+  fs.writeFileSync(getActivePath(), JSON.stringify(active), 'utf-8');
 }

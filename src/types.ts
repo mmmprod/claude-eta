@@ -35,15 +35,48 @@ export interface ProjectData {
   tasks: TaskEntry[];
 }
 
-/** Stdin data from Claude Code hooks */
-export interface HookStdinData {
+/** Active task tracker (stored in _active.json) */
+export interface ActiveTask {
+  project: string;
+  taskId: string;
+  start: number;
+  tool_calls: number;
+  files_read: number;
+  files_edited: number;
+  files_created: number;
+  errors: number;
+}
+
+// ── Hook stdin types (per Claude Code docs) ──────────────────────
+
+/** Common fields shared by all hook events */
+interface HookStdinBase {
   session_id?: string;
+  transcript_path?: string;
   cwd?: string;
+  permission_mode?: string;
+  hook_event_name?: string;
   model?: {
     id?: string;
     display_name?: string;
   };
+}
+
+/** UserPromptSubmit hook stdin */
+export interface UserPromptSubmitStdin extends HookStdinBase {
+  prompt?: string;
+}
+
+/** PostToolUse hook stdin */
+export interface PostToolUseStdin extends HookStdinBase {
   tool_name?: string;
   tool_input?: Record<string, unknown>;
-  transcript_path?: string;
+  tool_response?: Record<string, unknown>;
+  tool_use_id?: string;
+}
+
+/** Stop hook stdin */
+export interface StopStdin extends HookStdinBase {
+  stop_hook_active?: boolean;
+  last_assistant_message?: string;
 }
