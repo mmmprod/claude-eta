@@ -183,6 +183,20 @@ claude plugin marketplace update claude-eta && claude plugin update claude-eta@c
 
 Restart Claude Code after the update so the new plugin version is loaded.
 
+## Releases
+
+Release numbering is automated with Release Please. Version bumps and changelog entries are inferred from Conventional Commits on `main`.
+
+```bash
+fix: correct installation path        # patch
+feat: add live ETA recalculation      # minor
+feat!: replace storage format         # major
+```
+
+Use `BREAKING CHANGE:` in the commit body if the breakage is not obvious from the title.
+
+If you want CI to run on Release Please pull requests too, add a repository secret named `RELEASE_PLEASE_TOKEN` with a GitHub PAT. Without it, the default `GITHUB_TOKEN` still creates release PRs and tags, but GitHub will not trigger follow-up workflows from those bot-created events.
+
 ## Contributing
 
 claude-eta is built by one person, but the roadmap is ambitious. If you care about making LLM time estimates not suck, there's room to contribute.

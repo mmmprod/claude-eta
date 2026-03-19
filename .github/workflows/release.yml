@@ -1,34 +1,20 @@
-name: Release
+name: Release Please
 
 on:
   push:
-    tags:
-      - 'v*'
+    branches:
+      - main
 
 permissions:
   contents: write
+  issues: write
+  pull-requests: write
 
 jobs:
-  release:
+  release-please:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
-
-      - uses: actions/setup-node@v6
+      - name: Open or update release PR
+        uses: googleapis/release-please-action@v4
         with:
-          node-version: 22
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build
-        run: npm run build
-
-      - name: Test
-        run: npm test
-
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@153bb8e04406b158c6c84fc1615b65b24149a1fe # v2.6.1
-        with:
-          generate_release_notes: true
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN || secrets.GITHUB_TOKEN }}
