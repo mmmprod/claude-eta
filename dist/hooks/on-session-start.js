@@ -10,8 +10,17 @@ import { loadProject, saveProject } from '../store.js';
 import { computeStats, formatStatsContext, CALIBRATION_THRESHOLD } from '../stats.js';
 import { locBucket } from '../anonymize.js';
 const IGNORE_DIRS = new Set([
-    'node_modules', '.git', 'dist', 'build', '.next', 'coverage',
-    '__pycache__', 'vendor', '.cache', '.turbo', '.output',
+    'node_modules',
+    '.git',
+    'dist',
+    'build',
+    '.next',
+    'coverage',
+    '__pycache__',
+    'vendor',
+    '.cache',
+    '.turbo',
+    '.output',
 ]);
 const MAX_FILES = 50_000;
 /** Count source files and total bytes for LOC estimation */

@@ -19,7 +19,9 @@ function testProjectPath() {
 
 function cleanup() {
   for (const f of [testProjectPath(), ACTIVE_PATH, ACTIVE_PATH + '.tmp', path.join(DATA_DIR, '_last_completed.json')]) {
-    try { fs.unlinkSync(f); } catch {}
+    try {
+      fs.unlinkSync(f);
+    } catch {}
   }
 }
 

@@ -43,10 +43,7 @@ function saveState(count: number, newTaskIds: string[]): void {
   fs.writeFileSync(STATE_PATH, JSON.stringify(state, null, 2), 'utf-8');
 }
 
-function getNewRecords(
-  projName: string,
-  pluginVersion: string,
-): { records: AnonymizedRecord[]; taskIds: string[] } {
+function getNewRecords(projName: string, pluginVersion: string): { records: AnonymizedRecord[]; taskIds: string[] } {
   const state = loadState();
   const excludeIds = new Set(state?.contributed_task_ids ?? []);
   const data = loadProject(projName);

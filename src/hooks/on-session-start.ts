@@ -16,8 +16,17 @@ interface SessionStartStdin {
 }
 
 const IGNORE_DIRS = new Set([
-  'node_modules', '.git', 'dist', 'build', '.next', 'coverage',
-  '__pycache__', 'vendor', '.cache', '.turbo', '.output',
+  'node_modules',
+  '.git',
+  'dist',
+  'build',
+  '.next',
+  'coverage',
+  '__pycache__',
+  'vendor',
+  '.cache',
+  '.turbo',
+  '.output',
 ]);
 
 const MAX_FILES = 50_000;
