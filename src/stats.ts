@@ -19,6 +19,16 @@ export interface ProjectStats {
   byClassification: ClassificationStats[];
 }
 
+export interface TaskEstimate {
+  low: number;
+  high: number;
+  median: number;
+  confidence: number;
+  basis: string;
+  volatility: 'low' | 'medium' | 'high';
+  complexity: number;
+}
+
 function sortedDurations(tasks: TaskEntry[]): number[] {
   return tasks
     .filter((t) => t.duration_seconds != null && t.duration_seconds > 0)
@@ -86,6 +96,62 @@ export function computeStats(tasks: TaskEntry[]): ProjectStats | null {
   return { totalCompleted: durations.length, overall, byClassification };
 }
 
+// ── Task estimation ───────────────────────────────────────────
+
+/** Score prompt complexity 1-5 based on length, file mentions, and scope */
+export function scorePromptComplexity(prompt: string): number {
+  let score = 1;
+
+  // Length factor
+  if (prompt.length > 200) score += 1;
+  if (prompt.length > 500) score += 1;
+
+  // File/path mentions
+  const fileMentions = (prompt.match(/\b[\w./-]+\.(ts|js|tsx|jsx|json|md|css|html|py|go|rs|yaml|yml|toml)\b/gi) || [])
+    .length;
+  if (fileMentions >= 2) score += 1;
+  if (fileMentions >= 5) score += 1;
+
+  // Broad scope words
+  if (/\b(all|every|entire|whole|across|throughout|each|multiple|several|many|everything)\b/i.test(prompt)) score += 1;
+
+  return Math.min(score, 5);
+}
+
+/** Estimate duration for a task based on classification + prompt complexity */
+export function estimateTask(stats: ProjectStats, classification: string, complexity: number): TaskEstimate {
+  const clsStats = stats.byClassification.find((s) => s.classification === classification);
+
+  if (clsStats) {
+    // Use classification-specific data
+    // Shift interval proportionally to complexity (score 3 = neutral)
+    const shift = (complexity - 3) * 0.15; // -0.3 to +0.3
+    return {
+      low: Math.max(1, Math.round(clsStats.p25 * (1 + shift))),
+      high: Math.round(clsStats.p75 * (1 + shift)),
+      median: Math.round(clsStats.median * (1 + shift)),
+      confidence: 80,
+      basis: `${clsStats.count} similar ${classification} tasks`,
+      volatility: clsStats.volatility,
+      complexity,
+    };
+  }
+
+  // Fallback to overall stats
+  const shift = (complexity - 3) * 0.15;
+  return {
+    low: Math.max(1, Math.round(stats.overall.p25 * (1 + shift))),
+    high: Math.round(stats.overall.p75 * (1 + shift)),
+    median: Math.round(stats.overall.median * (1 + shift)),
+    confidence: 60, // Lower confidence without classification data
+    basis: `${stats.totalCompleted} tasks (no ${classification}-specific data)`,
+    volatility: 'medium',
+    complexity,
+  };
+}
+
+// ── Formatting ────────────────────────────────────────────────
+
 function fmtSec(seconds: number): string {
   if (seconds < 60) return `${seconds}s`;
   const min = Math.floor(seconds / 60);
@@ -97,7 +163,7 @@ function fmtSec(seconds: number): string {
 }
 
 /** Format stats as a concise context string for Claude injection */
-export function formatStatsContext(stats: ProjectStats): string {
+export function formatStatsContext(stats: ProjectStats, estimate?: TaskEstimate): string {
   const lines: string[] = [
     `[claude-eta] Project velocity (${stats.totalCompleted} completed tasks):`,
     `Overall: median ${fmtSec(stats.overall.median)}, range ${fmtSec(stats.overall.p25)}–${fmtSec(stats.overall.p75)}`,
@@ -106,6 +172,13 @@ export function formatStatsContext(stats: ProjectStats): string {
   for (const s of stats.byClassification) {
     lines.push(
       `${s.classification}: median ${fmtSec(s.median)} (${fmtSec(s.p25)}–${fmtSec(s.p75)}, ${s.volatility} volatility, ${s.count} tasks)`,
+    );
+  }
+
+  if (estimate) {
+    const vol = estimate.volatility === 'high' ? ' — high volatility, wide range expected' : '';
+    lines.push(
+      `→ Current task estimate: ${fmtSec(estimate.low)}–${fmtSec(estimate.high)} (${estimate.confidence}% confidence, ${estimate.basis}${vol})`,
     );
   }
 

@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { computeStats, formatStatsContext } from '../dist/stats.js';
+import { computeStats, formatStatsContext, scorePromptComplexity, estimateTask } from '../dist/stats.js';
 
 function makeTask(overrides = {}) {
   return {
@@ -105,6 +105,72 @@ describe('computeStats', () => {
   });
 });
 
+describe('scorePromptComplexity', () => {
+  it('scores simple prompts low', () => {
+    assert.equal(scorePromptComplexity('fix typo'), 1);
+    assert.equal(scorePromptComplexity('add button'), 1);
+  });
+
+  it('scores long prompts higher', () => {
+    const long = 'implement a feature that ' + 'does something important '.repeat(10);
+    assert.ok(scorePromptComplexity(long) >= 2);
+  });
+
+  it('scores file mentions', () => {
+    const withFiles = 'modify store.ts and stats.ts and types.ts';
+    assert.ok(scorePromptComplexity(withFiles) >= 2);
+  });
+
+  it('scores scope words', () => {
+    assert.ok(scorePromptComplexity('refactor all modules') >= 2);
+    assert.ok(scorePromptComplexity('update every component') >= 2);
+    assert.ok(scorePromptComplexity('change the entire auth system') >= 2);
+  });
+
+  it('caps at 5', () => {
+    const maxComplexity =
+      'implement the entire prediction system across all files in the codebase — you need to modify store.ts, stats.ts, types.ts, on-prompt.ts, on-stop.ts, on-tool-use.ts and several more modules throughout the project with comprehensive confidence interval calculations';
+    assert.equal(scorePromptComplexity(maxComplexity), 5);
+  });
+});
+
+describe('estimateTask', () => {
+  const stats = {
+    totalCompleted: 30,
+    overall: { median: 300, p25: 120, p75: 600 },
+    byClassification: [
+      { classification: 'bugfix', count: 10, median: 200, p25: 100, p75: 400, volatility: 'medium' },
+      { classification: 'feature', count: 8, median: 900, p25: 600, p75: 1500, volatility: 'medium' },
+    ],
+  };
+
+  it('uses classification-specific stats when available', () => {
+    const est = estimateTask(stats, 'bugfix', 3);
+    assert.equal(est.confidence, 80);
+    assert.ok(est.basis.includes('bugfix'));
+    assert.ok(est.low > 0);
+    assert.ok(est.high > est.low);
+  });
+
+  it('falls back to overall stats for unknown classification', () => {
+    const est = estimateTask(stats, 'docs', 3);
+    assert.equal(est.confidence, 60);
+    assert.ok(est.basis.includes('no docs-specific data'));
+  });
+
+  it('shifts estimate up for high complexity', () => {
+    const low = estimateTask(stats, 'bugfix', 1);
+    const high = estimateTask(stats, 'bugfix', 5);
+    assert.ok(high.median > low.median);
+    assert.ok(high.high > low.high);
+  });
+
+  it('never returns negative low', () => {
+    const est = estimateTask(stats, 'bugfix', 1);
+    assert.ok(est.low >= 1);
+  });
+});
+
 describe('formatStatsContext', () => {
   it('produces readable context string', () => {
     const stats = {
@@ -121,5 +187,45 @@ describe('formatStatsContext', () => {
     assert.ok(ctx.includes('bugfix'));
     assert.ok(ctx.includes('feature'));
     assert.ok(ctx.includes('calibrate'));
+  });
+
+  it('includes task estimate when provided', () => {
+    const stats = {
+      totalCompleted: 20,
+      overall: { median: 480, p25: 120, p75: 900 },
+      byClassification: [],
+    };
+    const estimate = {
+      low: 120,
+      high: 600,
+      median: 300,
+      confidence: 80,
+      basis: '10 similar bugfix tasks',
+      volatility: 'medium',
+      complexity: 3,
+    };
+    const ctx = formatStatsContext(stats, estimate);
+    assert.ok(ctx.includes('Current task estimate'));
+    assert.ok(ctx.includes('80%'));
+    assert.ok(ctx.includes('10 similar bugfix tasks'));
+  });
+
+  it('notes high volatility in estimate', () => {
+    const stats = {
+      totalCompleted: 20,
+      overall: { median: 480, p25: 120, p75: 900 },
+      byClassification: [],
+    };
+    const estimate = {
+      low: 60,
+      high: 1200,
+      median: 300,
+      confidence: 80,
+      basis: '5 similar debug tasks',
+      volatility: 'high',
+      complexity: 3,
+    };
+    const ctx = formatStatsContext(stats, estimate);
+    assert.ok(ctx.includes('high volatility'));
   });
 });

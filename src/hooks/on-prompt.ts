@@ -9,7 +9,7 @@ import type { UserPromptSubmitStdin, TaskEntry } from '../types.js';
 import { readStdin } from '../stdin.js';
 import { loadProject, addTask, setActiveTask, flushActiveTask } from '../store.js';
 import { classifyPrompt, summarizePrompt } from '../classify.js';
-import { computeStats, formatStatsContext } from '../stats.js';
+import { computeStats, formatStatsContext, estimateTask, scorePromptComplexity } from '../stats.js';
 
 function projectName(cwd?: string): string {
   if (!cwd) return 'unknown';
@@ -64,9 +64,11 @@ async function main(): Promise<void> {
   addTask(project, task);
   setActiveTask(project, taskId);
 
-  // Inject velocity context if enough data exists
+  // Inject velocity context + per-task estimate if enough data exists
   if (stats) {
-    respond(formatStatsContext(stats));
+    const complexity = scorePromptComplexity(prompt);
+    const estimate = estimateTask(stats, task.classification, complexity);
+    respond(formatStatsContext(stats, estimate));
   }
 }
 
