@@ -1,4 +1,35 @@
+## Build
 node_modules/
 dist/
 *.tsbuildinfo
+
+## Secrets & env
 .env*
+*.pem
+*.key
+
+## Plugin data (contains personal task history — never push)
+data/
+_active.json
+
+## IDE & editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+## Claude Code local state (personal, per-machine)
+.claude/
+.agents/
+
+## Cursor local state
+.cursor/
+
+## BMAD local output & config (personal brainstorming, project-specific)
+_bmad/
+_bmad-output/
+
+## OS
+.DS_Store
+Thumbs.db

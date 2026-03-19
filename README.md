@@ -1,188 +1,107 @@
 # claude-eta
 
-**Know how long your tasks actually take.** A Claude Code plugin that tracks task durations, learns your project's velocity, and calibrates Claude's time estimates with real data.
+> Claude says "this will take about 2 days."
+> Your history says 12 minutes.
+> **claude-eta fixes that.**
 
-> Claude says "this will take about 2 days." Your history says it takes 12 minutes.
-> claude-eta fixes that.
-
-## What it does
-
-claude-eta runs silently in the background and does three things:
-
-1. **Tracks every task** — duration, tool calls, files touched, classification, errors
-2. **Learns your velocity** — builds per-project stats with medians, confidence ranges, and volatility by task type
-3. **Calibrates Claude** — injects your real velocity data into Claude's context so it stops hallucinating time estimates
-
-No configuration. No interruptions. Install it and forget about it.
+A Claude Code plugin that silently tracks your real task durations, then uses that data to make Claude honest about time.
 
 ## Install
-
-```bash
-claude plugin add --local /path/to/claude-eta
-```
-
-Or from the marketplace:
 
 ```bash
 claude plugin add claude-eta
 ```
 
-## Commands
+That's it. No config. It starts working immediately.
 
-### `/eta` — Session stats
+## What happens after install
 
-```
-## Session Stats (4 tasks completed)
+**Nothing visible.** That's the point.
 
-| Metric              | Value               |
-|---------------------|---------------------|
-| Tasks completed     | 4                   |
-| Total time          | 18m 32s             |
-| Avg per task        | 4m 38s              |
-| Total tool calls    | 47                  |
-| Files read          | 23                  |
-| Files edited        | 11                  |
-| Errors              | 1                   |
-```
+claude-eta hooks into Claude Code's lifecycle and works silently:
 
-### `/eta history` — Recent tasks
+- Every prompt you send starts a timer
+- Every tool call is counted (reads, edits, errors)
+- Every task completion records the real duration
+- After 5 tasks, Claude starts receiving your actual velocity data
 
-```
-## Last 10 Tasks
+When you eventually ask "how long will this take?", Claude answers with your real numbers — not a hallucination.
 
-| Date          | Duration | Type     | Prompt                           | Tools |
-|---------------|----------|----------|----------------------------------|-------|
-| 19 Mar, 18:38 | 4m 12s   | bugfix   | fix the login bug in auth module |    12 |
-| 19 Mar, 18:15 | 22m 8s   | feature  | implement pagination for the API |    34 |
-| 19 Mar, 17:50 | 1m 42s   | config   | update eslint config             |     5 |
-```
+And if Claude still says something absurd like "this will take 2 days" for a 10-minute bugfix? claude-eta catches it, blocks the response, and injects a correction. Claude fixes itself. You never see the intervention.
 
-### `/eta stats` — Averages by type
+## Three commands. That's all.
+
+**`/eta`** — What happened this session
 
 ```
-## Stats by Task Type (47 total)
+Session Stats (4 tasks completed)
 
-| Type      | Count | Avg Duration | Avg Tools | Avg Files |
-|-----------|-------|--------------|-----------|-----------|
-| feature   |    12 | 18m          |        28 |        14 |
-| bugfix    |    15 | 6m           |        11 |         5 |
-| refactor  |     8 | 12m          |        19 |         9 |
-| config    |     6 | 3m           |         4 |         2 |
+Tasks completed      4
+Total time           18m 32s
+Avg per task         4m 38s
+Tool calls           47
+Errors               1
 ```
 
-## How calibration works
-
-After 5 completed tasks, claude-eta starts injecting your project's velocity data into Claude's context at every prompt:
+**`/eta history`** — Your recent tasks
 
 ```
-[claude-eta] Project velocity (47 completed tasks):
-Overall: median 8m, range 3m–22m
-bugfix: median 6m (3m–12m, medium volatility, 15 tasks)
-feature: median 18m (10m–35m, medium volatility, 12 tasks)
-config: median 3m (1m–5m, low volatility, 6 tasks)
+Date          Duration  Type      Prompt
+19 Mar 18:38  4m 12s    bugfix    fix the login bug in auth module
+19 Mar 18:15  22m 8s    feature   implement pagination for the API
+19 Mar 17:50  1m 42s    config    update eslint config
 ```
 
-Claude reads this and calibrates automatically. When you ask "how long will this take?", the answer comes from your real data, not a hallucination.
-
-**Silent by default.** You never see the injection. Claude just gets smarter about time.
-
-## Architecture
+**`/eta stats`** — Your averages by task type
 
 ```
-SessionStart  →  Inject velocity context (passive awareness)
-     ↓
-UserPromptSubmit  →  Classify task + inject stats + start timer
-     ↓
-PostToolUse (×N)  →  Count tools, files, errors (in _active.json)
-     ↓
-Stop  →  Flush counters, record duration, recalibrate stats
+Type       Count  Avg Duration
+feature       12  18m
+bugfix        15  6m
+refactor       8  12m
+config         6  3m
 ```
 
-Four hooks, zero dependencies, local JSON storage. Every task completion feeds back into the model — the more you use it, the more accurate it gets.
+## How it actually works
 
-### Data storage
+```
+You type a prompt
+    |
+    v
+claude-eta classifies it (bugfix? feature? refactor?)
+scores its complexity, looks up your history,
+and whispers to Claude: "bugfix tasks on this project
+take 3-12 min. This one looks like a 5-8 min job."
+    |
+    v
+Claude works. claude-eta counts every tool call.
+    |
+    v
+Claude finishes. claude-eta records the real duration.
+Next time, the estimate is more accurate.
+```
+
+Every task makes the next estimate better. It's a feedback loop.
+
+## Privacy
+
+Everything stays on your machine.
 
 ```
 ~/.claude/plugins/claude-eta/data/
-├── my-project.json        # Task history per project
-├── another-project.json
-└── _active.json           # Current task counters (ephemeral)
+  my-project.json          <- human-readable JSON, that's it
 ```
 
-Everything is local, human-readable JSON. No cloud, no telemetry, no tracking. `cat` the file to see exactly what's stored.
+No cloud. No telemetry. No tracking. Run `cat` on the file if you want to see exactly what's stored.
 
-## Task classification
-
-Prompts are automatically classified into 9 categories based on keyword matching:
-
-| Type | Triggers on |
-|------|-------------|
-| bugfix | fix, bug, broken, crash, failing, error |
-| feature | add, create, implement, build, new |
-| refactor | refactor, rename, extract, simplify |
-| test | test, spec, jest, playwright, e2e |
-| debug | debug, investigate, diagnose, why |
-| config | config, setup, install, docker, env |
-| docs | doc, readme, changelog, documentation |
-| review | review, PR, audit, inspect |
-| other | everything else |
-
-Classification drives per-type velocity stats and volatility regimes. A "bugfix" median of 6 minutes means something different than a "feature" median of 18 minutes.
-
-## Roadmap
-
-### Now (v0.1) — Tracking + Calibration
-- [x] Automatic task duration tracking
-- [x] Prompt classification (9 categories)
-- [x] Tool call / file / error counting
-- [x] `/eta`, `/eta history`, `/eta stats` commands
-- [x] Pre-emptive context injection (calibrate Claude)
-- [x] Passive velocity context at session start
-
-### Next (v0.2) — Prediction Engine
-- [ ] Composite triage score (APACHE-style prompt complexity scoring)
-- [ ] Confidence intervals ("8-18 min, 80%") instead of point estimates
-- [ ] Enriched Layer 0 recalibration (volatility by type, median, IQR)
-
-### Later (v0.3) — Live Refinement
-- [ ] Phase detection (explore → edit → test) from tool call patterns
-- [ ] Early warning when task drifts beyond expected range
-- [ ] Live ETA recalculation during execution
-- [ ] Speedrun-style split comparison (PB vs current)
-
-### Future (v1.0) — Community Intelligence
-- [ ] Opt-in anonymized velocity sharing (inspectable, dry-run before send)
-- [ ] Cross-project baselines by (task_type, tech_stack, project_size, model)
-- [ ] Task similarity matching (nearest-neighbor, not just category averages)
-
-## Development
+## Contributing
 
 ```bash
 git clone https://github.com/mmmprod/claude-eta
 cd claude-eta
 npm install
 npm run build
-npm test          # 33 tests
-npm run format    # Prettier
-npm run lint      # TypeScript strict check
-```
-
-### Project structure
-
-```
-src/
-├── types.ts             # Type definitions (TaskEntry, ActiveTask, hook stdin)
-├── store.ts             # JSON persistence + active task tracking
-├── classify.ts          # Prompt classification heuristic (9 categories)
-├── stats.ts             # Velocity stats (median, IQR, volatility)
-├── stdin.ts             # Shared stdin reader for hooks
-├── cli/
-│   └── eta.ts           # /eta command CLI (session, history, stats)
-└── hooks/
-    ├── on-session-start.ts  # SessionStart → passive velocity context
-    ├── on-prompt.ts         # UserPromptSubmit → classify + inject stats
-    ├── on-tool-use.ts       # PostToolUse → increment counters
-    └── on-stop.ts           # Stop → flush counters + recalibrate
+npm test
 ```
 
 ## License
