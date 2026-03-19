@@ -1,160 +1,138 @@
-<img width="1024" height="559" alt="image" src="https://github.com/user-attachments/assets/5f973f0a-f720-40c9-8046-f55371ededf9" />
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/5f973f0a-f720-40c9-8046-f55371ededf9" alt="claude-eta" width="720" />
+</p>
 
-# claude-eta
+<p align="center">
+  <a href="https://github.com/mmmprod/claude-eta/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue?style=flat-square" alt="MIT License" /></a>
+  <a href="https://nodejs.org"><img src="https://img.shields.io/badge/node-%3E%3D18-brightgreen?style=flat-square&logo=node.js&logoColor=white" alt="Node >= 18" /></a>
+  <a href="https://claude.com"><img src="https://img.shields.io/badge/Claude_Code-plugin-D97757?style=flat-square&logo=claude&logoColor=white" alt="Claude Code Plugin" /></a>
+  <img src="https://img.shields.io/badge/data-100%25_local-222?style=flat-square&logo=shield&logoColor=white" alt="100% Local" />
+  <a href="https://github.com/mmmprod/claude-eta/stargazers"><img src="https://img.shields.io/github/stars/mmmprod/claude-eta?style=flat-square&color=yellow" alt="Stars" /></a>
+</p>
 
-> Claude says "this will take about 2 days."
-> Your history says 12 minutes.
-> **claude-eta fixes that.**
+<h3 align="center">Claude guesses. claude-eta measures.</h3>
 
-A Claude Code plugin that silently tracks your real task durations, then uses that data to make Claude honest about time.
+<p align="center">
+  A Claude Code plugin that tracks real task durations, learns your velocity,<br/>
+  and injects that data back into Claude so it stops hallucinating time estimates.
+</p>
 
-## Prerequisites
+---
 
-Before installing claude-eta, you need two things:
+## The problem
 
-### 1. Node.js (v18 or later)
+Claude says *"this should take about 2 days."*
+You finish in 12 minutes.
 
-Check if you already have it:
+Every. Single. Time.
 
-```
-node --version
-```
+LLMs have zero feedback loop between what they promise and what actually happens. They estimate based on perceived complexity of text, not empirical data. **claude-eta creates the data that doesn't exist.**
 
-If it prints something like `v18.x.x`, `v20.x.x`, or `v22.x.x`, you're good. Skip to step 2.
+## Install
 
-If not, install Node.js:
+Works the same on **macOS, Windows, and Linux**. One prerequisite: [Claude Code](https://docs.anthropic.com/en/docs/claude-code/overview) (which requires [Node.js >= 18](https://nodejs.org)).
 
-- **Mac** — Open Terminal and run: `brew install node` (requires [Homebrew](https://brew.sh)). Or download the installer from [nodejs.org](https://nodejs.org)
-- **Windows** — Download the installer from [nodejs.org](https://nodejs.org) (choose the LTS version, click Next through everything)
-- **Linux** — `sudo apt install nodejs npm` (Ubuntu/Debian) or `sudo dnf install nodejs` (Fedora)
-
-### 2. Claude Code
-
-Check if you already have it:
-
-```
-claude --version
-```
-
-If it prints a version number, you're good. Skip to "Install claude-eta".
-
-If not, install Claude Code:
-
-```
+```bash
+# 1. If you don't have Claude Code yet
 npm install -g @anthropic-ai/claude-code
-```
 
-Then run `claude` once to complete the initial setup (login, etc.).
-
-Full guide: [Claude Code documentation](https://docs.anthropic.com/en/docs/claude-code/overview)
-
-## Install claude-eta
-
-Open your terminal and run:
-
-```
+# 2. Install claude-eta
 claude plugin add claude-eta
-```
 
-That's it. One command. No account, no API key, no config file.
-
-### Verify it worked
-
-```
+# 3. Verify
 claude plugin list
 ```
 
-You should see `claude-eta` in the list. If you do, the install is complete.
+That's it. No account, no API key, no config file. Launch `claude` and start working. claude-eta activates automatically and begins learning your pace after the first few tasks.
 
-### Start using it
+## What happens next
 
-Launch Claude Code normally:
+Nothing visible. That's the design.
 
-```
-claude
-```
+claude-eta hooks into Claude Code's lifecycle and works in the background. Every prompt starts a timer. Every tool call is counted. Every completed task records the real duration. After a few tasks, Claude starts receiving your actual velocity data as context before it responds.
 
-claude-eta activates automatically. Send a few prompts, and it starts learning your pace. After ~5 tasks, Claude begins receiving your actual velocity data instead of guessing.
+When you ask *"how long will this take?"*, Claude answers with your real numbers. Not a guess.
 
-## What happens after install
-
-**Nothing visible.** That's the point.
-
-claude-eta hooks into Claude Code's lifecycle and works silently:
-
-- Every prompt you send starts a timer
-- Every tool call is counted (reads, edits, errors)
-- Every task completion records the real duration
-- After ~5 tasks, Claude starts receiving your actual velocity data
-
-When you eventually ask "how long will this take?", Claude answers with your real numbers — not a hallucination.
-
-And if Claude still says something absurd like "this will take 2 days" for a 10-minute bugfix? claude-eta catches it, blocks the response, and injects a correction. Claude fixes itself. You never see the intervention.
+And when Claude still says something absurd? claude-eta catches it, corrects it inline, and Claude fixes itself. You never see the intervention.
 
 ## Commands
 
-**`/eta`** — What happened this session
-
-```
-Session Stats (4 tasks completed)
-
-Tasks completed      4
-Total time           18m 32s
-Avg per task         4m 38s
-Tool calls           47
-Errors               1
-```
-
-**`/eta history`** — Your recent tasks
-
-```
-Date          Duration  Type      Prompt
-19 Mar 18:38  4m 12s    bugfix    fix the login bug in auth module
-19 Mar 18:15  22m 8s    feature   implement pagination for the API
-19 Mar 17:50  1m 42s    config    update eslint config
-```
-
-**`/eta stats`** — Your averages by task type
-
-```
-Type       Count  Avg Duration
-feature       12  18m
-bugfix        15  6m
-refactor       8  12m
-config         6  3m
-```
+| Command | What it does |
+|---|---|
+| `/eta` | Current session stats: tasks completed, total time, tool calls |
+| `/eta history` | Recent tasks with real durations, types, and prompts |
+| `/eta stats` | Your averages by task type across all sessions |
+| `/eta inspect` | Show exactly what data is stored (transparency first) |
 
 ## How it works
 
 ```
-You type a prompt
-    |
-    v
-claude-eta classifies it (bugfix? feature? refactor?)
-scores its complexity, looks up your history,
-and whispers to Claude: "bugfix tasks on this project
-take 3-12 min. This one looks like a 5-8 min job."
-    |
-    v
-Claude works. claude-eta counts every tool call.
-    |
-    v
-Claude finishes. claude-eta records the real duration.
-Next time, the estimate is more accurate.
+                    ┌─────────────────────────────┐
+                    │       You type a prompt      │
+                    └──────────────┬──────────────┘
+                                   │
+                    ┌──────────────▼──────────────┐
+                    │    claude-eta intercepts     │
+                    │                              │
+                    │  · classifies the task       │
+                    │  · scores prompt complexity   │
+                    │  · looks up your history      │
+                    │  · injects velocity context   │
+                    │    into Claude's prompt       │
+                    └──────────────┬──────────────┘
+                                   │
+                    ┌──────────────▼──────────────┐
+                    │      Claude works.           │
+                    │  claude-eta counts every      │
+                    │  tool call silently.          │
+                    └──────────────┬──────────────┘
+                                   │
+                    ┌──────────────▼──────────────┐
+                    │    Task complete.             │
+                    │  Real duration recorded.      │
+                    │  Model recalibrated.          │
+                    │                              │
+                    │  Next estimate = more         │
+                    │  accurate. Every task makes   │
+                    │  the next one better.         │
+                    └─────────────────────────────┘
 ```
 
-Every task makes the next estimate better. It's a feedback loop.
+The key insight: claude-eta doesn't just correct Claude after the fact. It **calibrates Claude before it responds** by injecting real project statistics (medians, confidence intervals, volatility per task type) as context. Claude integrates these naturally. The hallucinated estimates simply stop.
+
+## Architecture
+
+claude-eta is designed in layers, shipped incrementally:
+
+**Layer 0 / Feedback Loop** *(shipped)* — Every completed task recalibrates the model. Medians, interquartile ranges, and volatility per task type are recomputed on every session close. This is the foundation everything else builds on.
+
+**Layer 1 / Static Estimation** *(shipped)* — At session start, you get passive velocity context for the project. At each prompt, a composite triage score (prompt complexity + historical lookup) produces a confidence interval, not a point estimate. Claude receives this as `additionalContext` and self-calibrates.
+
+**Layer 2 / Live Refinement** *(next)* — After the first 10 tool calls, real-time velocity data triggers ETA recalculation. Phase detection (explore → edit → test) splits the task like a speedrun timer. Early warning fires when drift exceeds 2x the median.
+
+**Layer 3 / Collective Intelligence** *(future)* — Opt-in anonymized velocity dataset across users. Your local history bootstraps the model; the community makes initial estimates accurate for everyone. Think Waze, but for dev tasks.
+
+**Bullshit Detector** *(transversal)* — Scans Claude's output for temporal patterns ("should take about 2 days") and injects corrections when the claim conflicts with historical data. Annotation, not interruption.
 
 ## Privacy
 
-Everything stays on your machine. No cloud. No telemetry. No tracking.
+**Everything stays on your machine.** No cloud. No telemetry. No tracking. No analytics.
 
 ```
 ~/.claude/plugins/claude-eta/data/
-  my-project.json          <- human-readable JSON, that's it
+  └── my-project.json       ← human-readable JSON. That's all there is.
 ```
 
-Run `cat` on the file if you want to see exactly what's stored. There is nothing else.
+Run `/eta inspect` or `cat` the file directly. What you see is what exists. There is nothing else.
+
+Layer 3 (community data) will be strictly opt-in with `--dry-run` to preview exactly what would be shared before anything leaves your machine.
+
+## Requirements
+
+| Dependency | Version |
+|---|---|
+| Node.js | >= 18 |
+| Claude Code | >= 2.0.12 |
 
 ## Uninstall
 
@@ -162,36 +140,15 @@ Run `cat` on the file if you want to see exactly what's stored. There is nothing
 claude plugin remove claude-eta
 ```
 
-This removes the plugin. Your tracking data stays in `~/.claude/plugins/claude-eta/data/` in case you reinstall later. To delete it too:
+Your data stays in `~/.claude/plugins/claude-eta/data/` in case you come back. To remove everything:
 
 ```
 rm -rf ~/.claude/plugins/claude-eta/data/
 ```
 
-## Troubleshooting
-
-**"command not found: claude"**
-Claude Code isn't installed. See the [Prerequisites](#prerequisites) section above.
-
-**"command not found: node"**
-Node.js isn't installed. See the [Prerequisites](#prerequisites) section above.
-
-**Plugin doesn't appear in `claude plugin list`**
-Try reinstalling: `claude plugin remove claude-eta && claude plugin add claude-eta`
-
-**`/eta` shows nothing**
-Normal on first use. Complete a few tasks first — claude-eta needs data before it can show stats.
-
-**Estimates seem off**
-They improve with more data. After 10-15 tasks, estimates become quite accurate. Each project has its own history.
-
-## Update
-
-```
-claude plugin remove claude-eta && claude plugin add claude-eta
-```
-
 ## Contributing
+
+claude-eta is built by one person, but the roadmap is ambitious. If you care about making LLM time estimates not suck, there's room to contribute.
 
 ```bash
 git clone https://github.com/mmmprod/claude-eta
@@ -201,6 +158,21 @@ npm run build
 npm test
 ```
 
+**Where to start:**
+
+The [Architecture](#architecture) section maps the layers. Layer 2 (live refinement) and the Bullshit Detector are the next frontiers. Open an issue if something interests you, or just send a PR. Code quality matters more than volume.
+
+**What makes a good contribution:**
+
+Real data that challenges assumptions. A better heuristic for the triage score. A hook you didn't think we needed. A use case we missed. If your PR includes a test, you're already ahead.
+
 ## License
 
 MIT
+
+---
+
+<p align="center">
+  <sub>Built by <a href="https://github.com/mmmprod">@mmmprod</a></sub><br/>
+  <sub>Claude guesses. We measure.</sub>
+</p>
