@@ -8,7 +8,7 @@ import * as os from 'node:os';
 import { loadProject } from '../store.js';
 import { contributorHash, projectHash, normalizeModel } from '../anonymize.js';
 const EXPORT_DIR = path.join(os.homedir(), '.claude', 'plugins', 'claude-eta', 'export');
-function anonymizeTask(task, projName, pluginVersion) {
+export function anonymizeTask(task, projName, pluginVersion, projectMeta) {
     if (task.duration_seconds == null || task.duration_seconds <= 0)
         return null;
     return {
@@ -21,14 +21,17 @@ function anonymizeTask(task, projName, pluginVersion) {
         errors: task.errors,
         model: normalizeModel(task.model),
         project_hash: projectHash(projName),
+        project_file_count: projectMeta?.file_count ?? null,
+        project_loc_bucket: projectMeta?.loc_bucket ?? null,
         plugin_version: pluginVersion,
         contributor_hash: contributorHash(),
     };
 }
 export function anonymizeProject(projName, pluginVersion) {
     const data = loadProject(projName);
+    const meta = { file_count: data.file_count, loc_bucket: data.loc_bucket };
     return data.tasks
-        .map((t) => anonymizeTask(t, projName, pluginVersion))
+        .map((t) => anonymizeTask(t, projName, pluginVersion, meta))
         .filter((r) => r !== null);
 }
 export function exportToFile(projName, pluginVersion) {

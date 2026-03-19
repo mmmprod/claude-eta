@@ -33,6 +33,8 @@ export interface ProjectData {
   project: string;
   created: string;
   tasks: TaskEntry[];
+  file_count?: number;
+  loc_bucket?: string;
 }
 
 /** Active task tracker (stored in _active.json) */
