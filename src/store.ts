@@ -10,13 +10,25 @@ function slugify(name: string): string {
 }
 
 function ensureDataDir(): void {
-  if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
-  }
+  fs.mkdirSync(DATA_DIR, { recursive: true });
 }
 
 function getProjectPath(project: string): string {
   return path.join(DATA_DIR, `${slugify(project)}.json`);
+}
+
+/** Fill in defaults for tasks from older plugin versions */
+function normalizeTask(t: TaskEntry): TaskEntry {
+  return {
+    ...t,
+    tool_calls: t.tool_calls ?? 0,
+    files_read: t.files_read ?? 0,
+    files_edited: t.files_edited ?? 0,
+    files_created: t.files_created ?? 0,
+    errors: t.errors ?? 0,
+    prompt_summary: t.prompt_summary ?? '',
+    classification: t.classification ?? 'other',
+  };
 }
 
 // ── Project data ──────────────────────────────────────────────
@@ -25,16 +37,14 @@ export function loadProject(project: string): ProjectData {
   ensureDataDir();
   const filePath = getProjectPath(project);
 
-  if (fs.existsSync(filePath)) {
+  try {
     const content = fs.readFileSync(filePath, 'utf-8');
-    return JSON.parse(content) as ProjectData;
+    const data = JSON.parse(content) as ProjectData;
+    data.tasks = data.tasks.map(normalizeTask);
+    return data;
+  } catch {
+    return { project, created: new Date().toISOString(), tasks: [] };
   }
-
-  return {
-    project,
-    created: new Date().toISOString(),
-    tasks: [],
-  };
 }
 
 export function saveProject(data: ProjectData): void {
@@ -80,20 +90,18 @@ export function setActiveTask(project: string, taskId: string): void {
 }
 
 export function getActiveTask(): ActiveTask | null {
-  const activePath = getActivePath();
-  if (!fs.existsSync(activePath)) return null;
-
   try {
-    return JSON.parse(fs.readFileSync(activePath, 'utf-8')) as ActiveTask;
+    return JSON.parse(fs.readFileSync(getActivePath(), 'utf-8')) as ActiveTask;
   } catch {
     return null;
   }
 }
 
 export function clearActiveTask(): void {
-  const activePath = getActivePath();
-  if (fs.existsSync(activePath)) {
-    fs.unlinkSync(activePath);
+  try {
+    fs.unlinkSync(getActivePath());
+  } catch {
+    // Already deleted or never existed
   }
 }
 
@@ -102,11 +110,29 @@ export function incrementActive(increments: Partial<Pick<ActiveTask, 'tool_calls
   const active = getActiveTask();
   if (!active) return;
 
-  if (increments.tool_calls) active.tool_calls += increments.tool_calls;
-  if (increments.files_read) active.files_read += increments.files_read;
-  if (increments.files_edited) active.files_edited += increments.files_edited;
-  if (increments.files_created) active.files_created += increments.files_created;
-  if (increments.errors) active.errors += increments.errors;
+  if (increments.tool_calls != null) active.tool_calls += increments.tool_calls;
+  if (increments.files_read != null) active.files_read += increments.files_read;
+  if (increments.files_edited != null) active.files_edited += increments.files_edited;
+  if (increments.files_created != null) active.files_created += increments.files_created;
+  if (increments.errors != null) active.errors += increments.errors;
 
   fs.writeFileSync(getActivePath(), JSON.stringify(active), 'utf-8');
+}
+
+/** Close the active task: flush counters to project data, clear active file */
+export function flushActiveTask(): void {
+  const active = getActiveTask();
+  if (!active) return;
+
+  const durationMs = Date.now() - active.start;
+  updateLastTask(active.project, {
+    timestamp_end: new Date().toISOString(),
+    duration_seconds: Math.round(durationMs / 1000),
+    tool_calls: active.tool_calls ?? 0,
+    files_read: active.files_read ?? 0,
+    files_edited: active.files_edited ?? 0,
+    files_created: active.files_created ?? 0,
+    errors: active.errors ?? 0,
+  });
+  clearActiveTask();
 }

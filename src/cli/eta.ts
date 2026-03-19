@@ -29,18 +29,15 @@ function fmtDate(iso: string): string {
   });
 }
 
-function padRight(s: string, len: number): string {
-  return s.length >= len ? s.slice(0, len) : s + ' '.repeat(len - s.length);
-}
-
-function padLeft(s: string, len: number): string {
-  return s.length >= len ? s : ' '.repeat(len - s.length) + s;
+/** Pad and truncate to exact column width */
+function col(s: string, len: number, align: 'left' | 'right' = 'left'): string {
+  const truncated = s.length > len ? s.slice(0, len) : s;
+  return align === 'left' ? truncated.padEnd(len) : truncated.padStart(len);
 }
 
 // ── Modes ─────────────────────────────────────────────────────
 
 function showSession(tasks: TaskEntry[]): void {
-  // Current session = tasks with no timestamp_end (active) or the most recent session_id
   const lastSessionId = tasks[tasks.length - 1].session_id;
   const sessionTasks = tasks.filter(t => t.session_id === lastSessionId);
 
@@ -53,13 +50,13 @@ function showSession(tasks: TaskEntry[]): void {
   console.log(`## Session Stats (${completed.length} tasks completed)\n`);
   console.log(`| Metric              | Value               |`);
   console.log(`|---------------------|---------------------|`);
-  console.log(`| Tasks completed     | ${padRight(String(completed.length), 19)} |`);
-  console.log(`| Total time          | ${padRight(fmtDuration(totalSec), 19)} |`);
-  console.log(`| Avg per task        | ${padRight(completed.length > 0 ? fmtDuration(avgSec) : '-', 19)} |`);
-  console.log(`| Total tool calls    | ${padRight(String(completed.reduce((s, t) => s + t.tool_calls, 0)), 19)} |`);
-  console.log(`| Files read          | ${padRight(String(completed.reduce((s, t) => s + t.files_read, 0)), 19)} |`);
-  console.log(`| Files edited        | ${padRight(String(completed.reduce((s, t) => s + t.files_edited, 0)), 19)} |`);
-  console.log(`| Errors              | ${padRight(String(completed.reduce((s, t) => s + t.errors, 0)), 19)} |`);
+  console.log(`| Tasks completed     | ${col(String(completed.length), 19)} |`);
+  console.log(`| Total time          | ${col(fmtDuration(totalSec), 19)} |`);
+  console.log(`| Avg per task        | ${col(completed.length > 0 ? fmtDuration(avgSec) : '-', 19)} |`);
+  console.log(`| Total tool calls    | ${col(String(completed.reduce((s, t) => s + t.tool_calls, 0)), 19)} |`);
+  console.log(`| Files read          | ${col(String(completed.reduce((s, t) => s + t.files_read, 0)), 19)} |`);
+  console.log(`| Files edited        | ${col(String(completed.reduce((s, t) => s + t.files_edited, 0)), 19)} |`);
+  console.log(`| Errors              | ${col(String(completed.reduce((s, t) => s + t.errors, 0)), 19)} |`);
 
   if (active) {
     console.log(`\n**Active task**: "${active.prompt_summary}" (${active.classification})`);
@@ -74,11 +71,11 @@ function showHistory(tasks: TaskEntry[]): void {
   console.log(`|---------------|----------|----------|----------------------------------|-------|`);
 
   for (const t of recent) {
-    const date = padRight(fmtDate(t.timestamp_start), 13);
-    const dur = padRight(t.duration_seconds !== null ? fmtDuration(t.duration_seconds) : 'running', 8);
-    const cls = padRight(t.classification, 8);
-    const prompt = padRight(t.prompt_summary.slice(0, 34) || '-', 34);
-    const tools = padLeft(String(t.tool_calls), 5);
+    const date = col(fmtDate(t.timestamp_start), 13);
+    const dur = col(t.duration_seconds !== null ? fmtDuration(t.duration_seconds) : 'running', 8);
+    const cls = col(t.classification, 8);
+    const prompt = col(t.prompt_summary.slice(0, 34) || '-', 34);
+    const tools = col(String(t.tool_calls), 5, 'right');
     console.log(`| ${date} | ${dur} | ${cls} | ${prompt} | ${tools} |`);
   }
 }
@@ -97,7 +94,6 @@ function showStats(tasks: TaskEntry[]): void {
     byType.set(t.classification, list);
   }
 
-  // Sort by count descending
   const sorted = [...byType.entries()].sort((a, b) => b[1].length - a[1].length);
 
   console.log(`## Stats by Task Type (${completed.length} total)\n`);
@@ -110,25 +106,11 @@ function showStats(tasks: TaskEntry[]): void {
     const avgTools = Math.round(entries.reduce((s, t) => s + t.tool_calls, 0) / count);
     const avgFiles = Math.round(entries.reduce((s, t) => s + t.files_read + t.files_edited + t.files_created, 0) / count);
 
-    console.log(`| ${padRight(cls, 9)} | ${padLeft(String(count), 5)} | ${padRight(fmtDuration(avgDur), 12)} | ${padLeft(String(avgTools), 9)} | ${padLeft(String(avgFiles), 9)} |`);
+    console.log(`| ${col(cls, 9)} | ${col(String(count), 5, 'right')} | ${col(fmtDuration(avgDur), 12)} | ${col(String(avgTools), 9, 'right')} | ${col(String(avgFiles), 9, 'right')} |`);
   }
 }
 
 // ── Main ──────────────────────────────────────────────────────
-
-/** Normalize tasks from older versions that may lack counter fields */
-function normalize(t: TaskEntry): TaskEntry {
-  return {
-    ...t,
-    tool_calls: t.tool_calls ?? 0,
-    files_read: t.files_read ?? 0,
-    files_edited: t.files_edited ?? 0,
-    files_created: t.files_created ?? 0,
-    errors: t.errors ?? 0,
-    prompt_summary: t.prompt_summary ?? '',
-    classification: t.classification ?? 'other',
-  };
-}
 
 function main(): void {
   const mode = process.argv[2] ?? 'session';
@@ -136,7 +118,6 @@ function main(): void {
   const project = path.basename(cwd);
 
   const data = loadProject(project);
-  data.tasks = data.tasks.map(normalize);
 
   if (data.tasks.length === 0) {
     console.log('No tasks tracked yet. claude-eta is recording — data will appear after your first completed task.');

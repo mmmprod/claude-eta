@@ -4,23 +4,15 @@
  */
 import type { PostToolUseStdin } from '../types.js';
 import { readStdin } from '../stdin.js';
-import { getActiveTask, incrementActive } from '../store.js';
+import { incrementActive } from '../store.js';
 
 async function main(): Promise<void> {
   const stdin = await readStdin<PostToolUseStdin>();
   if (!stdin) return;
 
-  if (!getActiveTask()) return;
-
   const toolName = stdin.tool_name ?? '';
 
-  const increments: {
-    tool_calls: number;
-    files_read?: number;
-    files_edited?: number;
-    files_created?: number;
-    errors?: number;
-  } = { tool_calls: 1 };
+  const increments: Parameters<typeof incrementActive>[0] = { tool_calls: 1 };
 
   switch (toolName) {
     case 'Read':
