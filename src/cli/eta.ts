@@ -24,8 +24,10 @@ function fmtDuration(seconds: number): string {
 function fmtDate(iso: string): string {
   const d = new Date(iso);
   return d.toLocaleString('en-GB', {
-    month: 'short', day: 'numeric',
-    hour: '2-digit', minute: '2-digit',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
   });
 }
 
@@ -39,10 +41,10 @@ function col(s: string, len: number, align: 'left' | 'right' = 'left'): string {
 
 function showSession(tasks: TaskEntry[]): void {
   const lastSessionId = tasks[tasks.length - 1].session_id;
-  const sessionTasks = tasks.filter(t => t.session_id === lastSessionId);
+  const sessionTasks = tasks.filter((t) => t.session_id === lastSessionId);
 
-  const completed = sessionTasks.filter(t => t.duration_seconds !== null);
-  const active = sessionTasks.find(t => t.duration_seconds === null);
+  const completed = sessionTasks.filter((t) => t.duration_seconds !== null);
+  const active = sessionTasks.find((t) => t.duration_seconds === null);
 
   const totalSec = completed.reduce((sum, t) => sum + (t.duration_seconds ?? 0), 0);
   const avgSec = completed.length > 0 ? Math.round(totalSec / completed.length) : 0;
@@ -81,7 +83,7 @@ function showHistory(tasks: TaskEntry[]): void {
 }
 
 function showStats(tasks: TaskEntry[]): void {
-  const completed = tasks.filter(t => t.duration_seconds !== null);
+  const completed = tasks.filter((t) => t.duration_seconds !== null);
   if (completed.length === 0) {
     console.log('No completed tasks yet.');
     return;
@@ -104,9 +106,13 @@ function showStats(tasks: TaskEntry[]): void {
     const count = entries.length;
     const avgDur = Math.round(entries.reduce((s, t) => s + (t.duration_seconds ?? 0), 0) / count);
     const avgTools = Math.round(entries.reduce((s, t) => s + t.tool_calls, 0) / count);
-    const avgFiles = Math.round(entries.reduce((s, t) => s + t.files_read + t.files_edited + t.files_created, 0) / count);
+    const avgFiles = Math.round(
+      entries.reduce((s, t) => s + t.files_read + t.files_edited + t.files_created, 0) / count,
+    );
 
-    console.log(`| ${col(cls, 9)} | ${col(String(count), 5, 'right')} | ${col(fmtDuration(avgDur), 12)} | ${col(String(avgTools), 9, 'right')} | ${col(String(avgFiles), 9, 'right')} |`);
+    console.log(
+      `| ${col(cls, 9)} | ${col(String(count), 5, 'right')} | ${col(fmtDuration(avgDur), 12)} | ${col(String(avgTools), 9, 'right')} | ${col(String(avgFiles), 9, 'right')} |`,
+    );
   }
 }
 

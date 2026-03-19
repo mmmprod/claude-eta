@@ -68,12 +68,12 @@ describe('computeStats', () => {
     assert.ok(stats);
     assert.equal(stats.byClassification.length, 2);
 
-    const bugfix = stats.byClassification.find(s => s.classification === 'bugfix');
+    const bugfix = stats.byClassification.find((s) => s.classification === 'bugfix');
     assert.ok(bugfix);
     assert.equal(bugfix.count, 3);
     assert.equal(bugfix.median, 120);
 
-    const feature = stats.byClassification.find(s => s.classification === 'feature');
+    const feature = stats.byClassification.find((s) => s.classification === 'feature');
     assert.ok(feature);
     assert.equal(feature.count, 2);
   });
@@ -89,7 +89,7 @@ describe('computeStats', () => {
     ];
     const stats = computeStats(lowVol);
     assert.ok(stats);
-    const config = stats.byClassification.find(s => s.classification === 'config');
+    const config = stats.byClassification.find((s) => s.classification === 'config');
     assert.ok(config);
     assert.equal(config.volatility, 'low');
   });

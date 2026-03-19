@@ -18,7 +18,9 @@ const DATA_DIR = path.join(os.homedir(), '.claude', 'plugins', 'claude-eta', 'da
 const TEST_PROJECT = '_test_project_' + Date.now();
 
 function testProjectPath() {
-  const slug = TEST_PROJECT.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  const slug = TEST_PROJECT.toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
   return path.join(DATA_DIR, `${slug}.json`);
 }
 

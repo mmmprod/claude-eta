@@ -21,8 +21,8 @@ export interface ProjectStats {
 
 function sortedDurations(tasks: TaskEntry[]): number[] {
   return tasks
-    .filter(t => t.duration_seconds != null && t.duration_seconds > 0)
-    .map(t => t.duration_seconds as number)
+    .filter((t) => t.duration_seconds != null && t.duration_seconds > 0)
+    .map((t) => t.duration_seconds as number)
     .sort((a, b) => a - b);
 }
 
@@ -105,11 +105,13 @@ export function formatStatsContext(stats: ProjectStats): string {
 
   for (const s of stats.byClassification) {
     lines.push(
-      `${s.classification}: median ${fmtSec(s.median)} (${fmtSec(s.p25)}–${fmtSec(s.p75)}, ${s.volatility} volatility, ${s.count} tasks)`
+      `${s.classification}: median ${fmtSec(s.median)} (${fmtSec(s.p25)}–${fmtSec(s.p75)}, ${s.volatility} volatility, ${s.count} tasks)`,
     );
   }
 
-  lines.push('Use these baselines to calibrate any time estimates. Do not volunteer time estimates unless the user asks.');
+  lines.push(
+    'Use these baselines to calibrate any time estimates. Do not volunteer time estimates unless the user asks.',
+  );
 
   return lines.join('\n');
 }

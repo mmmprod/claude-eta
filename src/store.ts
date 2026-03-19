@@ -6,7 +6,10 @@ import type { ProjectData, TaskEntry, ActiveTask } from './types.js';
 const DATA_DIR = path.join(os.homedir(), '.claude', 'plugins', 'claude-eta', 'data');
 
 function slugify(name: string): string {
-  return name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
 }
 
 function ensureDataDir(): void {
@@ -106,7 +109,9 @@ export function clearActiveTask(): void {
 }
 
 /** Increment counters on the active task (called by PostToolUse hook) */
-export function incrementActive(increments: Partial<Pick<ActiveTask, 'tool_calls' | 'files_read' | 'files_edited' | 'files_created' | 'errors'>>): void {
+export function incrementActive(
+  increments: Partial<Pick<ActiveTask, 'tool_calls' | 'files_read' | 'files_edited' | 'files_created' | 'errors'>>,
+): void {
   const active = getActiveTask();
   if (!active) return;
 
