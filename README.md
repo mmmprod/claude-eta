@@ -161,17 +161,27 @@ Node.js isn't installed. Get it at [nodejs.org](https://nodejs.org).
 **"error: unknown command" or install fails**
 Make sure you ran `claude plugin marketplace add mmmprod/claude-eta` first. The marketplace command must come before the install.
 
-**Plugin doesn't appear in `claude plugin list`**
-Try reinstalling: `claude plugin uninstall claude-eta && claude plugin install claude-eta`
+**Plugin doesn't appear in `claude plugin list` or you need the latest version**
+Refresh the marketplace metadata, then update the plugin:
+
+```bash
+claude plugin marketplace update claude-eta && claude plugin update claude-eta@claude-eta
+```
+
+Restart Claude Code after updating. Reinstall only if the plugin is still missing after that.
 
 **`/eta` shows nothing**
 Normal on first use. Complete a few tasks first — claude-eta needs data before it can show stats.
 
 ## Update
 
+Refresh the marketplace metadata, then update the plugin:
+
+```bash
+claude plugin marketplace update claude-eta && claude plugin update claude-eta@claude-eta
 ```
-claude plugin update claude-eta
-```
+
+Restart Claude Code after the update so the new plugin version is loaded.
 
 ## Contributing
 
