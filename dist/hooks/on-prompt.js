@@ -6,9 +6,9 @@
 import * as crypto from 'node:crypto';
 import * as path from 'node:path';
 import { readStdin } from '../stdin.js';
-import { loadProject, addTask, setActiveTask, flushActiveTask } from '../store.js';
+import { loadProject, addTask, setActiveTask, flushActiveTask, consumeLastCompleted } from '../store.js';
 import { classifyPrompt, summarizePrompt } from '../classify.js';
-import { computeStats, formatStatsContext, estimateTask, scorePromptComplexity } from '../stats.js';
+import { computeStats, formatStatsContext, estimateTask, scorePromptComplexity, getDefaultEstimate, formatColdStartContext, formatTaskRecap, } from '../stats.js';
 function projectName(cwd) {
     if (!cwd)
         return 'unknown';
@@ -34,6 +34,8 @@ async function main() {
     const prompt = stdin.prompt ?? '';
     // Close previous active task if any
     flushActiveTask();
+    // Pick up recap from the last completed task (consume-once)
+    const lastCompleted = consumeLastCompleted();
     // Load project data for stats BEFORE adding the new task
     const data = loadProject(project);
     const stats = computeStats(data.tasks);
@@ -57,12 +59,24 @@ async function main() {
     };
     addTask(project, task);
     setActiveTask(project, taskId);
-    // Inject velocity context + per-task estimate if enough data exists
-    if (stats) {
-        const complexity = scorePromptComplexity(prompt);
-        const estimate = estimateTask(stats, task.classification, complexity);
-        respond(formatStatsContext(stats, estimate));
+    // Build context: optional recap + stats or cold-start baselines
+    const contextParts = [];
+    if (lastCompleted) {
+        contextParts.push(formatTaskRecap(lastCompleted));
     }
+    const complexity = scorePromptComplexity(prompt);
+    if (stats) {
+        // Calibrated path — real project data
+        const estimate = estimateTask(stats, task.classification, complexity);
+        contextParts.push(formatStatsContext(stats, estimate));
+    }
+    else {
+        // Cold start — generic baselines
+        const completedCount = data.tasks.filter((t) => t.duration_seconds != null).length;
+        const estimate = getDefaultEstimate(task.classification, complexity);
+        contextParts.push(formatColdStartContext(estimate, completedCount));
+    }
+    respond(contextParts.join('\n'));
 }
 void main();
 //# sourceMappingURL=on-prompt.js.map

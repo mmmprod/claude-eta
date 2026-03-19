@@ -34,6 +34,10 @@ export interface ActiveTask {
     files_created: number;
     errors: number;
 }
+/** Last completed task summary (ephemeral, for recap in next prompt) */
+export type LastCompleted = Pick<TaskEntry, 'classification' | 'tool_calls' | 'files_read' | 'files_edited' | 'files_created'> & {
+    duration_seconds: number;
+};
 /** Common fields shared by all hook events */
 interface HookStdinBase {
     session_id?: string;

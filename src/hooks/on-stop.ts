@@ -8,19 +8,24 @@
  */
 import type { StopStdin } from '../types.js';
 import { readStdin } from '../stdin.js';
-import { loadProject, flushActiveTask, getActiveTask } from '../store.js';
-import { computeStats } from '../stats.js';
+import { loadProject, flushActiveTask, getActiveTask, setLastCompleted } from '../store.js';
+import { computeStats, fmtSec } from '../stats.js';
 import { extractDurations, findBullshitEstimate } from '../detector.js';
-
-function fmtSec(s: number): string {
-  if (s < 60) return `${s}s`;
-  const min = Math.floor(s / 60);
-  if (min < 60) return `${min}m`;
-  return `${Math.floor(min / 60)}h${min % 60}m`;
-}
 
 function blockWithCorrection(reason: string): void {
   process.stdout.write(JSON.stringify({ decision: 'block', reason }));
+}
+
+/** Flush the active task and record a recap for the next prompt to pick up */
+function flushAndRecord(): void {
+  const data = flushActiveTask();
+  if (!data) return;
+
+  const lastTask = data.tasks[data.tasks.length - 1];
+  if (lastTask?.duration_seconds != null) {
+    const { classification, duration_seconds, tool_calls, files_read, files_edited, files_created } = lastTask;
+    setLastCompleted({ classification, duration_seconds, tool_calls, files_read, files_edited, files_created });
+  }
 }
 
 async function main(): Promise<void> {
@@ -28,7 +33,7 @@ async function main(): Promise<void> {
 
   // If stop hook already fired (correction delivered), just flush
   if (stdin?.stop_hook_active) {
-    flushActiveTask();
+    flushAndRecord();
     return;
   }
 
@@ -69,7 +74,7 @@ async function main(): Promise<void> {
   }
 
   // No bad estimate detected — flush normally
-  flushActiveTask();
+  flushAndRecord();
 }
 
 void main();
