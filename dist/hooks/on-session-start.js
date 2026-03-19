@@ -32,7 +32,8 @@ async function main() {
     let context = formatStatsContext(stats);
     // One-time hint about community features (shown between tasks 5-7)
     if (completed >= CALIBRATION_THRESHOLD && completed <= CALIBRATION_THRESHOLD + 2) {
-        context += '\nTip: run `/eta compare` to see how your pace compares to the community, or `/eta help` for all commands.';
+        context +=
+            '\nTip: run `/eta compare` to see how your pace compares to the community, or `/eta help` for all commands.';
     }
     process.stdout.write(context);
 }

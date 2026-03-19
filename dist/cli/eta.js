@@ -120,7 +120,10 @@ function showInspect(data) {
     }
     // Show latest export if it exists
     try {
-        const files = fs.readdirSync(EXPORT_DIR).filter((f) => f.startsWith('velocity-')).sort();
+        const files = fs
+            .readdirSync(EXPORT_DIR)
+            .filter((f) => f.startsWith('velocity-'))
+            .sort();
         if (files.length > 0) {
             const latest = path.join(EXPORT_DIR, files[files.length - 1]);
             const stat = fs.statSync(latest);
