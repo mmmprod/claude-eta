@@ -1,0 +1,27 @@
+{
+  "description": "claude-eta — task duration tracking hooks",
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node ${CLAUDE_PLUGIN_ROOT}/dist/hooks/on-prompt.js",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node ${CLAUDE_PLUGIN_ROOT}/dist/hooks/on-stop.js",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  }
+}

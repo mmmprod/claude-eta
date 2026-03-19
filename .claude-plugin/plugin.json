@@ -1,0 +1,13 @@
+{
+  "name": "claude-eta",
+  "description": "AI-powered task duration tracker and predictor for Claude Code — know how long your tasks actually take",
+  "version": "0.0.1",
+  "author": {
+    "name": "mmmprod",
+    "url": "https://github.com/mmmprod"
+  },
+  "homepage": "https://github.com/mmmprod/claude-eta",
+  "repository": "https://github.com/mmmprod/claude-eta",
+  "license": "MIT",
+  "keywords": ["eta", "time", "duration", "tracking", "prediction", "estimation", "claude-code", "productivity"]
+}
