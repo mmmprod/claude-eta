@@ -7,7 +7,7 @@
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
-    "test": "npm run build && node --test",
+    "test": "npm run build && node --test --test-concurrency=1",
     "lint": "tsc --noEmit",
     "format": "prettier --write 'src/**/*.ts' 'tests/**/*.js'",
     "format:check": "prettier --check 'src/**/*.ts' 'tests/**/*.js'"
