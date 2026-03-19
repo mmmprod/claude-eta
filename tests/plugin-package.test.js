@@ -40,9 +40,12 @@ function extractHookTargets() {
 describe('plugin packaging', () => {
   it('keeps manifest versions aligned', () => {
     const packageJson = readJson('package.json');
+    const packageLock = readJson('package-lock.json');
     const pluginJson = readJson('.claude-plugin/plugin.json');
     const marketplaceJson = readJson('.claude-plugin/marketplace.json');
 
+    assert.equal(packageLock.version, packageJson.version);
+    assert.equal(packageLock.packages[''].version, packageJson.version);
     assert.equal(pluginJson.version, packageJson.version);
     assert.equal(marketplaceJson.metadata.version, packageJson.version);
   });

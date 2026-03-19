@@ -6,7 +6,7 @@
   },
   "metadata": {
     "description": "AI-powered task duration tracker and predictor for Claude Code",
-    "version": "0.1.0"
+    "version": "0.1.1"
   },
   "plugins": [
     {
