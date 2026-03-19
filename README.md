@@ -59,6 +59,27 @@ When you ask *"how long will this take?"*, Claude answers with your real numbers
 
 And when Claude still says something absurd? claude-eta catches it, corrects it inline, and Claude fixes itself. You never see the intervention.
 
+## Where we are
+
+claude-eta is in **active development**. The core tracking works — your tasks are timed, classified, and used to calibrate Claude's estimates. But the estimation algorithm gets better with more data. Right now, every install helps: the more tasks tracked across different projects and coding styles, the smarter the baselines become.
+
+**What works today:**
+- Task timing, classification, and tool counting (automatic, silent)
+- Per-project velocity stats with confidence intervals
+- Generic baselines from install (replaced by your real data after 5 tasks)
+- Bullshit detector (catches absurd time estimates from Claude)
+- Community comparison and opt-in data contribution
+
+**What's next:** live ETA refinement during tasks (Layer 2), better classification heuristics, and phase detection (explore → edit → test).
+
+## Help improve the algorithm
+
+The estimation engine needs real-world data to get better. You can help:
+
+1. **Just use it.** Every completed task improves your local estimates.
+2. **Run `/eta contribute`** to see what anonymized data looks like, then `/eta contribute --confirm` to share it. No prompt text, no file paths, no project names — just task types, durations, and tool counts.
+3. **Open an issue** if an estimate feels way off. That's a signal the heuristic needs tuning.
+
 ## Commands
 
 | Command | What it does |
@@ -67,6 +88,11 @@ And when Claude still says something absurd? claude-eta catches it, corrects it 
 | `/eta history` | Recent tasks with real durations, types, and prompts |
 | `/eta stats` | Your averages by task type across all sessions |
 | `/eta inspect` | Show exactly what data is stored (transparency first) |
+| `/eta compare` | Your stats vs community baselines |
+| `/eta export` | Anonymize & save task data to local JSON |
+| `/eta contribute` | Preview what would be shared with the community |
+| `/eta contribute --confirm` | Upload anonymized data (opt-in) |
+| `/eta help` | List all commands |
 
 ## How it works
 
@@ -114,13 +140,13 @@ claude-eta is designed in layers, shipped incrementally:
 
 **Layer 2 / Live Refinement** *(next)* — After the first 10 tool calls, real-time velocity data triggers ETA recalculation. Phase detection (explore → edit → test) splits the task like a speedrun timer. Early warning fires when drift exceeds 2x the median.
 
-**Layer 3 / Collective Intelligence** *(future)* — Opt-in anonymized velocity dataset across users. Your local history bootstraps the model; the community makes initial estimates accurate for everyone. Think Waze, but for dev tasks.
+**Layer 3 / Collective Intelligence** *(shipped)* — Opt-in anonymized velocity dataset across users. Your local history bootstraps the model; the community makes initial estimates accurate for everyone. Think Waze, but for dev tasks. Run `/eta compare` to see how you stack up, `/eta contribute` to help the community.
 
 **Bullshit Detector** *(transversal)* — Scans Claude's output for temporal patterns ("should take about 2 days") and injects corrections when the claim conflicts with historical data. Annotation, not interruption.
 
 ## Privacy
 
-**Everything stays on your machine.** No cloud. No telemetry. No tracking. No analytics.
+**Everything stays on your machine by default.** No cloud. No telemetry. No tracking. No analytics.
 
 ```
 ~/.claude/plugins/claude-eta/data/
@@ -129,7 +155,13 @@ claude-eta is designed in layers, shipped incrementally:
 
 Run `/eta inspect` or `cat` the file directly. What you see is what exists. There is nothing else.
 
-Layer 3 (community data) will be strictly opt-in with `--dry-run` to preview exactly what would be shared before anything leaves your machine.
+### Community baselines (opt-in)
+
+Want to see how you compare? `/eta compare` fetches anonymous community averages (read-only, no data sent).
+
+Want to help? `/eta contribute` shows you exactly what would be sent — anonymized task types, durations, and tool counts. No prompt text, no file paths, no project names. Ever.
+
+`/eta export` lets you inspect the anonymized data locally first. Nothing leaves your machine unless you explicitly run `/eta contribute --confirm`.
 
 ## Requirements
 
@@ -211,11 +243,15 @@ npm test
 
 **Where to start:**
 
-The [Architecture](#architecture) section maps the layers. Layer 2 (live refinement) and the Bullshit Detector are the next frontiers. Open an issue if something interests you, or just send a PR. Code quality matters more than volume.
+The [Architecture](#architecture) section maps the layers. Layer 2 (live refinement) is the next frontier. Open an issue if something interests you, or just send a PR.
 
-**What makes a good contribution:**
+**What makes a good code contribution:**
 
-Real data that challenges assumptions. A better heuristic for the triage score. A hook you didn't think we needed. A use case we missed. If your PR includes a test, you're already ahead.
+A better heuristic for the triage score. A hook you didn't think we needed. A use case we missed. If your PR includes a test, you're already ahead.
+
+**What makes a good data contribution:**
+
+Run `/eta contribute --confirm` after a few sessions. Every anonymized data point makes the community baselines more accurate for everyone. The algorithm literally gets better with more users.
 
 ## License
 
