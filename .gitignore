@@ -1,7 +1,9 @@
 ## Build
 node_modules/
-dist/
 *.tsbuildinfo
+# NOTE: dist/ is intentionally committed.
+# Claude Code plugins are installed from a git checkout with no post-install build.
+# If dist/ is missing or stale, runtime hooks and /eta break for users.
 
 ## Secrets & env
 .env*
