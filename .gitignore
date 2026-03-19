@@ -25,6 +25,9 @@ _active.json
 .claude/
 .agents/
 
+## Supabase local temp state
+supabase/.temp/
+
 ## Cursor local state
 .cursor/
 

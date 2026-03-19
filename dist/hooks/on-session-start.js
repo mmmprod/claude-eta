@@ -29,7 +29,13 @@ async function main() {
     const stats = computeStats(data.tasks);
     if (!stats)
         return;
-    process.stdout.write(formatStatsContext(stats));
+    let context = formatStatsContext(stats);
+    // One-time hint about community features (shown between tasks 5-7)
+    if (completed >= CALIBRATION_THRESHOLD && completed <= CALIBRATION_THRESHOLD + 2) {
+        context +=
+            '\nTip: run `/eta compare` to see how your pace compares to the community, or `/eta help` for all commands.';
+    }
+    process.stdout.write(context);
 }
 void main();
 //# sourceMappingURL=on-session-start.js.map

@@ -1,0 +1,91 @@
+/**
+ * /eta compare — Compare local stats against community baselines.
+ * Fetches from Supabase with a local 6h cache fallback.
+ */
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+import * as os from 'node:os';
+import { loadProject } from '../store.js';
+import { computeStats } from '../stats.js';
+import { fetchBaselines } from '../supabase.js';
+const CACHE_PATH = path.join(os.homedir(), '.claude', 'plugins', 'claude-eta', 'cache', 'baselines.json');
+const CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours
+function loadCache() {
+    try {
+        return JSON.parse(fs.readFileSync(CACHE_PATH, 'utf-8'));
+    }
+    catch {
+        return null;
+    }
+}
+function saveCache(records) {
+    fs.mkdirSync(path.dirname(CACHE_PATH), { recursive: true });
+    fs.writeFileSync(CACHE_PATH, JSON.stringify({ fetched_at: new Date().toISOString(), records }, null, 2), 'utf-8');
+}
+async function getBaselines() {
+    const cache = loadCache();
+    const { data, error } = await fetchBaselines();
+    if (data && !error) {
+        saveCache(data);
+        return data;
+    }
+    if (cache && Date.now() - new Date(cache.fetched_at).getTime() < CACHE_TTL_MS) {
+        return cache.records;
+    }
+    return null;
+}
+function fmtDur(seconds) {
+    if (seconds < 60)
+        return `${seconds}s`;
+    const min = Math.floor(seconds / 60);
+    const sec = seconds % 60;
+    if (min < 60)
+        return sec > 0 ? `${min}m ${sec}s` : `${min}m`;
+    return `${Math.floor(min / 60)}h ${min % 60}m`;
+}
+function ratio(local, community) {
+    if (community === 0)
+        return '-';
+    const r = local / community;
+    if (r < 0.8)
+        return `**${r.toFixed(2)}x faster**`;
+    if (r > 1.2)
+        return `${r.toFixed(2)}x slower`;
+    return '~same';
+}
+export async function showCompare(projName) {
+    const data = loadProject(projName);
+    const localStats = computeStats(data.tasks);
+    if (!localStats) {
+        console.log('Not enough local data yet (need 5+ completed tasks).');
+        return;
+    }
+    const baselines = await getBaselines();
+    if (!baselines || baselines.length === 0) {
+        console.log('Community baselines unavailable. Try again later.');
+        return;
+    }
+    const global = baselines.filter((b) => b.project_loc_bucket === null && b.model === null);
+    if (global.length === 0) {
+        console.log('Community baselines available but no global aggregates yet.');
+        return;
+    }
+    console.log(`## Your Stats vs Community\n`);
+    console.log(`| Type      | Your Median | Community | Ratio           | Community N |`);
+    console.log(`|-----------|-------------|-----------|-----------------|-------------|`);
+    for (const b of global) {
+        const local = localStats.byClassification.find((s) => s.classification === b.task_type);
+        if (!local)
+            continue;
+        console.log(`| ${b.task_type.padEnd(9)} | ${fmtDur(local.median).padEnd(11)} | ${fmtDur(b.median_seconds).padEnd(9)} | ${ratio(local.median, b.median_seconds).padEnd(15)} | ${String(b.sample_count).padEnd(11)} |`);
+    }
+    const localTypes = new Set(localStats.byClassification.map((s) => s.classification));
+    const communityOnly = global.filter((b) => !localTypes.has(b.task_type));
+    if (communityOnly.length > 0) {
+        console.log(`\n### Community baselines (no local data)`);
+        for (const b of communityOnly) {
+            console.log(`- **${b.task_type}**: median ${fmtDur(b.median_seconds)} (${b.sample_count} samples)`);
+        }
+    }
+}
+//# sourceMappingURL=compare.js.map

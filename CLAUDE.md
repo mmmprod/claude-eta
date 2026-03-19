@@ -2,7 +2,7 @@
 
 ## What is this
 
-A Claude Code plugin that tracks task durations and calibrates Claude's time estimates with real data. Zero dependencies, local JSON storage, 4 hooks.
+A Claude Code plugin that tracks task durations and calibrates Claude's time estimates with real data. Zero runtime dependencies, local JSON storage, 4 hooks, opt-in community baselines.
 
 ## Build & Test
 
@@ -29,10 +29,15 @@ Data flow: counters accumulate in `_active.json` (tiny file, fast I/O) during th
 ## Key modules
 
 - `store.ts` — JSON persistence, active task tracking, `flushActiveTask()`
-- `stats.ts` — Median, percentile, IQR, volatility computation, prompt complexity scoring, task estimation
+- `stats.ts` — Median, percentile, IQR, volatility computation, prompt complexity scoring, task estimation, default baselines
 - `classify.ts` — Keyword-based prompt classification (9 categories)
 - `detector.ts` — Bullshit detector: extract time durations from text, flag outliers
 - `stdin.ts` — Generic stdin reader (shared across all hooks)
+- `anonymize.ts` — SHA-256 hashing for contributor/project IDs, model normalization, LOC buckets
+- `supabase.ts` — Zero-dep HTTP client for PostgREST API (INSERT velocity_records, SELECT baselines_cache)
+- `cli/export.ts` — Anonymize project tasks to local JSON
+- `cli/contribute.ts` — Preview + upload anonymized data (opt-in, requires `--confirm`)
+- `cli/compare.ts` — Fetch community baselines, compare to local stats, 6h cache
 
 ## Hook stdin/stdout protocol
 
@@ -54,12 +59,21 @@ Hooks receive JSON on stdin from Claude Code. Each event type has different fiel
 ## Data storage
 
 ```
-~/.claude/plugins/claude-eta/data/
-├── {project-slug}.json    # Full task history per project
-└── _active.json           # Current task counters (ephemeral, deleted at Stop)
+~/.claude/plugins/claude-eta/
+├── data/
+│   ├── {project-slug}.json      # Full task history per project
+│   ├── _active.json             # Current task counters (ephemeral, deleted at Stop)
+│   ├── _last_completed.json     # Recap for next prompt (ephemeral, consumed once)
+│   └── _contribute_state.json   # Last contribution timestamp
+├── export/
+│   └── velocity-YYYY-MM.json    # Anonymized export files
+├── cache/
+│   └── baselines.json           # Community baselines cache (6h TTL)
+└── .contributor_id              # Random UUID (never sent, only hashed)
 ```
 
 Data is local-only, human-readable JSON. Never committed to git.
+Community features (`compare`, `contribute`) make network calls only when explicitly invoked by the user.
 
 ## Testing
 
@@ -70,7 +84,9 @@ tests/
 ├── classify.test.js   # 16 tests — classification + summarization
 ├── store.test.js      # 10 tests — CRUD, active task, increments
 ├── stats.test.js      # 18 tests — stats, complexity scoring, estimation, formatting
-└── detector.test.js   # 14 tests — duration extraction, bullshit detection
+├── detector.test.js   # 14 tests — duration extraction, bullshit detection
+├── anonymize.test.js  # 15 tests — hashing, model normalization, LOC buckets
+└── export.test.js     # 4 tests — PII stripping, null skip, hash, model normalization
 ```
 
 ## Install the plugin locally (for development)
