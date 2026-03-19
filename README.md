@@ -1,3 +1,5 @@
+<img width="1024" height="559" alt="image" src="https://github.com/user-attachments/assets/5f973f0a-f720-40c9-8046-f55371ededf9" />
+
 # claude-eta
 
 > Claude says "this will take about 2 days."
