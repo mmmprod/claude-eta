@@ -8,7 +8,7 @@ A Claude Code plugin that tracks task durations and calibrates Claude's time est
 
 ```bash
 npm run build        # tsc → dist/
-npm test             # 58 tests (node:test)
+npm test             # 99 tests (node:test)
 npm run lint         # tsc --noEmit (strict)
 npm run format:check # prettier
 ```
