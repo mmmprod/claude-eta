@@ -25,7 +25,7 @@ async function main(): Promise<void> {
     // First-run welcome
     process.stdout.write(
       `[claude-eta] Plugin active — tracking task durations. Data is 100% local.\n` +
-      `Calibration: 0/${CALIBRATION_THRESHOLD} tasks. Estimates unlock after a few completed tasks.`,
+        `Calibration: 0/${CALIBRATION_THRESHOLD} tasks. Estimates unlock after a few completed tasks.`,
     );
     return;
   }

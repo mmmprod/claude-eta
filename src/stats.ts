@@ -36,15 +36,15 @@ export const CALIBRATION_THRESHOLD = 5;
 
 /** Generic baselines (seconds) used before enough real data exists */
 export const DEFAULT_BASELINES: Record<TaskClassification, { low: number; median: number; high: number }> = {
-  bugfix:   { low: 300,  median: 600,  high: 900  },  // 5–15min
-  feature:  { low: 900,  median: 1800, high: 2700 },  // 15–45min
-  refactor: { low: 300,  median: 600,  high: 1200 },  // 5–20min
-  config:   { low: 120,  median: 180,  high: 300  },  // 2–5min
-  docs:     { low: 120,  median: 300,  high: 600  },  // 2–10min
-  test:     { low: 180,  median: 480,  high: 900  },  // 3–15min
-  debug:    { low: 180,  median: 480,  high: 1200 },  // 3–20min
-  review:   { low: 60,   median: 180,  high: 480  },  // 1–8min
-  other:    { low: 30,   median: 60,   high: 180  },  // 30s–3min
+  bugfix: { low: 300, median: 600, high: 900 }, // 5–15min
+  feature: { low: 900, median: 1800, high: 2700 }, // 15–45min
+  refactor: { low: 300, median: 600, high: 1200 }, // 5–20min
+  config: { low: 120, median: 180, high: 300 }, // 2–5min
+  docs: { low: 120, median: 300, high: 600 }, // 2–10min
+  test: { low: 180, median: 480, high: 900 }, // 3–15min
+  debug: { low: 180, median: 480, high: 1200 }, // 3–20min
+  review: { low: 60, median: 180, high: 480 }, // 1–8min
+  other: { low: 30, median: 60, high: 180 }, // 30s–3min
 };
 
 function sortedDurations(tasks: TaskEntry[]): number[] {

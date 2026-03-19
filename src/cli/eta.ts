@@ -126,7 +126,9 @@ function showInspect(data: { project: string; created: string; tasks: TaskEntry[
   console.log(`| Total tasks       | ${col(String(data.tasks.length), 30)}|`);
   console.log(`| Completed         | ${col(String(completed.length), 30)}|`);
   console.log(`\n### What is stored per task\n`);
-  console.log('Each task entry contains: `task_id`, `session_id`, `project`, `timestamp_start`, `timestamp_end`, `duration_seconds`, `prompt_summary` (first 80 chars of prompt), `classification`, `tool_calls`, `files_read`, `files_edited`, `files_created`, `errors`, `model`.');
+  console.log(
+    'Each task entry contains: `task_id`, `session_id`, `project`, `timestamp_start`, `timestamp_end`, `duration_seconds`, `prompt_summary` (first 80 chars of prompt), `classification`, `tool_calls`, `files_read`, `files_edited`, `files_created`, `errors`, `model`.',
+  );
   console.log('\n**Not stored**: full prompt text, file contents, conversation content, code.');
   if (data.tasks.length > 0) {
     const last = data.tasks[data.tasks.length - 1];
