@@ -13,6 +13,7 @@ function headers() {
         Prefer: 'return=minimal',
     };
 }
+const FETCH_TIMEOUT_MS = 10_000;
 /** INSERT rows into velocity_records. Returns error string or null on success. */
 export async function insertVelocityRecords(records) {
     try {
@@ -20,6 +21,7 @@ export async function insertVelocityRecords(records) {
             method: 'POST',
             headers: headers(),
             body: JSON.stringify(records),
+            signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
         });
         if (!res.ok) {
             const body = await res.text();
@@ -40,6 +42,7 @@ export async function fetchBaselines() {
         const res = await fetch(`${SUPABASE_URL}/rest/v1/baselines_cache?select=*`, {
             method: 'GET',
             headers: h,
+            signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
         });
         if (!res.ok) {
             const body = await res.text();
