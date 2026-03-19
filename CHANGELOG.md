@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.0](https://github.com/mmmprod/claude-eta/compare/claude-eta-v0.2.0...claude-eta-v0.3.0) (2026-03-19)
+
+
+### Features
+
+* improve calibration UX and feedback flow ([#17](https://github.com/mmmprod/claude-eta/issues/17)) ([f22238c](https://github.com/mmmprod/claude-eta/commit/f22238cbd05f7b69147be2425799141213860038))
+
 ## [0.2.0](https://github.com/mmmprod/claude-eta/compare/claude-eta-v0.1.1...claude-eta-v0.2.0) (2026-03-19)
 
 
