@@ -36,11 +36,15 @@ Works the same on **macOS, Windows, and Linux**. One prerequisite: [Claude Code]
 # 1. If you don't have Claude Code yet
 npm install -g @anthropic-ai/claude-code
 
-# 2. Install claude-eta
-claude plugin add claude-eta
+# 2. Add the plugin source
+claude plugin marketplace add mmmprod/claude-eta
 
-# 3. Verify
+# 3. Install claude-eta
+claude plugin install claude-eta
+
+# 4. Verify
 claude plugin list
+# You should see: claude-eta  ✔ enabled
 ```
 
 That's it. No account, no API key, no config file. Launch `claude` and start working. claude-eta activates automatically and begins learning your pace after the first few tasks.
@@ -144,6 +148,29 @@ Your data stays in `~/.claude/plugins/claude-eta/data/` in case you come back. T
 
 ```
 rm -rf ~/.claude/plugins/claude-eta/data/
+```
+
+## Troubleshooting
+
+**"command not found: claude"**
+Claude Code isn't installed. See the [Install](#install) section above.
+
+**"command not found: node"**
+Node.js isn't installed. Get it at [nodejs.org](https://nodejs.org).
+
+**"error: unknown command" or install fails**
+Make sure you ran `claude plugin marketplace add mmmprod/claude-eta` first. The marketplace command must come before the install.
+
+**Plugin doesn't appear in `claude plugin list`**
+Try reinstalling: `claude plugin uninstall claude-eta && claude plugin install claude-eta`
+
+**`/eta` shows nothing**
+Normal on first use. Complete a few tasks first — claude-eta needs data before it can show stats.
+
+## Update
+
+```
+claude plugin update claude-eta
 ```
 
 ## Contributing
