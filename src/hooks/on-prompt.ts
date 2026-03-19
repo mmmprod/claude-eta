@@ -1,50 +1,46 @@
 /**
  * UserPromptSubmit hook — marks the start of a new task.
- * Reads stdin JSON from Claude Code, creates a task entry, sets it as active.
+ * Reads the user's prompt, classifies it, creates a task entry.
+ * Injects project velocity stats as additionalContext to calibrate Claude.
  */
 import * as crypto from 'node:crypto';
 import * as path from 'node:path';
-import type { HookStdinData, TaskEntry } from '../types.js';
-import { addTask, setActiveTask, getActiveTask, clearActiveTask, updateLastTask } from '../store.js';
-
-async function readStdin(): Promise<HookStdinData | null> {
-  if (process.stdin.isTTY) return null;
-
-  const chunks: string[] = [];
-  process.stdin.setEncoding('utf8');
-
-  try {
-    for await (const chunk of process.stdin) {
-      chunks.push(chunk as string);
-    }
-    const raw = chunks.join('');
-    return raw.trim() ? JSON.parse(raw) as HookStdinData : null;
-  } catch {
-    return null;
-  }
-}
+import type { UserPromptSubmitStdin, TaskEntry } from '../types.js';
+import { readStdin } from '../stdin.js';
+import { loadProject, addTask, setActiveTask, flushActiveTask } from '../store.js';
+import { classifyPrompt, summarizePrompt } from '../classify.js';
+import { computeStats, formatStatsContext } from '../stats.js';
 
 function projectName(cwd?: string): string {
   if (!cwd) return 'unknown';
   return path.basename(cwd);
 }
 
+/** Output hook response with optional additionalContext */
+function respond(additionalContext?: string): void {
+  if (!additionalContext) return;
+  const response = {
+    hookSpecificOutput: {
+      hookEventName: 'UserPromptSubmit',
+      additionalContext,
+    },
+  };
+  process.stdout.write(JSON.stringify(response));
+}
+
 async function main(): Promise<void> {
-  const stdin = await readStdin();
+  const stdin = await readStdin<UserPromptSubmitStdin>();
   if (!stdin) return;
 
   const project = projectName(stdin.cwd);
+  const prompt = stdin.prompt ?? '';
 
-  // If there's an active task, close it first
-  const active = getActiveTask();
-  if (active) {
-    const durationMs = Date.now() - active.start;
-    updateLastTask(active.project, {
-      timestamp_end: new Date().toISOString(),
-      duration_seconds: Math.round(durationMs / 1000),
-    });
-    clearActiveTask();
-  }
+  // Close previous active task if any
+  flushActiveTask();
+
+  // Load project data for stats BEFORE adding the new task
+  const data = loadProject(project);
+  const stats = computeStats(data.tasks);
 
   // Create new task
   const taskId = crypto.randomUUID();
@@ -55,8 +51,8 @@ async function main(): Promise<void> {
     timestamp_start: new Date().toISOString(),
     timestamp_end: null,
     duration_seconds: null,
-    prompt_summary: '',  // Will be enriched later
-    classification: 'other',
+    prompt_summary: summarizePrompt(prompt),
+    classification: classifyPrompt(prompt),
     tool_calls: 0,
     files_read: 0,
     files_edited: 0,
@@ -67,6 +63,11 @@ async function main(): Promise<void> {
 
   addTask(project, task);
   setActiveTask(project, taskId);
+
+  // Inject velocity context if enough data exists
+  if (stats) {
+    respond(formatStatsContext(stats));
+  }
 }
 
 void main();

@@ -1,0 +1,18 @@
+language: fr
+reviews:
+  profile: assertive
+  path_instructions:
+    - path: "src/**/*.ts"
+      instructions: >
+        This is a Claude Code plugin. Review for:
+        - Hook performance (PostToolUse fires on every tool call, must be fast)
+        - Correct stdin/stdout JSON protocol for Claude Code hooks
+        - File I/O safety (TOCTOU, concurrent access)
+        - Type safety with hook stdin data (fields may be undefined)
+    - path: "tests/**"
+      instructions: "Ensure tests cover edge cases: empty data, missing fields, null durations."
+  auto_review:
+    enabled: true
+    drafts: false
+chat:
+  auto_reply: true
