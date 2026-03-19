@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.3.0](https://github.com/mmmprod/claude-eta/compare/claude-eta-v0.2.0...claude-eta-v0.3.0) (2026-03-19)
+
+
+### Features
+
+* add community baselines and contribution flow ([#19](https://github.com/mmmprod/claude-eta/issues/19)) ([601809b](https://github.com/mmmprod/claude-eta/commit/601809b6572a04dc99a1db49e75767210b3c66f7))
+* improve calibration UX and feedback flow ([#17](https://github.com/mmmprod/claude-eta/issues/17)) ([f22238c](https://github.com/mmmprod/claude-eta/commit/f22238cbd05f7b69147be2425799141213860038))
+
 ## [0.2.0](https://github.com/mmmprod/claude-eta/compare/claude-eta-v0.1.1...claude-eta-v0.2.0) (2026-03-19)
 
 
