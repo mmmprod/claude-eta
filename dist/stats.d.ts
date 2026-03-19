@@ -2,7 +2,7 @@
  * Project velocity statistics — computes medians, IQR, and volatility
  * per task classification from historical data.
  */
-import type { TaskEntry, TaskClassification } from './types.js';
+import type { TaskEntry, TaskClassification, LastCompleted } from './types.js';
 interface ClassificationStats {
     classification: TaskClassification;
     count: number;
@@ -29,12 +29,27 @@ export interface TaskEstimate {
     volatility: 'low' | 'medium' | 'high';
     complexity: number;
 }
+/** Minimum completed tasks before real stats kick in */
+export declare const CALIBRATION_THRESHOLD = 5;
+/** Generic baselines (seconds) used before enough real data exists */
+export declare const DEFAULT_BASELINES: Record<TaskClassification, {
+    low: number;
+    median: number;
+    high: number;
+}>;
 export declare function computeStats(tasks: TaskEntry[]): ProjectStats | null;
 /** Score prompt complexity 1-5 based on length, file mentions, and scope */
 export declare function scorePromptComplexity(prompt: string): number;
 /** Estimate duration for a task based on classification + prompt complexity */
 export declare function estimateTask(stats: ProjectStats, classification: string, complexity: number): TaskEstimate;
+/** Estimate from generic baselines (cold start, before real data exists) */
+export declare function getDefaultEstimate(classification: TaskClassification, complexity: number): TaskEstimate;
+export declare function fmtSec(seconds: number): string;
 /** Format stats as a concise context string for Claude injection */
 export declare function formatStatsContext(stats: ProjectStats, estimate?: TaskEstimate): string;
+/** Format context during cold start (< CALIBRATION_THRESHOLD tasks) */
+export declare function formatColdStartContext(estimate: TaskEstimate, tasksCompleted: number): string;
+/** One-line recap of the last completed task */
+export declare function formatTaskRecap(info: LastCompleted): string;
 export {};
 //# sourceMappingURL=stats.d.ts.map

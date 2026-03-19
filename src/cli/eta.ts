@@ -116,6 +116,29 @@ function showStats(tasks: TaskEntry[]): void {
   }
 }
 
+function showInspect(data: { project: string; created: string; tasks: TaskEntry[] }): void {
+  const completed = data.tasks.filter((t) => t.duration_seconds !== null);
+  console.log(`## Data Inspection\n`);
+  console.log(`| Field             | Value                          |`);
+  console.log(`|-------------------|--------------------------------|`);
+  console.log(`| Project           | ${col(data.project, 30)}|`);
+  console.log(`| Data file created | ${col(data.created, 30)}|`);
+  console.log(`| Total tasks       | ${col(String(data.tasks.length), 30)}|`);
+  console.log(`| Completed         | ${col(String(completed.length), 30)}|`);
+  console.log(`\n### What is stored per task\n`);
+  console.log('Each task entry contains: `task_id`, `session_id`, `project`, `timestamp_start`, `timestamp_end`, `duration_seconds`, `prompt_summary` (first 80 chars of prompt), `classification`, `tool_calls`, `files_read`, `files_edited`, `files_created`, `errors`, `model`.');
+  console.log('\n**Not stored**: full prompt text, file contents, conversation content, code.');
+  if (data.tasks.length > 0) {
+    const last = data.tasks[data.tasks.length - 1];
+    console.log(`\n### Latest task entry (raw)\n`);
+    console.log('```json');
+    console.log(JSON.stringify(last, null, 2));
+    console.log('```');
+  }
+}
+
+const FEEDBACK_LINE = '\n---\nFeedback? Bug? https://github.com/mmmprod/claude-eta/issues';
+
 // ── Main ──────────────────────────────────────────────────────
 
 function main(): void {
@@ -137,10 +160,15 @@ function main(): void {
     case 'stats':
       showStats(data.tasks);
       break;
+    case 'inspect':
+      showInspect(data);
+      break;
     default:
       showSession(data.tasks);
       break;
   }
+
+  console.log(FEEDBACK_LINE);
 }
 
 main();

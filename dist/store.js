@@ -53,11 +53,11 @@ export function addTask(project, task) {
 }
 export function updateLastTask(project, updates) {
     const data = loadProject(project);
-    if (data.tasks.length === 0)
-        return;
-    const last = data.tasks[data.tasks.length - 1];
-    Object.assign(last, updates);
-    saveProject(data);
+    if (data.tasks.length > 0) {
+        Object.assign(data.tasks[data.tasks.length - 1], updates);
+        saveProject(data);
+    }
+    return data;
 }
 // ── Active task tracking (_active.json) ───────────────────────
 function getActivePath() {
@@ -110,13 +110,14 @@ export function incrementActive(increments) {
         active.errors += increments.errors;
     fs.writeFileSync(getActivePath(), JSON.stringify(active), 'utf-8');
 }
-/** Close the active task: flush counters to project data, clear active file */
+/** Close the active task: flush counters to project data, clear active file.
+ *  Returns the updated project data (caller can reuse it). */
 export function flushActiveTask() {
     const active = getActiveTask();
     if (!active)
-        return;
+        return null;
     const durationMs = Date.now() - active.start;
-    updateLastTask(active.project, {
+    const data = updateLastTask(active.project, {
         timestamp_end: new Date().toISOString(),
         duration_seconds: Math.round(durationMs / 1000),
         tool_calls: active.tool_calls ?? 0,
@@ -126,5 +127,29 @@ export function flushActiveTask() {
         errors: active.errors ?? 0,
     });
     clearActiveTask();
+    return data;
+}
+// ── Last completed task (ephemeral recap for next prompt) ─────
+function getLastCompletedPath() {
+    return path.join(DATA_DIR, '_last_completed.json');
+}
+export function setLastCompleted(info) {
+    ensureDataDir();
+    fs.writeFileSync(getLastCompletedPath(), JSON.stringify(info), 'utf-8');
+}
+/** Read and delete in one shot. Discards stale files (e.g. from a crashed session). */
+export function consumeLastCompleted(maxAgeMs = 5 * 60 * 1000) {
+    const p = getLastCompletedPath();
+    try {
+        const mtime = fs.statSync(p).mtimeMs;
+        const data = JSON.parse(fs.readFileSync(p, 'utf-8'));
+        fs.unlinkSync(p);
+        if (Date.now() - mtime > maxAgeMs)
+            return null;
+        return data;
+    }
+    catch {
+        return null;
+    }
 }
 //# sourceMappingURL=store.js.map

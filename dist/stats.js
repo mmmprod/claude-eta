@@ -1,3 +1,18 @@
+// ── Constants ─────────────────────────────────────────────────
+/** Minimum completed tasks before real stats kick in */
+export const CALIBRATION_THRESHOLD = 5;
+/** Generic baselines (seconds) used before enough real data exists */
+export const DEFAULT_BASELINES = {
+    bugfix: { low: 300, median: 600, high: 900 }, // 5–15min
+    feature: { low: 900, median: 1800, high: 2700 }, // 15–45min
+    refactor: { low: 300, median: 600, high: 1200 }, // 5–20min
+    config: { low: 120, median: 180, high: 300 }, // 2–5min
+    docs: { low: 120, median: 300, high: 600 }, // 2–10min
+    test: { low: 180, median: 480, high: 900 }, // 3–15min
+    debug: { low: 180, median: 480, high: 1200 }, // 3–20min
+    review: { low: 60, median: 180, high: 480 }, // 1–8min
+    other: { low: 30, median: 60, high: 180 }, // 30s–3min
+};
 function sortedDurations(tasks) {
     return tasks
         .filter((t) => t.duration_seconds != null && t.duration_seconds > 0)
@@ -115,8 +130,22 @@ export function estimateTask(stats, classification, complexity) {
         complexity,
     };
 }
+/** Estimate from generic baselines (cold start, before real data exists) */
+export function getDefaultEstimate(classification, complexity) {
+    const baseline = DEFAULT_BASELINES[classification] ?? DEFAULT_BASELINES.other;
+    const shift = (complexity - 3) * 0.15;
+    return {
+        low: Math.max(1, Math.round(baseline.low * (1 + shift))),
+        high: Math.round(baseline.high * (1 + shift)),
+        median: Math.round(baseline.median * (1 + shift)),
+        confidence: 30,
+        basis: `generic baseline for ${classification}`,
+        volatility: 'high',
+        complexity,
+    };
+}
 // ── Formatting ────────────────────────────────────────────────
-function fmtSec(seconds) {
+export function fmtSec(seconds) {
     if (seconds < 60)
         return `${seconds}s`;
     const min = Math.floor(seconds / 60);
@@ -142,5 +171,25 @@ export function formatStatsContext(stats, estimate) {
     }
     lines.push('Use these baselines to calibrate any time estimates. Do not volunteer time estimates unless the user asks.');
     return lines.join('\n');
+}
+/** Format context during cold start (< CALIBRATION_THRESHOLD tasks) */
+export function formatColdStartContext(estimate, tasksCompleted) {
+    const lines = [
+        `[claude-eta] Calibration: ${tasksCompleted}/${CALIBRATION_THRESHOLD} tasks recorded. Estimates become project-specific after ${CALIBRATION_THRESHOLD} tasks.`,
+        `→ Current task estimate: ${fmtSec(estimate.low)}–${fmtSec(estimate.high)} (${estimate.confidence}% confidence, ${estimate.basis} — not calibrated to this project yet)`,
+        'Use these baselines to calibrate any time estimates. Do not volunteer time estimates unless the user asks.',
+    ];
+    return lines.join('\n');
+}
+/** One-line recap of the last completed task */
+export function formatTaskRecap(info) {
+    const parts = [];
+    if (info.tool_calls > 0)
+        parts.push(`${info.tool_calls} tool calls`);
+    const fileOps = info.files_read + info.files_edited + info.files_created;
+    if (fileOps > 0)
+        parts.push(`${fileOps} files`);
+    const detail = parts.length > 0 ? `, ${parts.join(', ')}` : '';
+    return `[claude-eta] Previous task completed: ${info.classification}, ${fmtSec(info.duration_seconds)}${detail}`;
 }
 //# sourceMappingURL=stats.js.map

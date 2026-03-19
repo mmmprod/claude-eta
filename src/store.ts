@@ -1,7 +1,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
-import type { ProjectData, TaskEntry, ActiveTask } from './types.js';
+import type { ProjectData, TaskEntry, ActiveTask, LastCompleted } from './types.js';
 
 const DATA_DIR = path.join(os.homedir(), '.claude', 'plugins', 'claude-eta', 'data');
 
@@ -62,13 +62,13 @@ export function addTask(project: string, task: TaskEntry): void {
   saveProject(data);
 }
 
-export function updateLastTask(project: string, updates: Partial<TaskEntry>): void {
+export function updateLastTask(project: string, updates: Partial<TaskEntry>): ProjectData {
   const data = loadProject(project);
-  if (data.tasks.length === 0) return;
-
-  const last = data.tasks[data.tasks.length - 1];
-  Object.assign(last, updates);
-  saveProject(data);
+  if (data.tasks.length > 0) {
+    Object.assign(data.tasks[data.tasks.length - 1], updates);
+    saveProject(data);
+  }
+  return data;
 }
 
 // ── Active task tracking (_active.json) ───────────────────────
@@ -124,13 +124,14 @@ export function incrementActive(
   fs.writeFileSync(getActivePath(), JSON.stringify(active), 'utf-8');
 }
 
-/** Close the active task: flush counters to project data, clear active file */
-export function flushActiveTask(): void {
+/** Close the active task: flush counters to project data, clear active file.
+ *  Returns the updated project data (caller can reuse it). */
+export function flushActiveTask(): ProjectData | null {
   const active = getActiveTask();
-  if (!active) return;
+  if (!active) return null;
 
   const durationMs = Date.now() - active.start;
-  updateLastTask(active.project, {
+  const data = updateLastTask(active.project, {
     timestamp_end: new Date().toISOString(),
     duration_seconds: Math.round(durationMs / 1000),
     tool_calls: active.tool_calls ?? 0,
@@ -140,4 +141,30 @@ export function flushActiveTask(): void {
     errors: active.errors ?? 0,
   });
   clearActiveTask();
+  return data;
+}
+
+// ── Last completed task (ephemeral recap for next prompt) ─────
+
+function getLastCompletedPath(): string {
+  return path.join(DATA_DIR, '_last_completed.json');
+}
+
+export function setLastCompleted(info: LastCompleted): void {
+  ensureDataDir();
+  fs.writeFileSync(getLastCompletedPath(), JSON.stringify(info), 'utf-8');
+}
+
+/** Read and delete in one shot. Discards stale files (e.g. from a crashed session). */
+export function consumeLastCompleted(maxAgeMs = 5 * 60 * 1000): LastCompleted | null {
+  const p = getLastCompletedPath();
+  try {
+    const mtime = fs.statSync(p).mtimeMs;
+    const data = JSON.parse(fs.readFileSync(p, 'utf-8')) as LastCompleted;
+    fs.unlinkSync(p);
+    if (Date.now() - mtime > maxAgeMs) return null;
+    return data;
+  } catch {
+    return null;
+  }
 }
