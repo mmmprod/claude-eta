@@ -59,10 +59,6 @@ describe('plugin packaging', () => {
 
   it('keeps dist committed and in sync after build', () => {
     const status = git(['status', '--porcelain', '--untracked-files=all', '--', 'dist']).trim();
-    assert.equal(
-      status,
-      '',
-      `dist/ is missing, uncommitted, or stale after build:\n${status}`,
-    );
+    assert.equal(status, '', `dist/ is missing, uncommitted, or stale after build:\n${status}`);
   });
 });
