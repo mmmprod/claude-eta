@@ -4,7 +4,19 @@
     ".": {
       "release-type": "node",
       "package-name": "claude-eta",
-      "include-v-in-tag": true
+      "include-v-in-tag": true,
+      "extra-files": [
+        {
+          "type": "json",
+          "path": ".claude-plugin/plugin.json",
+          "jsonpath": "$.version"
+        },
+        {
+          "type": "json",
+          "path": ".claude-plugin/marketplace.json",
+          "jsonpath": "$.metadata.version"
+        }
+      ]
     }
   }
 }

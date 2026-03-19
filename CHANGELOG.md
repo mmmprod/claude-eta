@@ -1,0 +1,16 @@
+# Changelog
+
+## [0.2.0](https://github.com/mmmprod/claude-eta/compare/claude-eta-v0.1.1...claude-eta-v0.2.0) (2026-03-19)
+
+
+### Features
+
+* implement MVP tracking — prompt classification, tool counting, /eta CLI ([1a43d27](https://github.com/mmmprod/claude-eta/commit/1a43d27a8d49f3ba66639238f69b872f5f6d6071))
+* passive velocity context at session start ([597b47f](https://github.com/mmmprod/claude-eta/commit/597b47fd603a9ff81004f8fa9c33c16b09257d60))
+* pre-emptive context injection — calibrate Claude with project velocity stats ([7a707cf](https://github.com/mmmprod/claude-eta/commit/7a707cfd44de69ebc64669f997487e2b350731d9))
+
+
+### Bug Fixes
+
+* correct install commands in README ([#11](https://github.com/mmmprod/claude-eta/issues/11)) ([bdf165c](https://github.com/mmmprod/claude-eta/commit/bdf165c9a2bc3d8ec5b2fd25eb91084d48110f8f))
+* ship compiled plugin runtime ([#13](https://github.com/mmmprod/claude-eta/issues/13)) ([ee9e2d9](https://github.com/mmmprod/claude-eta/commit/ee9e2d9cbb3004cabd886c5b7eadb68561258721))
