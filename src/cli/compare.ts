@@ -6,7 +6,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
 import { loadProject } from '../store.js';
-import { computeStats } from '../stats.js';
+import { computeStats, fmtSec } from '../stats.js';
 import { fetchBaselines, type BaselineRecord } from '../supabase.js';
 
 const CACHE_PATH = path.join(os.homedir(), '.claude', 'plugins', 'claude-eta', 'cache', 'baselines.json');
@@ -32,26 +32,23 @@ function saveCache(records: BaselineRecord[]): void {
 
 async function getBaselines(): Promise<BaselineRecord[] | null> {
   const cache = loadCache();
-  const { data, error } = await fetchBaselines();
 
+  // Use cache if fresh (skip unnecessary network call)
+  if (cache && Date.now() - new Date(cache.fetched_at).getTime() < CACHE_TTL_MS) {
+    return cache.records;
+  }
+
+  // Cache stale or missing — fetch
+  const { data, error } = await fetchBaselines();
   if (data && !error) {
     saveCache(data);
     return data;
   }
 
-  if (cache && Date.now() - new Date(cache.fetched_at).getTime() < CACHE_TTL_MS) {
-    return cache.records;
-  }
+  // Network failed — stale cache as last resort
+  if (cache) return cache.records;
 
   return null;
-}
-
-function fmtDur(seconds: number): string {
-  if (seconds < 60) return `${seconds}s`;
-  const min = Math.floor(seconds / 60);
-  const sec = seconds % 60;
-  if (min < 60) return sec > 0 ? `${min}m ${sec}s` : `${min}m`;
-  return `${Math.floor(min / 60)}h ${min % 60}m`;
 }
 
 function ratio(local: number, community: number): string {
@@ -94,7 +91,7 @@ export async function showCompare(projName: string): Promise<void> {
     if (!local) continue;
 
     console.log(
-      `| ${b.task_type.padEnd(9)} | ${fmtDur(local.median).padEnd(11)} | ${fmtDur(b.median_seconds).padEnd(9)} | ${ratio(local.median, b.median_seconds).padEnd(15)} | ${String(b.sample_count).padEnd(11)} |`,
+      `| ${b.task_type.padEnd(9)} | ${fmtSec(local.median).padEnd(11)} | ${fmtSec(b.median_seconds).padEnd(9)} | ${ratio(local.median, b.median_seconds).padEnd(15)} | ${String(b.sample_count).padEnd(11)} |`,
     );
   }
 
@@ -103,7 +100,7 @@ export async function showCompare(projName: string): Promise<void> {
   if (communityOnly.length > 0) {
     console.log(`\n### Community baselines (no local data)`);
     for (const b of communityOnly) {
-      console.log(`- **${b.task_type}**: median ${fmtDur(b.median_seconds)} (${b.sample_count} samples)`);
+      console.log(`- **${b.task_type}**: median ${fmtSec(b.median_seconds)} (${b.sample_count} samples)`);
     }
   }
 }

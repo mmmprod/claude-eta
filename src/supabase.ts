@@ -22,6 +22,8 @@ function headers(): Record<string, string> {
   };
 }
 
+const FETCH_TIMEOUT_MS = 10_000;
+
 /** INSERT rows into velocity_records. Returns error string or null on success. */
 export async function insertVelocityRecords(records: object[]): Promise<SupabaseResponse<null>> {
   try {
@@ -29,6 +31,7 @@ export async function insertVelocityRecords(records: object[]): Promise<Supabase
       method: 'POST',
       headers: headers(),
       body: JSON.stringify(records),
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
     });
 
     if (!res.ok) {
@@ -68,6 +71,7 @@ export async function fetchBaselines(): Promise<SupabaseResponse<BaselineRecord[
     const res = await fetch(`${SUPABASE_URL}/rest/v1/baselines_cache?select=*`, {
       method: 'GET',
       headers: h,
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
     });
 
     if (!res.ok) {
