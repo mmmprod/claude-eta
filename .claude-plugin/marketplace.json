@@ -1,0 +1,20 @@
+{
+  "name": "claude-eta",
+  "owner": {
+    "name": "mmmprod",
+    "email": "mmmprod@users.noreply.github.com"
+  },
+  "metadata": {
+    "description": "AI-powered task duration tracker and predictor for Claude Code",
+    "version": "0.0.1"
+  },
+  "plugins": [
+    {
+      "name": "claude-eta",
+      "source": "./",
+      "description": "Track how long your tasks actually take. Automatic timing via hooks, history, and per-project stats.",
+      "category": "productivity",
+      "tags": ["eta", "time", "duration", "tracking", "estimation", "productivity"]
+    }
+  ]
+}
