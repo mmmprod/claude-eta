@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.2](https://github.com/mmmprod/claude-eta/compare/claude-eta-v0.3.1...claude-eta-v0.3.2) (2026-03-19)
+
+
+### Bug Fixes
+
+* batch P0–P3 improvements ([#25](https://github.com/mmmprod/claude-eta/issues/25)) ([3f44659](https://github.com/mmmprod/claude-eta/commit/3f4465958c8d6cdb81f223e4e76e1e46c70c61df))
+
 ## [0.3.1](https://github.com/mmmprod/claude-eta/compare/claude-eta-v0.3.0...claude-eta-v0.3.1) (2026-03-19)
 
 
