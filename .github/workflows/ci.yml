@@ -58,3 +58,22 @@ jobs:
 
       - name: Check for known vulnerable packages
         run: npx --yes audit-ci --high
+
+  required-ci:
+    name: required-ci
+    if: ${{ always() }}
+    needs:
+      - build-and-test
+      - security
+    runs-on: ubuntu-latest
+    steps:
+      - name: Assert required jobs passed
+        env:
+          BUILD_AND_TEST_RESULT: ${{ needs.build-and-test.result }}
+          SECURITY_RESULT: ${{ needs.security.result }}
+        run: |
+          if [ "$BUILD_AND_TEST_RESULT" != "success" ] || [ "$SECURITY_RESULT" != "success" ]; then
+            echo "build-and-test result: $BUILD_AND_TEST_RESULT"
+            echo "security result: $SECURITY_RESULT"
+            exit 1
+          fi
