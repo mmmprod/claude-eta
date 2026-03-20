@@ -79,6 +79,20 @@ describe('extractDurations', () => {
     assert.equal(d.length, 1);
     assert.equal(d[0].seconds, 1440);
   });
+
+  it('ignores lines with clock symbol', () => {
+    const text = '\u23F1 Estimated: 2m\u201318m (60%, based on 7 similar bugfix tasks)\nThis will take about 3 hours';
+    const d = extractDurations(text, { estimatesOnly: true });
+    assert.equal(d.length, 1);
+    assert.equal(d[0].seconds, 10800); // only "3 hours"
+  });
+
+  it('ignores lines with [claude-eta prefix', () => {
+    const text = '[claude-eta] correction: 5 minutes\nShould take roughly 2 hours';
+    const d = extractDurations(text, { estimatesOnly: true });
+    assert.equal(d.length, 1);
+    assert.equal(d[0].seconds, 7200); // only "2 hours"
+  });
 });
 
 describe('findBullshitEstimate', () => {
