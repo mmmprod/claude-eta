@@ -71,6 +71,19 @@ export function updateEtaAccuracy(fp: string, classification: string, hit: boole
   saveProjectMeta(fp, { ...meta, eta_accuracy: accuracy, updated_at: now });
 }
 
+/** Convert EtaAccuracyV2 to the {hits, misses} format expected by evaluateAutoEta */
+export function toAutoEtaAccuracy(accuracy: EtaAccuracyV2 | null): Record<string, { hits: number; misses: number }> {
+  if (!accuracy) return {};
+  const result: Record<string, { hits: number; misses: number }> = {};
+  for (const [cls, entry] of Object.entries(accuracy.by_classification)) {
+    result[cls] = {
+      hits: entry.interval80_hits,
+      misses: entry.interval80_total - entry.interval80_hits,
+    };
+  }
+  return result;
+}
+
 /** Create or update project meta — merges with existing if present */
 export function upsertProjectMeta(
   fp: string,
