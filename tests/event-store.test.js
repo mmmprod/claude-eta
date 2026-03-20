@@ -117,6 +117,24 @@ describe('startTurn / getActiveTurn / setActiveTurn', () => {
     assert.equal(loaded.session_id, state.session_id);
   });
 
+  it('does not overwrite an existing turn on a second startTurn', async () => {
+    const { startTurn, getActiveTurn } = await loadModule();
+    const original = makeActiveTurn();
+    const competing = makeActiveTurn({
+      session_id: original.session_id,
+      agent_key: original.agent_key,
+      agent_id: original.agent_id,
+      turn_id: 'turn-competing',
+      work_item_id: 'turn-competing',
+    });
+
+    assert.equal(startTurn(original), true);
+    assert.equal(startTurn(competing), false);
+
+    const loaded = getActiveTurn(original.project_fp, original.session_id, original.agent_key);
+    assert.equal(loaded.turn_id, original.turn_id);
+  });
+
   it('returns null when no active turn', async () => {
     const { getActiveTurn } = await loadModule();
     assert.equal(getActiveTurn('fp', 'sess', 'main'), null);

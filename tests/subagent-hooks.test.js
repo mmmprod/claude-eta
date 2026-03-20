@@ -4,7 +4,7 @@ import { execFileSync } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
-import * as crypto from 'node:crypto';
+import { resolveProjectIdentity } from '../dist/identity.js';
 
 let TEST_DATA_DIR;
 const TEST_CWD = '/tmp/test-subagent-hooks-project';
@@ -25,13 +25,7 @@ afterEach(() => {
 
 /** Get the project fingerprint for TEST_CWD (must match what resolveProjectIdentity produces) */
 function getTestFp() {
-  let resolved;
-  try {
-    resolved = fs.realpathSync(TEST_CWD);
-  } catch {
-    resolved = TEST_CWD;
-  }
-  return crypto.createHash('sha256').update(resolved).digest('hex').slice(0, 16);
+  return resolveProjectIdentity(TEST_CWD).fp;
 }
 
 /** Create a v2 active turn file directly */
@@ -87,7 +81,7 @@ function runSubagentStart(stdin) {
       env: { ...process.env, CLAUDE_PLUGIN_DATA: TEST_DATA_DIR },
     });
   } catch (e) {
-    return e.stdout || '';
+    throw new Error(formatExecError('on-subagent-start', e), { cause: e });
   }
 }
 
@@ -100,8 +94,19 @@ function runSubagentStop(stdin) {
       env: { ...process.env, CLAUDE_PLUGIN_DATA: TEST_DATA_DIR },
     });
   } catch (e) {
-    return e.stdout || '';
+    throw new Error(formatExecError('on-subagent-stop', e), { cause: e });
   }
+}
+
+function formatExecError(command, error) {
+  return [
+    `${command} crashed`,
+    error?.message ?? String(error),
+    error?.stdout ? `stdout:\n${error.stdout}` : '',
+    error?.stderr ? `stderr:\n${error.stderr}` : '',
+  ]
+    .filter(Boolean)
+    .join('\n\n');
 }
 
 describe('SubagentStart hook', () => {
