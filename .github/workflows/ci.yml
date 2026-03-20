@@ -40,6 +40,25 @@ jobs:
       - name: Format check
         run: npm run format:check
 
+  supabase-integration:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Supabase schema validation
+        run: npm run test:integration
+
   security:
     runs-on: ubuntu-latest
     steps:
