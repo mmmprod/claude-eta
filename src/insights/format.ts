@@ -76,9 +76,7 @@ function fmtVolatilityCauses(r: VolatilityCausesResult): string {
     `|-----------------|-------------|-----------|`,
   ];
   for (const f of r.factors) {
-    lines.push(
-      `| ${col(f.factor, 15)} | ${col(String(f.correlation), 11, 'right')} | ${col(f.direction, 9)} |`,
-    );
+    lines.push(`| ${col(f.factor, 15)} | ${col(String(f.correlation), 11, 'right')} | ${col(f.direction, 9)} |`);
   }
   return lines.join('\n');
 }
@@ -148,9 +146,7 @@ function fmtSessionFatigue(r: SessionFatigueResult): string {
   ];
   for (const p of r.avgByPosition) {
     const label = p.position >= 5 ? '5+' : String(p.position);
-    lines.push(
-      `| ${col(label, 8)} | ${col(fmtDuration(p.avgDuration), 12)} | ${col(String(p.count), 5, 'right')} |`,
-    );
+    lines.push(`| ${col(label, 8)} | ${col(fmtDuration(p.avgDuration), 12)} | ${col(String(p.count), 5, 'right')} |`);
   }
   return lines.join('\n');
 }
@@ -174,11 +170,7 @@ function fmtTimeOfDay(r: TimeOfDayResult): string {
 
 function fmtWeeklyTrends(r: WeeklyTrendsResult): string {
   const dirLabel =
-    r.direction === 'improving'
-      ? 'Getting faster'
-      : r.direction === 'degrading'
-        ? 'Getting slower'
-        : 'Stable';
+    r.direction === 'improving' ? 'Getting faster' : r.direction === 'degrading' ? 'Getting slower' : 'Stable';
   const lines: string[] = [
     `### Weekly Trends`,
     '',
@@ -200,15 +192,24 @@ function fmtWeeklyTrends(r: WeeklyTrendsResult): string {
 /** Format a single insight result to markdown */
 function formatInsight(r: InsightResult): string {
   switch (r.kind) {
-    case 'error-duration': return fmtErrorDuration(r);
-    case 'context-switch': return fmtContextSwitch(r);
-    case 'volatility-causes': return fmtVolatilityCauses(r);
-    case 'file-ops': return fmtFileOps(r);
-    case 'model-comparison': return fmtModelComparison(r);
-    case 'efficiency': return fmtEfficiency(r);
-    case 'session-fatigue': return fmtSessionFatigue(r);
-    case 'time-of-day': return fmtTimeOfDay(r);
-    case 'trends': return fmtWeeklyTrends(r);
+    case 'error-duration':
+      return fmtErrorDuration(r);
+    case 'context-switch':
+      return fmtContextSwitch(r);
+    case 'volatility-causes':
+      return fmtVolatilityCauses(r);
+    case 'file-ops':
+      return fmtFileOps(r);
+    case 'model-comparison':
+      return fmtModelComparison(r);
+    case 'efficiency':
+      return fmtEfficiency(r);
+    case 'session-fatigue':
+      return fmtSessionFatigue(r);
+    case 'time-of-day':
+      return fmtTimeOfDay(r);
+    case 'trends':
+      return fmtWeeklyTrends(r);
   }
 }
 

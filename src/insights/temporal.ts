@@ -1,12 +1,7 @@
 /**
  * Temporal insights: session fatigue, time-of-day patterns, weekly trends.
  */
-import type {
-  CompletedTask,
-  SessionFatigueResult,
-  TimeOfDayResult,
-  WeeklyTrendsResult,
-} from './types.js';
+import type { CompletedTask, SessionFatigueResult, TimeOfDayResult, WeeklyTrendsResult } from './types.js';
 import { median, groupBy } from './types.js';
 
 // ── Helpers ──────────────────────────────────────────────────
@@ -15,8 +10,7 @@ const MAX_TREND_WEEKS = 12;
 
 function isoWeekLabel(iso: string): string {
   const d = new Date(iso);
-  const dayOfYear =
-    Math.floor((d.getTime() - new Date(d.getFullYear(), 0, 1).getTime()) / 86400000) + 1;
+  const dayOfYear = Math.floor((d.getTime() - new Date(d.getFullYear(), 0, 1).getTime()) / 86400000) + 1;
   const weekDay = d.getDay() || 7; // Mon=1 ... Sun=7
   const weekNum = Math.ceil((dayOfYear - weekDay + 10) / 7);
   return `${d.getFullYear()}-W${String(weekNum).padStart(2, '0')}`;
@@ -74,7 +68,7 @@ export function sessionFatigue(tasks: CompletedTask[]): SessionFatigueResult | n
       const list = byPosition.get(pos) ?? [];
       list.push(dur);
       byPosition.set(pos, list);
-      if (pos === 1) (pos1Durations ??= list);
+      if (pos === 1) pos1Durations ??= list;
       if (pos >= 3) laterPositions.push(dur);
     }
   }
@@ -125,9 +119,7 @@ export function timeOfDayPatterns(tasks: CompletedTask[]): TimeOfDayResult | nul
 
   if (byPeriod.length < 2) return null;
 
-  const fastestPeriod = byPeriod.reduce((a, b) =>
-    a.medianDuration <= b.medianDuration ? a : b,
-  ).period;
+  const fastestPeriod = byPeriod.reduce((a, b) => (a.medianDuration <= b.medianDuration ? a : b)).period;
 
   return {
     kind: 'time-of-day',

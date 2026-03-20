@@ -13,9 +13,7 @@ export type CompletedTask = TaskEntry & { duration_seconds: number };
 
 /** Filter tasks with valid positive duration */
 export function completed(tasks: TaskEntry[]): CompletedTask[] {
-  return tasks.filter(
-    (t): t is CompletedTask => t.duration_seconds != null && t.duration_seconds > 0,
-  );
+  return tasks.filter((t): t is CompletedTask => t.duration_seconds != null && t.duration_seconds > 0);
 }
 
 /** Median of a pre-sorted numeric array */

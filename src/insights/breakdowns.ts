@@ -1,12 +1,7 @@
 /**
  * Breakdown insights: file operation ratios, model comparison, efficiency scoring.
  */
-import type {
-  CompletedTask,
-  FileOpsResult,
-  ModelComparisonResult,
-  EfficiencyResult,
-} from './types.js';
+import type { CompletedTask, FileOpsResult, ModelComparisonResult, EfficiencyResult } from './types.js';
 import { median, groupBy } from './types.js';
 
 // ── Helpers ──────────────────────────────────────────────────
@@ -106,9 +101,7 @@ export function efficiencyScoring(tasks: CompletedTask[]): EfficiencyResult | nu
   for (const [cls, entries] of groups) {
     if (entries.length < 5) continue;
 
-    const secsPerTool = entries
-      .map((t) => t.duration_seconds / t.tool_calls)
-      .sort((a, b) => a - b);
+    const secsPerTool = entries.map((t) => t.duration_seconds / t.tool_calls).sort((a, b) => a - b);
 
     const toolsPerFile = entries
       .map((t) => {

@@ -1,10 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import {
-  errorDurationCorrelation,
-  contextSwitchCost,
-  volatilityRootCauses,
-} from '../dist/insights/correlations.js';
+import { errorDurationCorrelation, contextSwitchCost, volatilityRootCauses } from '../dist/insights/correlations.js';
 
 function makeTask(overrides = {}) {
   return {
@@ -35,18 +31,12 @@ describe('errorDurationCorrelation', () => {
   });
 
   it('returns null when fewer than 3 tasks with errors', () => {
-    const tasks = [
-      ...Array.from({ length: 9 }, () => makeTask({ errors: 0 })),
-      makeTask({ errors: 2 }),
-    ];
+    const tasks = [...Array.from({ length: 9 }, () => makeTask({ errors: 0 })), makeTask({ errors: 2 })];
     assert.equal(errorDurationCorrelation(tasks), null);
   });
 
   it('returns null when fewer than 3 tasks without errors', () => {
-    const tasks = [
-      ...Array.from({ length: 9 }, () => makeTask({ errors: 3 })),
-      makeTask({ errors: 0 }),
-    ];
+    const tasks = [...Array.from({ length: 9 }, () => makeTask({ errors: 3 })), makeTask({ errors: 0 })];
     assert.equal(errorDurationCorrelation(tasks), null);
   });
 
@@ -102,7 +92,20 @@ describe('contextSwitchCost', () => {
   });
 
   it('counts same/diff transitions correctly', () => {
-    const types = ['bugfix', 'bugfix', 'feature', 'bugfix', 'bugfix', 'feature', 'feature', 'bugfix', 'feature', 'bugfix', 'bugfix', 'feature'];
+    const types = [
+      'bugfix',
+      'bugfix',
+      'feature',
+      'bugfix',
+      'bugfix',
+      'feature',
+      'feature',
+      'bugfix',
+      'feature',
+      'bugfix',
+      'bugfix',
+      'feature',
+    ];
     const tasks = types.map((cls, i) =>
       makeTask({
         timestamp_start: new Date(Date.now() + i * 60000).toISOString(),
@@ -142,9 +145,7 @@ describe('contextSwitchCost', () => {
 
 describe('volatilityRootCauses', () => {
   it('returns null when no classification has 10+ tasks', () => {
-    const tasks = Array.from({ length: 9 }, () =>
-      makeTask({ classification: 'bugfix', duration_seconds: 100 }),
-    );
+    const tasks = Array.from({ length: 9 }, () => makeTask({ classification: 'bugfix', duration_seconds: 100 }));
     assert.equal(volatilityRootCauses(tasks), null);
   });
 
@@ -200,13 +201,9 @@ describe('volatilityRootCauses', () => {
   it('picks the most volatile classification', () => {
     const tasks = [
       // Low volatility config tasks
-      ...Array.from({ length: 12 }, () =>
-        makeTask({ classification: 'config', duration_seconds: 100 }),
-      ),
+      ...Array.from({ length: 12 }, () => makeTask({ classification: 'config', duration_seconds: 100 })),
       // High volatility bugfix tasks
-      ...Array.from({ length: 12 }, (_, i) =>
-        makeTask({ classification: 'bugfix', duration_seconds: 10 + i * 50 }),
-      ),
+      ...Array.from({ length: 12 }, (_, i) => makeTask({ classification: 'bugfix', duration_seconds: 10 + i * 50 })),
     ];
     const result = volatilityRootCauses(tasks);
     assert.ok(result);

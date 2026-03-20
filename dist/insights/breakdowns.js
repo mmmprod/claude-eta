@@ -80,9 +80,7 @@ export function efficiencyScoring(tasks) {
     for (const [cls, entries] of groups) {
         if (entries.length < 5)
             continue;
-        const secsPerTool = entries
-            .map((t) => t.duration_seconds / t.tool_calls)
-            .sort((a, b) => a - b);
+        const secsPerTool = entries.map((t) => t.duration_seconds / t.tool_calls).sort((a, b) => a - b);
         const toolsPerFile = entries
             .map((t) => {
             const fileOps = Math.max(t.files_read + t.files_edited + t.files_created, 1);

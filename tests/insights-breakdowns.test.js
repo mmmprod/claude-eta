@@ -1,10 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import {
-  fileOperationRatios,
-  perModelComparison,
-  efficiencyScoring,
-} from '../dist/insights/breakdowns.js';
+import { fileOperationRatios, perModelComparison, efficiencyScoring } from '../dist/insights/breakdowns.js';
 
 function makeTask(overrides = {}) {
   return {
@@ -35,9 +31,7 @@ describe('fileOperationRatios', () => {
   });
 
   it('returns null when all file ops are zero', () => {
-    const tasks = Array.from({ length: 6 }, () =>
-      makeTask({ files_read: 0, files_edited: 0, files_created: 0 }),
-    );
+    const tasks = Array.from({ length: 6 }, () => makeTask({ files_read: 0, files_edited: 0, files_created: 0 }));
     assert.equal(fileOperationRatios(tasks), null);
   });
 
@@ -94,20 +88,14 @@ describe('perModelComparison', () => {
   });
 
   it('returns null with single model', () => {
-    const tasks = Array.from({ length: 12 }, () =>
-      makeTask({ model: 'claude-sonnet-4' }),
-    );
+    const tasks = Array.from({ length: 12 }, () => makeTask({ model: 'claude-sonnet-4' }));
     assert.equal(perModelComparison(tasks), null);
   });
 
   it('normalizes model names (strips date suffix)', () => {
     const tasks = [
-      ...Array.from({ length: 6 }, () =>
-        makeTask({ model: 'claude-sonnet-4-20250514', duration_seconds: 50 }),
-      ),
-      ...Array.from({ length: 6 }, () =>
-        makeTask({ model: 'claude-opus-4-20250514', duration_seconds: 100 }),
-      ),
+      ...Array.from({ length: 6 }, () => makeTask({ model: 'claude-sonnet-4-20250514', duration_seconds: 50 })),
+      ...Array.from({ length: 6 }, () => makeTask({ model: 'claude-opus-4-20250514', duration_seconds: 100 })),
     ];
     const result = perModelComparison(tasks);
     assert.ok(result);
@@ -118,12 +106,8 @@ describe('perModelComparison', () => {
 
   it('identifies fastest model', () => {
     const tasks = [
-      ...Array.from({ length: 6 }, () =>
-        makeTask({ model: 'fast-model', duration_seconds: 30 }),
-      ),
-      ...Array.from({ length: 6 }, () =>
-        makeTask({ model: 'slow-model', duration_seconds: 300 }),
-      ),
+      ...Array.from({ length: 6 }, () => makeTask({ model: 'fast-model', duration_seconds: 30 })),
+      ...Array.from({ length: 6 }, () => makeTask({ model: 'slow-model', duration_seconds: 300 })),
     ];
     const result = perModelComparison(tasks);
     assert.ok(result);
@@ -132,12 +116,8 @@ describe('perModelComparison', () => {
 
   it('skips tasks with empty model', () => {
     const tasks = [
-      ...Array.from({ length: 6 }, () =>
-        makeTask({ model: 'model-a', duration_seconds: 50 }),
-      ),
-      ...Array.from({ length: 6 }, () =>
-        makeTask({ model: 'model-b', duration_seconds: 100 }),
-      ),
+      ...Array.from({ length: 6 }, () => makeTask({ model: 'model-a', duration_seconds: 50 })),
+      ...Array.from({ length: 6 }, () => makeTask({ model: 'model-b', duration_seconds: 100 })),
       makeTask({ model: '', duration_seconds: 200 }),
     ];
     const result = perModelComparison(tasks);
@@ -155,10 +135,7 @@ describe('efficiencyScoring', () => {
   });
 
   it('ignores tasks with tool_calls === 0', () => {
-    const tasks = [
-      ...Array.from({ length: 4 }, () => makeTask({ tool_calls: 5 })),
-      makeTask({ tool_calls: 0 }),
-    ];
+    const tasks = [...Array.from({ length: 4 }, () => makeTask({ tool_calls: 5 })), makeTask({ tool_calls: 0 })];
     assert.equal(efficiencyScoring(tasks), null);
   });
 

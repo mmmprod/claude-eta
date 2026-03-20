@@ -1,10 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import {
-  sessionFatigue,
-  timeOfDayPatterns,
-  weeklyTrends,
-} from '../dist/insights/temporal.js';
+import { sessionFatigue, timeOfDayPatterns, weeklyTrends } from '../dist/insights/temporal.js';
 
 function makeTask(overrides = {}) {
   return {

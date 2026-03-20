@@ -55,7 +55,7 @@ export function sessionFatigue(tasks) {
             list.push(dur);
             byPosition.set(pos, list);
             if (pos === 1)
-                (pos1Durations ??= list);
+                pos1Durations ??= list;
             if (pos >= 3)
                 laterPositions.push(dur);
         }
@@ -98,7 +98,7 @@ export function timeOfDayPatterns(tasks) {
     }
     if (byPeriod.length < 2)
         return null;
-    const fastestPeriod = byPeriod.reduce((a, b) => a.medianDuration <= b.medianDuration ? a : b).period;
+    const fastestPeriod = byPeriod.reduce((a, b) => (a.medianDuration <= b.medianDuration ? a : b)).period;
     return {
         kind: 'time-of-day',
         byPeriod,

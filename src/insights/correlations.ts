@@ -1,12 +1,7 @@
 /**
  * Correlation-based insights: error-duration, context-switch cost, volatility root causes.
  */
-import type {
-  CompletedTask,
-  ErrorDurationResult,
-  ContextSwitchResult,
-  VolatilityCausesResult,
-} from './types.js';
+import type { CompletedTask, ErrorDurationResult, ContextSwitchResult, VolatilityCausesResult } from './types.js';
 import { median, groupBy } from './types.js';
 
 // ── Helpers ──────────────────────────────────────────────────
@@ -49,12 +44,8 @@ export function errorDurationCorrelation(tasks: CompletedTask[]): ErrorDurationR
 
   if (withErrors.length < 3 || withoutErrors.length < 3) return null;
 
-  const medWith = median(
-    withErrors.map((t) => t.duration_seconds).sort((a, b) => a - b),
-  );
-  const medWithout = median(
-    withoutErrors.map((t) => t.duration_seconds).sort((a, b) => a - b),
-  );
+  const medWith = median(withErrors.map((t) => t.duration_seconds).sort((a, b) => a - b));
+  const medWithout = median(withoutErrors.map((t) => t.duration_seconds).sort((a, b) => a - b));
 
   const overheadPct = medWithout === 0 ? 0 : Math.round(((medWith - medWithout) / medWithout) * 100);
 
