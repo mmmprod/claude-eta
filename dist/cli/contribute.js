@@ -24,13 +24,19 @@ function loadState() {
         return null;
     }
 }
+const MAX_CONTRIBUTED_IDS = 10_000;
 function saveState(count, newTaskIds) {
     const existing = loadState();
-    const allIds = [...(existing?.contributed_task_ids ?? []), ...newTaskIds];
+    const existingIds = existing?.contributed_task_ids ?? [];
+    const existingSet = new Set(existingIds);
+    const uniqueNew = newTaskIds.filter((id) => !existingSet.has(id));
+    const allIds = [...existingIds, ...uniqueNew];
+    // Cap to prevent unbounded growth; oldest IDs dropped (re-contribute is harmless)
+    const cappedIds = allIds.length > MAX_CONTRIBUTED_IDS ? allIds.slice(-MAX_CONTRIBUTED_IDS) : allIds;
     const state = {
         last_contributed_at: new Date().toISOString(),
         last_contributed_count: count,
-        contributed_task_ids: allIds,
+        contributed_task_ids: cappedIds,
     };
     fs.writeFileSync(STATE_PATH, JSON.stringify(state, null, 2), 'utf-8');
 }

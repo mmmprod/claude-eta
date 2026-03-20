@@ -31,6 +31,47 @@ const IGNORE_DIRS = new Set([
 
 const MAX_FILES = 50_000;
 
+/** Binary extensions excluded from LOC byte count (everything else counts as source) */
+const BINARY_EXTENSIONS = new Set([
+  '.png',
+  '.jpg',
+  '.jpeg',
+  '.gif',
+  '.webp',
+  '.ico',
+  '.bmp',
+  '.svg',
+  '.pdf',
+  '.zip',
+  '.tar',
+  '.gz',
+  '.bz2',
+  '.xz',
+  '.7z',
+  '.rar',
+  '.wasm',
+  '.o',
+  '.so',
+  '.dylib',
+  '.dll',
+  '.exe',
+  '.bin',
+  '.ttf',
+  '.otf',
+  '.woff',
+  '.woff2',
+  '.eot',
+  '.mp3',
+  '.mp4',
+  '.wav',
+  '.mov',
+  '.avi',
+  '.webm',
+  '.ogg',
+  '.sqlite',
+  '.db',
+]);
+
 /** Count source files and total bytes for LOC estimation */
 function countSourceFiles(dir: string): { fileCount: number; totalBytes: number } {
   let fileCount = 0;
@@ -52,10 +93,14 @@ function countSourceFiles(dir: string): { fileCount: number; totalBytes: number 
         }
       } else if (entry.isFile()) {
         fileCount++;
-        try {
-          totalBytes += fs.statSync(path.join(d, entry.name)).size;
-        } catch {
-          /* skip unreadable files */
+        // Skip binary files that skew LOC estimation
+        const ext = path.extname(entry.name).toLowerCase();
+        if (!BINARY_EXTENSIONS.has(ext)) {
+          try {
+            totalBytes += fs.statSync(path.join(d, entry.name)).size;
+          } catch {
+            /* skip unreadable files */
+          }
         }
       }
     }
@@ -74,12 +119,15 @@ async function main(): Promise<void> {
   const data = loadProject(project);
   const completed = data.tasks.filter((t) => t.duration_seconds != null).length;
 
-  // Update project metadata (file count, LOC bucket)
+  // Update project metadata (file count, LOC bucket) — only write if changed
   const { fileCount, totalBytes } = countSourceFiles(cwd);
   const estimatedLoc = Math.round(totalBytes / 40);
-  data.file_count = fileCount;
-  data.loc_bucket = locBucket(estimatedLoc);
-  saveProject(data);
+  const newBucket = locBucket(estimatedLoc);
+  if (data.file_count !== fileCount || data.loc_bucket !== newBucket) {
+    data.file_count = fileCount;
+    data.loc_bucket = newBucket;
+    saveProject(data);
+  }
 
   if (completed === 0) {
     // First-run welcome

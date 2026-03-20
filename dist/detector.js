@@ -43,8 +43,11 @@ export function extractDurations(text, options) {
         if (!multiplier || num <= 0)
             continue;
         // Skip durations preceded by past-tense/reporting words (not estimates)
+        // Only look within the current sentence to avoid cross-sentence false negatives
         if (options?.skipPastContext) {
-            const before = text.slice(Math.max(0, match.index - 120), match.index);
+            const raw = text.slice(Math.max(0, match.index - 120), match.index);
+            const sentenceBreak = Math.max(raw.lastIndexOf('.'), raw.lastIndexOf('\n'), raw.lastIndexOf('!'), raw.lastIndexOf('?'));
+            const before = sentenceBreak >= 0 ? raw.slice(sentenceBreak + 1) : raw;
             if (PAST_CONTEXT_RE.test(before))
                 continue;
         }
