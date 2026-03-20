@@ -280,7 +280,9 @@ function showAuto(data: { eta_accuracy?: Record<string, { hits: number; misses: 
 
 async function main(): Promise<void> {
   const mode = process.argv[2] ?? 'session';
-  const cwd = process.argv[3] ?? process.cwd();
+  // Last arg is always cwd (appended by command runner as $(pwd)).
+  // Earlier positional args (e.g. "auto on") sit between mode and cwd.
+  const cwd = process.argv.at(-1) ?? process.cwd();
   const project = path.basename(cwd);
   const confirm = process.argv.includes('--confirm');
   const pluginVersion = getPluginVersion();
@@ -307,7 +309,7 @@ async function main(): Promise<void> {
     return;
   }
 
-  // Async commands (don't need local task data to exist)
+  // Commands that don't need local task data to exist
   switch (mode) {
     case 'contribute':
       if (confirm) {
@@ -325,6 +327,23 @@ async function main(): Promise<void> {
       showExport(project, pluginVersion);
       console.log(FEEDBACK_LINE);
       return;
+    case 'auto': {
+      const subArg = process.argv[3];
+      if (subArg === 'on' || subArg === 'off') {
+        const prefs = loadPreferences();
+        prefs.auto_eta = subArg === 'on';
+        savePreferences(prefs);
+        console.log(
+          subArg === 'on'
+            ? 'Auto-ETA **enabled**. Estimates will appear when conditions are met (min 5 tasks of the same type, not "other", not conversational).'
+            : 'Auto-ETA **disabled**.',
+        );
+        console.log(FEEDBACK_LINE);
+        return;
+      }
+      // `/eta auto` (status) falls through to sync section below
+      break;
+    }
   }
 
   // Sync commands
@@ -348,22 +367,9 @@ async function main(): Promise<void> {
     case 'recap':
       showRecap(data.tasks);
       break;
-    case 'auto': {
-      const subArg = process.argv[3];
-      if (subArg === 'on' || subArg === 'off') {
-        const prefs = loadPreferences();
-        prefs.auto_eta = subArg === 'on';
-        savePreferences(prefs);
-        console.log(
-          subArg === 'on'
-            ? 'Auto-ETA **enabled**. Estimates will appear when conditions are met (min 5 tasks of the same type, not "other", not conversational).'
-            : 'Auto-ETA **disabled**.',
-        );
-      } else {
-        showAuto(data);
-      }
+    case 'auto':
+      showAuto(data);
       break;
-    }
     default:
       showSession(data.tasks);
       break;

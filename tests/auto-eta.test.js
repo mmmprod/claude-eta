@@ -1,8 +1,26 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+import * as os from 'node:os';
 import { checkDisableRequest, evaluateAutoEta, MIN_TYPE_TASKS, COOLDOWN_INTERVAL } from '../dist/auto-eta.js';
 import { fmtSec } from '../dist/stats.js';
 import { loadProject, saveProject, setLastEta, consumeLastEta } from '../dist/store.js';
+
+const DATA_DIR = path.join(os.homedir(), '.claude', 'plugins', 'claude-eta', 'data');
+
+function cleanupProject(project) {
+  const slug = project
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
+  const fp = path.join(DATA_DIR, `${slug}.json`);
+  try {
+    fs.unlinkSync(fp);
+  } catch {
+    /* ignore */
+  }
+}
 
 // -- Helpers --
 
@@ -201,6 +219,7 @@ describe('self-check accuracy', () => {
     reloaded.eta_accuracy[eta.classification].hits++;
     saveProject(reloaded);
     assert.equal(loadProject(project).eta_accuracy.bugfix.hits, 1);
+    cleanupProject(project);
   });
 
   it('increments misses when outside interval', () => {
@@ -233,6 +252,7 @@ describe('self-check accuracy', () => {
     reloaded.eta_accuracy[eta.classification].misses++;
     saveProject(reloaded);
     assert.equal(loadProject(project).eta_accuracy.bugfix.misses, 1);
+    cleanupProject(project);
   });
 
   it('auto-disables type at >50% misses on 10+', () => {
