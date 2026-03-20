@@ -23,10 +23,16 @@ interface ContributeState {
 }
 
 function parseState(raw: Partial<ContributeState>): ContributeState {
+  const contributedTaskIds = Array.isArray(raw.contributed_task_ids)
+    ? raw.contributed_task_ids.filter((id): id is string => typeof id === 'string')
+    : [];
   return {
-    last_contributed_at: raw.last_contributed_at ?? '',
-    last_contributed_count: raw.last_contributed_count ?? 0,
-    contributed_task_ids: raw.contributed_task_ids ?? [],
+    last_contributed_at: typeof raw.last_contributed_at === 'string' ? raw.last_contributed_at : '',
+    last_contributed_count:
+      typeof raw.last_contributed_count === 'number' && Number.isFinite(raw.last_contributed_count)
+        ? raw.last_contributed_count
+        : 0,
+    contributed_task_ids: contributedTaskIds,
   };
 }
 
@@ -76,7 +82,7 @@ function saveState(count: number, newTaskIds: string[]): void {
 function getNewRecords(cwd: string, pluginVersion: string): { records: AnonymizedRecord[]; taskIds: string[] } {
   const state = loadState();
   const excludeIds = new Set(state?.contributed_task_ids ?? []);
-  const { fp, displayName } = resolveProjectIdentity(cwd);
+  const { fp } = resolveProjectIdentity(cwd);
   const turns = loadCompletedTurnsCompat(cwd);
   const tasks = turnsToTaskEntries(turns);
   const meta = loadProjectMeta(fp);
@@ -87,7 +93,7 @@ function getNewRecords(cwd: string, pluginVersion: string): { records: Anonymize
 
   for (const task of tasks) {
     if (excludeIds.has(task.task_id)) continue;
-    const record = anonymizeTask(task, displayName, pluginVersion, projectMeta);
+    const record = anonymizeTask(task, fp, pluginVersion, projectMeta);
     if (record) {
       records.push(record);
       taskIds.push(task.task_id);

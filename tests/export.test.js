@@ -203,6 +203,28 @@ describe('anonymizeProject (v2 compat)', () => {
     assert.match(records[0].project_hash, /^[a-f0-9]{64}$/);
   });
 
+  it('does not collide for different paths that share the same basename', async () => {
+    const sharedName = 'shared-project';
+    const projectA = path.join(TEST_CWD, 'team-a', sharedName);
+    const projectB = path.join(TEST_CWD, 'team-b', sharedName);
+
+    fs.mkdirSync(projectA, { recursive: true });
+    fs.mkdirSync(projectB, { recursive: true });
+    writeCompletedTurns(projectA, [makeCompletedTurn()]);
+    writeCompletedTurns(projectB, [makeCompletedTurn()]);
+
+    const ts = Date.now() + Math.random();
+    const { anonymizeProject } = await import(`../dist/cli/export.js?t=${ts}`);
+    const recordsA = anonymizeProject(projectA, '1.0.0');
+    const recordsB = anonymizeProject(projectB, '1.0.0');
+
+    assert.ok(recordsA.length > 0);
+    assert.ok(recordsB.length > 0);
+    assert.notEqual(recordsA[0].project_hash, recordsB[0].project_hash);
+    assert.notEqual(recordsA[0].project_hash, sharedName);
+    assert.notEqual(recordsB[0].project_hash, sharedName);
+  });
+
   it('includes project_file_count and project_loc_bucket when set (F-03)', async () => {
     writeCompletedTurns(TEST_CWD, [makeCompletedTurn()]);
     writeProjectMeta(TEST_CWD, { file_count: 42, loc_bucket: 'small' });

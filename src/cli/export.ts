@@ -55,13 +55,13 @@ export function anonymizeTask(
 }
 
 export function anonymizeProject(cwd: string, pluginVersion: string): AnonymizedRecord[] {
-  const { fp, displayName } = resolveProjectIdentity(cwd);
+  const { fp } = resolveProjectIdentity(cwd);
   const turns = loadCompletedTurnsCompat(cwd);
   const tasks = turnsToTaskEntries(turns);
   const meta = loadProjectMeta(fp);
   const projectMeta = { file_count: meta?.file_count ?? undefined, loc_bucket: meta?.loc_bucket ?? undefined };
   return tasks
-    .map((t) => anonymizeTask(t, displayName, pluginVersion, projectMeta))
+    .map((t) => anonymizeTask(t, fp, pluginVersion, projectMeta))
     .filter((r): r is AnonymizedRecord => r !== null);
 }
 
