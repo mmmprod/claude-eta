@@ -1,3 +1,4 @@
+import { estimateInitial, toTaskEstimate } from './estimator.js';
 // ── Constants ─────────────────────────────────────────────────
 /** Minimum completed tasks before real stats kick in */
 export const CALIBRATION_THRESHOLD = 5;
@@ -101,48 +102,15 @@ export function scorePromptComplexity(prompt) {
         score += 1;
     return Math.min(score, 5);
 }
-/** Estimate duration for a task based on classification + prompt complexity */
+/** Estimate duration using shrinkage quantile blending (v2 estimator) */
 export function estimateTask(stats, classification, complexity) {
-    const clsStats = stats.byClassification.find((s) => s.classification === classification);
-    if (clsStats) {
-        // Use classification-specific data
-        // Shift interval proportionally to complexity (score 3 = neutral)
-        const shift = (complexity - 3) * 0.15; // -0.3 to +0.3
-        return {
-            low: Math.max(1, Math.round(clsStats.p25 * (1 + shift))),
-            high: Math.round(clsStats.p75 * (1 + shift)),
-            median: Math.round(clsStats.median * (1 + shift)),
-            confidence: 80,
-            basis: `${clsStats.count} similar ${classification} tasks`,
-            volatility: clsStats.volatility,
-            complexity,
-        };
-    }
-    // Fallback to overall stats
-    const shift = (complexity - 3) * 0.15;
-    return {
-        low: Math.max(1, Math.round(stats.overall.p25 * (1 + shift))),
-        high: Math.round(stats.overall.p75 * (1 + shift)),
-        median: Math.round(stats.overall.median * (1 + shift)),
-        confidence: 60, // Lower confidence without classification data
-        basis: `${stats.totalCompleted} tasks (no ${classification}-specific data)`,
-        volatility: 'medium',
-        complexity,
-    };
+    const est = estimateInitial(stats, classification, complexity);
+    return toTaskEstimate(est, complexity);
 }
 /** Estimate from generic baselines (cold start, before real data exists) */
 export function getDefaultEstimate(classification, complexity) {
-    const baseline = DEFAULT_BASELINES[classification] ?? DEFAULT_BASELINES.other;
-    const shift = (complexity - 3) * 0.15;
-    return {
-        low: Math.max(1, Math.round(baseline.low * (1 + shift))),
-        high: Math.round(baseline.high * (1 + shift)),
-        median: Math.round(baseline.median * (1 + shift)),
-        confidence: 30,
-        basis: `generic baseline for ${classification}`,
-        volatility: 'high',
-        complexity,
-    };
+    const est = estimateInitial(null, classification, complexity);
+    return toTaskEstimate(est, complexity);
 }
 // ── Formatting ────────────────────────────────────────────────
 export function fmtSec(seconds) {

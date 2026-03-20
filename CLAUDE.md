@@ -2,13 +2,13 @@
 
 ## What is this
 
-A Claude Code plugin that tracks task durations and calibrates Claude's time estimates with real data. Zero runtime dependencies, local JSON storage, 4 hooks, opt-in community baselines.
+A Claude Code plugin that tracks task durations and calibrates Claude's time estimates with real data. Zero runtime dependencies, append-only JSONL storage, 9 hooks, opt-in community baselines.
 
 ## Build & Test
 
 ```bash
 npm run build        # tsc → dist/
-npm test             # 99 tests (node:test)
+npm test             # ~268 tests (node:test)
 npm run lint         # tsc --noEmit (strict)
 npm run format:check # prettier
 ```
@@ -17,68 +17,96 @@ Always build before testing — tests import from `dist/`.
 
 ## Architecture
 
-4 hooks fire in sequence during a Claude Code session:
+### v2 event-log architecture
 
-1. **SessionStart** (`on-session-start.ts`) — Injects project velocity context (passive, silent)
-2. **UserPromptSubmit** (`on-prompt.ts`) — Classifies prompt, starts task timer, injects per-task estimate with confidence interval
-3. **PostToolUse** (`on-tool-use.ts`) — Increments tool/file/error counters in `_active.json` (fires on EVERY tool call — must be fast)
-4. **Stop** (`on-stop.ts`) — Bullshit detector scans Claude's last message for absurd time estimates. If found, blocks and corrects. Then flushes counters to project data.
+9 hooks fire during a Claude Code session:
 
-Data flow: counters accumulate in `_active.json` (tiny file, fast I/O) during the task, then get flushed to `{project}.json` at Stop. This minimizes disk I/O on the hot path (PostToolUse).
+1. **SessionStart** (`on-session-start.ts`) — Upserts session metadata (model source of truth), runs legacy migration if needed, injects velocity context
+2. **UserPromptSubmit** (`on-prompt.ts`) — Classifies prompt, starts a new turn via event-store, injects per-task estimate (shrinkage quantile)
+3. **PostToolUse** (`on-tool-use.ts`) — Increments tool/file/error counters on the active turn file (fires on EVERY tool call — must be fast)
+4. **PostToolUseFailure** (`on-tool-failure.ts`) — Same as PostToolUse but always increments errors + bash_failures
+5. **Stop** (`on-stop.ts`) — Bullshit detector (classification-specific baseline), closes turn. `stop_blocked` status prevents infinite loop.
+6. **StopFailure** (`on-stop-failure.ts`) — Closes turn with `stop_reason='stop_failure'`
+7. **SubagentStart** (`on-subagent-start.ts`) — Creates a subagent turn (stub, Phase 8)
+8. **SubagentStop** (`on-subagent-stop.ts`) — Closes a subagent turn (stub, Phase 8)
+9. **SessionEnd** (`on-session-end.ts`) — Closes all active turns for the session
+
+Data flow: counters accumulate in `active/<session_id>__<agent_key>.json` (tiny file, fast I/O) during the turn, then get appended to `completed/<session_id>__<agent_key>.jsonl` at Stop. Each (session, agent) pair has its own files — no global `_active.json`.
+
+### Project identity
+
+`project_fp = sha256(realpath(cwd)).slice(0, 16)` — not `basename(cwd)`. Two projects with the same basename but different paths never collide.
 
 ## Key modules
 
-- `store.ts` — JSON persistence, active task tracking, `flushActiveTask()`
-- `stats.ts` — Median, percentile, IQR, volatility computation, prompt complexity scoring, task estimation, default baselines
+- `paths.ts` — Centralized data directory paths, uses `${CLAUDE_PLUGIN_DATA}` or dev fallback
+- `identity.ts` — Project fingerprint (sha256 of realpath), local salt for privacy hashing
+- `event-store.ts` — Append-only JSONL store: upsertSession, startTurn, getActiveTurn, setActiveTurn (atomic), appendEvent, closeTurn, closeAllSessionTurns, loadCompletedTurns
+- `types.ts` — All types: v1 legacy (TaskEntry, ProjectData, ActiveTask) + v2 (SessionMeta, ActiveTurnState, EventRecord, CompletedTurn, RunnerKind, StopReason) + all hook stdin types
+- `migrate.ts` — Idempotent legacy→v2 migration (reads `{slug}.json`, writes `completed/*.jsonl`)
+- `compat.ts` — Bridge layer: `loadCompletedTurnsCompat(cwd)` reads v2 or legacy, `turnsToTaskEntries()` for backward compat
+- `estimator.ts` — Shrinkage quantile ETA: blends classification→global→baseline with sample-size weights
+- `features.ts` — Trace feature extraction + phase detection (explore→edit→validate→repair_loop)
+- `stats.ts` — Percentile, IQR, volatility computation, formatting helpers (fmtSec, formatStatsContext)
 - `classify.ts` — Keyword-based prompt classification (9 categories)
-- `detector.ts` — Bullshit detector: extract time durations from text, flag outliers
+- `detector.ts` — Bullshit detector: extract durations, flag outliers, `resolveDetectorReference()` for classification-first comparison
+- `repo-metrics.ts` — File count + LOC estimation with 24h cache
 - `stdin.ts` — Generic stdin reader (shared across all hooks)
 - `anonymize.ts` — SHA-256 hashing for contributor/project IDs, model normalization, LOC buckets
-- `supabase.ts` — Zero-dep HTTP client for PostgREST API (INSERT velocity_records, SELECT baselines_cache)
-- `cli/export.ts` — Anonymize project tasks to local JSON
-- `cli/contribute.ts` — Preview + upload anonymized data (opt-in, requires `--confirm`)
-- `cli/compare.ts` — Fetch community baselines, compare to local stats, 6h cache
-- Auto-ETA: opt-in feature (`/eta auto on`) that injects estimated duration at response start.
-  9 activation conditions (master switch, not "other", min 5 tasks/type, not conversational,
-  compute estimate, volatility adjustment, interval sanity, per-type accuracy gate, cooldown).
-  Self-check in on-stop.ts auto-disables types below 50% accuracy over 10+ predictions.
-  Prediction stored in `_last_eta.json`, accuracy tracked in `ProjectData.eta_accuracy`.
-  Guards in `auto-eta.ts` (pure, zero I/O). Preferences in `_preferences.json`.
+- `supabase.ts` — Zero-dep HTTP client for PostgREST API
+- `auto-eta.ts` — Auto-ETA decision engine (9 activation conditions, pure, zero I/O)
+- `insights/` — 9 deep analyses (correlations, breakdowns, temporal patterns)
 
 ## Hook stdin/stdout protocol
 
 Hooks receive JSON on stdin from Claude Code. Each event type has different fields:
 
-- **UserPromptSubmit**: `{ prompt, session_id, cwd, model }` → can output `{ hookSpecificOutput: { additionalContext } }`
-- **PostToolUse**: `{ tool_name, tool_input, tool_response }` → output same format
-- **Stop**: `{ last_assistant_message, stop_hook_active }` → can output `{ decision: "block", reason }` to force Claude to continue
-- **SessionStart**: `{ session_id, cwd }` → plain text stdout becomes context
+- **SessionStart**: `{ session_id, cwd, source, agent_type, model }` → plain text stdout becomes context
+- **UserPromptSubmit**: `{ prompt, session_id, cwd, agent_id, model }` → `{ hookSpecificOutput: { additionalContext } }`
+- **PostToolUse**: `{ tool_name, tool_input, tool_response, session_id, cwd, agent_id }` → no output
+- **PostToolUseFailure**: same shape as PostToolUse
+- **Stop**: `{ last_assistant_message, stop_hook_active, session_id, cwd, agent_id }` → `{ decision: "block", reason }` or nothing
+- **StopFailure**: `{ session_id, cwd, error }` → no output
+- **SubagentStart**: `{ session_id, agent_id, agent_type, cwd }` → no output
+- **SubagentStop**: `{ session_id, agent_id, stop_hook_active }` → no output
+- **SessionEnd**: `{ session_id, cwd }` → no output
 
 ## Critical conventions
 
-- **PostToolUse is hot path** — spawns on every tool call (~50ms Node startup). Keep it minimal. Never read the full project JSON here — only `_active.json`.
+- **PostToolUse is hot path** — spawns on every tool call (~50ms Node startup). Only reads/writes the per-(session,agent) active file. Never reads completed turns or full project data here.
 - **TOCTOU** — Never `existsSync` then `readFileSync`. Always try/catch directly.
-- **Null safety** — Fields from hook stdin can be undefined. The `ActiveTask` type has all fields required, but JSON deserialization can produce partial objects. Use `?? 0` at boundaries.
-- **Backward compat** — `loadProject()` normalizes tasks with missing fields (old plugin versions). Any new field added to `TaskEntry` must have a default in `normalizeTask()`.
-- **Stop hook loop prevention** — `stop_hook_active: true` means the Stop hook already fired once. Skip bullshit detection on second fire to avoid infinite loops.
+- **Null safety** — Fields from hook stdin can be undefined. Use `?? 0` at boundaries.
+- **Atomic writes** — Active turn files use temp+rename pattern (same as v1 `incrementActive`).
+- **Stop hook loop prevention** — `stop_hook_active: true` OR `status === 'stop_blocked'` → skip BS detection, just close.
+- **Model source of truth** — SessionStart stores model in SessionMeta. UserPromptSubmit reads it from there, not from stdin.model.
 
 ## Data storage
 
 ```
-~/.claude/plugins/claude-eta/
-├── data/
-│   ├── {project-slug}.json      # Full task history per project
-│   ├── _active.json             # Current task counters (ephemeral, deleted at Stop)
-│   ├── _last_completed.json     # Recap for next prompt (ephemeral, consumed once)
-│   └── _contribute_state.json   # Last contribution timestamp
+${CLAUDE_PLUGIN_DATA}/                    # or ~/.claude/plugins/claude-eta/ (dev fallback)
+├── schema-version.json
+├── local-salt.txt                        # Random salt for privacy hashing (never leaves machine)
+├── projects/<project_fp>/
+│   ├── meta.json                         # Project metadata
+│   ├── sessions/<session_id>.json        # Session metadata (model, source, agent_type)
+│   ├── active/<session_id>__<agent_key>.json   # Current turn counters (ephemeral)
+│   ├── events/<session_id>__<agent_key>.jsonl  # Append-only event log
+│   ├── completed/<session_id>__<agent_key>.jsonl # Finalized turns
+│   └── cache/
+│       ├── repo-metrics.json             # File count + LOC (24h TTL)
+│       └── stats.json                    # Pre-computed stats (future)
+├── data/                                 # Legacy v1 data (kept for migration)
+│   ├── {project-slug}.json
+│   ├── _active.json                      # (deprecated, replaced by per-session active files)
+│   ├── _last_completed.json
+│   └── _preferences.json
 ├── export/
-│   └── velocity-YYYY-MM.json    # Anonymized export files
-├── cache/
-│   └── baselines.json           # Community baselines cache (6h TTL)
-└── .contributor_id              # Random UUID (never sent, only hashed)
+│   └── velocity-YYYY-MM.json
+└── cache/
+    └── baselines.json                    # Community baselines (6h TTL)
 ```
 
-Data is local-only, human-readable JSON. Never committed to git.
+Data is local-only, human-readable JSON/JSONL. Never committed to git.
 Community features (`compare`, `contribute`) make network calls only when explicitly invoked by the user.
 
 ## Testing
@@ -87,12 +115,22 @@ Tests are plain JS using `node:test`, importing from `dist/`. Run `npm run build
 
 ```
 tests/
-├── classify.test.js   # 16 tests — classification + summarization
-├── store.test.js      # 10 tests — CRUD, active task, increments
-├── stats.test.js      # 18 tests — stats, complexity scoring, estimation, formatting
-├── detector.test.js   # 14 tests — duration extraction, bullshit detection
-├── anonymize.test.js  # 15 tests — hashing, model normalization, LOC buckets
-└── export.test.js     # 4 tests — PII stripping, null skip, hash, model normalization
+├── classify.test.js              # 16 tests — classification + summarization
+├── store.test.js                 # 10 tests — legacy CRUD, active task, increments
+├── stats.test.js                 # 18 tests — stats, complexity scoring, estimation, formatting
+├── detector.test.js              # 14 tests — duration extraction, bullshit detection
+├── anonymize.test.js             # 15 tests — hashing, model normalization, LOC buckets
+├── export.test.js                # 4 tests — PII stripping, null skip, hash
+├── paths.test.js                 # 12 tests — data directory path construction
+├── identity.test.js              # 15 tests — project fingerprint, salt, hashing
+├── event-store.test.js           # 18 tests — turn lifecycle, concurrent sessions, JSONL
+├── migrate.test.js               # 11 tests — legacy migration, idempotence, compat
+├── stop-hook.test.js             # 5 tests — stop hook integration (v2 event-store)
+├── estimator.test.js             # 16 tests — shrinkage quantile, phase detection
+├── repo-metrics.test.js          # 7 tests — file walk, caching, buckets
+├── auto-eta.test.js              # ~20 tests — activation conditions, cooldown
+├── insights-*.test.js            # 48 tests — 9 deep analysis functions
+└── plugin-package.test.js        # 3 tests — manifest alignment, dist shipping
 ```
 
 ## Install the plugin locally (for development)

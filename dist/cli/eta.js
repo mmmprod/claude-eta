@@ -8,10 +8,14 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
+import { fileURLToPath } from 'node:url';
 import { loadProject, loadPreferences, savePreferences } from '../store.js';
+import { loadCompletedTurnsCompat, turnsToTaskEntries } from '../compat.js';
 import { showExport } from './export.js';
 import { showContribute, executeContribute } from './contribute.js';
 import { showCompare } from './compare.js';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 const EXPORT_DIR = path.join(os.homedir(), '.claude', 'plugins', 'claude-eta', 'export');
 // ── Formatting helpers ────────────────────────────────────────
 function fmtDuration(seconds) {
@@ -294,31 +298,36 @@ async function main() {
             break;
         }
     }
-    // Sync commands
+    // Sync commands — load data via compat layer (v2 or legacy)
+    const turns = loadCompletedTurnsCompat(cwd);
+    const tasks = turnsToTaskEntries(turns);
+    // Also load legacy data for commands that still need ProjectData shape
     const data = loadProject(project);
-    if (data.tasks.length === 0) {
+    if (tasks.length === 0 && data.tasks.length === 0) {
         console.log('No tasks tracked yet. claude-eta is recording — data will appear after your first completed task.');
         return;
     }
+    // Prefer v2 turns if available, else fall back to legacy tasks
+    const displayTasks = tasks.length > 0 ? tasks : data.tasks;
     switch (mode) {
         case 'history':
-            showHistory(data.tasks);
+            showHistory(displayTasks);
             break;
         case 'stats':
-            showStats(data.tasks);
+            showStats(displayTasks);
             break;
         case 'inspect':
             showInspect(data);
             break;
         case 'recap':
-            showRecap(data.tasks);
+            showRecap(displayTasks);
             break;
         case 'auto':
             showAuto(data);
             break;
         case 'insights': {
             const { computeAllInsights, formatInsightsReport } = await import('../insights/index.js');
-            const results = computeAllInsights(data.tasks);
+            const results = computeAllInsights(displayTasks);
             console.log(formatInsightsReport(results));
             break;
         }

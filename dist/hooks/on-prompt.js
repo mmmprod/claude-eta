@@ -1,20 +1,20 @@
 /**
- * UserPromptSubmit hook — marks the start of a new task.
- * Reads the user's prompt, classifies it, creates a task entry.
- * Injects project velocity stats as additionalContext to calibrate Claude.
+ * UserPromptSubmit hook — v2: starts a new turn via event-store.
+ *
+ * Key fixes over v1:
+ * - No cross-session flush (defect 4)
+ * - Model from SessionMeta, not stdin (defect 5)
+ * - Uses event-store per-(session, agent) isolation (defect 1)
  */
 import * as crypto from 'node:crypto';
-import * as path from 'node:path';
 import { readStdin } from '../stdin.js';
-import { loadProject, addTask, setActiveTask, flushActiveTask, consumeLastCompleted, loadPreferences, savePreferences, setLastEta, } from '../store.js';
+import { resolveProjectIdentity } from '../identity.js';
+import { getSession, getActiveTurn, startTurn, closeTurn } from '../event-store.js';
+import { loadCompletedTurnsCompat, turnsToTaskEntries } from '../compat.js';
+import { loadPreferences, savePreferences, setLastEta, consumeLastCompleted } from '../store.js';
 import { checkDisableRequest, evaluateAutoEta } from '../auto-eta.js';
 import { classifyPrompt, summarizePrompt } from '../classify.js';
 import { computeStats, formatStatsContext, estimateTask, scorePromptComplexity, getDefaultEstimate, formatColdStartContext, formatTaskRecap, } from '../stats.js';
-function projectName(cwd) {
-    if (!cwd)
-        return 'unknown';
-    return path.basename(cwd);
-}
 /** Output hook response with optional additionalContext */
 function respond(additionalContext) {
     if (!additionalContext)
@@ -31,50 +31,84 @@ async function main() {
     const stdin = await readStdin();
     if (!stdin)
         return;
-    const project = projectName(stdin.cwd);
+    const cwd = stdin.cwd;
     const prompt = stdin.prompt ?? '';
-    // Close previous active task if any
-    flushActiveTask();
-    // Pick up recap from the last completed task (consume-once)
+    if (!cwd)
+        return;
+    const sessionId = stdin.session_id ?? 'unknown';
+    const agentKey = stdin.agent_id ?? 'main';
+    const { fp, displayName } = resolveProjectIdentity(cwd);
+    // Close previous active turn for THIS session+agent only (not others!)
+    // Fixes defect 4: no cross-session flush
+    const existing = getActiveTurn(fp, sessionId, agentKey);
+    if (existing) {
+        closeTurn(fp, sessionId, agentKey, 'replaced_by_new_prompt');
+    }
+    // Pick up recap from the last completed task (consume-once, legacy system)
     const lastCompleted = consumeLastCompleted();
-    // Load project data for stats BEFORE adding the new task
-    const data = loadProject(project);
-    const stats = computeStats(data.tasks);
-    // Create new task
-    const taskId = crypto.randomUUID();
-    const task = {
-        task_id: taskId,
-        session_id: stdin.session_id ?? 'unknown',
-        project,
-        timestamp_start: new Date().toISOString(),
-        timestamp_end: null,
-        duration_seconds: null,
-        prompt_summary: summarizePrompt(prompt),
-        classification: classifyPrompt(prompt),
+    // Load completed turns for stats BEFORE creating the new turn
+    const turns = loadCompletedTurnsCompat(cwd);
+    const tasks = turnsToTaskEntries(turns);
+    const stats = computeStats(tasks);
+    // Get model from SessionMeta (source of truth, set in SessionStart)
+    // Fixes defect 5: model no longer from UserPromptSubmit stdin
+    const sessionMeta = getSession(fp, sessionId);
+    const model = sessionMeta?.model ?? stdin.model?.display_name ?? stdin.model?.id ?? null;
+    // Classify and summarize prompt
+    const classification = classifyPrompt(prompt);
+    const promptSummary = summarizePrompt(prompt);
+    const complexity = scorePromptComplexity(prompt);
+    // Create new turn via event-store (replaces addTask + setActiveTask)
+    const now = Date.now();
+    const turnId = crypto.randomUUID();
+    const state = {
+        turn_id: turnId,
+        work_item_id: turnId, // For now, 1:1 with turn
+        session_id: sessionId,
+        agent_key: agentKey,
+        agent_id: agentKey === 'main' ? null : agentKey,
+        agent_type: stdin.agent_type ?? null,
+        runner_kind: agentKey === 'main' ? 'main' : 'subagent',
+        project_fp: fp,
+        project_display_name: displayName,
+        classification,
+        prompt_summary: promptSummary,
+        prompt_complexity: complexity,
+        started_at: new Date(now).toISOString(),
+        started_at_ms: now,
         tool_calls: 0,
         files_read: 0,
         files_edited: 0,
         files_created: 0,
+        unique_files: 0,
+        bash_calls: 0,
+        bash_failures: 0,
+        grep_calls: 0,
+        glob_calls: 0,
         errors: 0,
-        model: stdin.model?.display_name ?? stdin.model?.id ?? 'unknown',
+        first_tool_at_ms: null,
+        first_edit_at_ms: null,
+        first_bash_at_ms: null,
+        last_event_at_ms: null,
+        last_assistant_message: null,
+        model,
+        source: sessionMeta?.source ?? null,
+        status: 'active',
+        path_fps: [],
     };
-    addTask(project, task);
-    setActiveTask(project, taskId);
-    // Build context: optional recap + stats or cold-start baselines
+    startTurn(state);
+    // ── Build context injection ────────────────────────────────
     const contextParts = [];
     if (lastCompleted) {
         contextParts.push(formatTaskRecap(lastCompleted));
     }
-    const complexity = scorePromptComplexity(prompt);
     if (stats) {
-        // Calibrated path — real project data
-        const estimate = estimateTask(stats, task.classification, complexity);
+        const estimate = estimateTask(stats, classification, complexity);
         contextParts.push(formatStatsContext(stats, estimate));
     }
     else {
-        // Cold start — generic baselines
-        const completedCount = data.tasks.filter((t) => t.duration_seconds != null).length;
-        const estimate = getDefaultEstimate(task.classification, complexity);
+        const completedCount = turns.length;
+        const estimate = getDefaultEstimate(classification, complexity);
         contextParts.push(formatColdStartContext(estimate, completedCount));
     }
     // Auto-ETA evaluation (only when calibrated)
@@ -86,27 +120,27 @@ async function main() {
             contextParts.push('[claude-eta] Auto-ETA disabled. Re-enable anytime with /eta auto on.');
         }
         else {
+            // Use legacy eta_accuracy from store for now (will migrate in Phase 9)
             const decision = evaluateAutoEta({
                 prefs,
                 stats,
-                etaAccuracy: data.eta_accuracy ?? {},
-                classification: task.classification,
+                etaAccuracy: {},
+                classification,
                 prompt,
-                taskId,
+                taskId: turnId,
             });
             switch (decision.action) {
                 case 'inject':
                     contextParts.push(decision.injection);
                     setLastEta(decision.prediction);
                     prefs.prompts_since_last_eta = 0;
-                    prefs.last_eta_task_id = taskId;
+                    prefs.last_eta_task_id = turnId;
                     savePreferences(prefs);
                     break;
                 case 'cooldown':
                     prefs.prompts_since_last_eta++;
                     savePreferences(prefs);
                     break;
-                // 'skip': no action
             }
         }
     }

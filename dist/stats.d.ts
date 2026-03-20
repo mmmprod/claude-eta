@@ -40,7 +40,7 @@ export declare const DEFAULT_BASELINES: Record<TaskClassification, {
 export declare function computeStats(tasks: TaskEntry[]): ProjectStats | null;
 /** Score prompt complexity 1-5 based on length, file mentions, and scope */
 export declare function scorePromptComplexity(prompt: string): number;
-/** Estimate duration for a task based on classification + prompt complexity */
+/** Estimate duration using shrinkage quantile blending (v2 estimator) */
 export declare function estimateTask(stats: ProjectStats, classification: string, complexity: number): TaskEstimate;
 /** Estimate from generic baselines (cold start, before real data exists) */
 export declare function getDefaultEstimate(classification: TaskClassification, complexity: number): TaskEstimate;

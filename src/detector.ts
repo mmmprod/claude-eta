@@ -3,6 +3,15 @@
  * and identifies estimates wildly off from project history.
  */
 
+// ── Centralized thresholds ───────────────────────────────────
+
+export const DETECTOR_CONFIG = {
+  /** Duration must exceed this multiple of the reference p75 to be flagged */
+  p75Multiplier: 5,
+  /** Duration must also exceed reference median + this many seconds */
+  medianOffsetSeconds: 600,
+} as const;
+
 export interface DetectedEstimate {
   raw: string;
   seconds: number;
@@ -76,7 +85,7 @@ export function extractDurations(text: string, options?: { estimatesOnly?: boole
  * Find the worst offender among durations.
  * Returns null if all estimates are within reasonable range.
  *
- * Threshold: must be >5x the p75 AND >10 min above median.
+ * Threshold: must exceed max(p75 * multiplier, median + offset).
  * Avoids false positives on small values and technical mentions.
  */
 export function findBullshitEstimate(
@@ -87,6 +96,33 @@ export function findBullshitEstimate(
   if (durations.length === 0 || p75 <= 0) return null;
 
   const largest = durations.reduce((max, d) => (d.seconds > max.seconds ? d : max));
-  const threshold = Math.max(p75 * 5, median + 600);
+  const threshold = Math.max(
+    p75 * DETECTOR_CONFIG.p75Multiplier,
+    median + DETECTOR_CONFIG.medianOffsetSeconds,
+  );
   return largest.seconds > threshold ? largest : null;
+}
+
+/**
+ * Resolve the best reference stats for comparison.
+ * Hierarchy: classification-specific → global → null.
+ */
+export function resolveDetectorReference(
+  stats: { overall: { median: number; p25: number; p75: number; }; byClassification: { classification: string; count: number; median: number; p25: number; p75: number }[] },
+  classification: string,
+): { median: number; p25: number; p75: number; count: number; source: string } | null {
+  // 1. Classification-specific
+  const cls = stats.byClassification.find((s) => s.classification === classification);
+  if (cls && cls.count >= 2) {
+    return { median: cls.median, p25: cls.p25, p75: cls.p75, count: cls.count, source: classification };
+  }
+
+  // 2. Global
+  return {
+    median: stats.overall.median,
+    p25: stats.overall.p25,
+    p75: stats.overall.p75,
+    count: stats.byClassification.reduce((s, c) => s + c.count, 0),
+    source: 'overall',
+  };
 }
