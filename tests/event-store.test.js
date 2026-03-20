@@ -32,6 +32,7 @@ function getEventStoreModuleUrl() {
 
 function runConcurrentCloseTurnWorkers(projectFp, sessionId, agentKey, reason) {
   const gate = new SharedArrayBuffer(Int32Array.BYTES_PER_ELEMENT);
+  const workerPath = new URL('./helpers/event-store-close-worker.mjs', import.meta.url);
   const workerData = {
     gate,
     moduleUrl: getEventStoreModuleUrl(),
@@ -40,33 +41,10 @@ function runConcurrentCloseTurnWorkers(projectFp, sessionId, agentKey, reason) {
     agentKey,
     reason,
   };
-  const workerSource = `
-    import { parentPort, workerData } from 'node:worker_threads';
-
-    const gate = new Int32Array(workerData.gate);
-    parentPort.postMessage({ type: 'ready' });
-    Atomics.wait(gate, 0, 0);
-
-    try {
-      const { closeTurn } = await import(workerData.moduleUrl);
-      const result = closeTurn(
-        workerData.projectFp,
-        workerData.sessionId,
-        workerData.agentKey,
-        workerData.reason,
-      );
-      parentPort.postMessage({ type: 'result', result });
-    } catch (error) {
-      parentPort.postMessage({
-        type: 'error',
-        error: error instanceof Error ? (error.stack ?? error.message) : String(error),
-      });
-    }
-  `;
 
   const runWorker = () =>
     new Promise((resolve, reject) => {
-      const worker = new Worker(workerSource, { eval: true, type: 'module', workerData });
+      const worker = new Worker(workerPath, { workerData });
       let ready = false;
       let finished = false;
 
