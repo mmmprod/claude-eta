@@ -39,6 +39,8 @@ async function main() {
             event: 'tool_fail',
             tool_name: toolName || undefined,
             ok: false,
+            error: stdin.error ?? null,
+            is_interrupt: stdin.is_interrupt ?? null,
         });
     }
     catch {

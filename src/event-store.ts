@@ -9,8 +9,10 @@
  */
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import * as crypto from 'node:crypto';
+// crypto no longer needed — atomicWrite moved to paths.ts
 import type { SessionMeta, ActiveTurnState, EventRecord, CompletedTurn, StopReason } from './types.js';
+import type { TurnEventType } from './types.js';
+import { loadProjectMeta } from './project-meta.js';
 import {
   ensureDir,
   ensureProjectDirs,
@@ -20,7 +22,19 @@ import {
   getSessionMetaPath,
   getCompletedDir,
   getActiveDir,
+  getClosingDir,
+  atomicWrite,
 } from './paths.js';
+
+/** Canonical mapping from StopReason to TurnEventType */
+const STOP_REASON_TO_EVENT: Record<StopReason, TurnEventType> = {
+  stop: 'turn_stopped',
+  stop_failure: 'turn_stop_failure',
+  session_end: 'session_ended',
+  replaced_by_new_prompt: 'turn_replaced',
+  subagent_stop: 'subagent_stopped',
+  migrated: 'turn_migrated',
+};
 
 // ── Session management ───────────────────────────────────────
 
@@ -76,15 +90,6 @@ export function setActiveTurn(state: ActiveTurnState): void {
   atomicWrite(filePath, JSON.stringify(state));
 }
 
-/** Delete active turn file */
-function clearActiveTurn(projectFp: string, sessionId: string, agentKey: string): void {
-  try {
-    fs.unlinkSync(getActiveTurnPath(projectFp, sessionId, agentKey));
-  } catch {
-    // Already gone — fine
-  }
-}
-
 // ── Event logging ────────────────────────────────────────────
 
 /** Append a single event to the event log (O(1) append, no read-modify-write) */
@@ -94,24 +99,36 @@ export function appendEvent(projectFp: string, sessionId: string, agentKey: stri
   fs.appendFileSync(filePath, JSON.stringify(event) + '\n');
 }
 
-// ── Turn completion ──────────────────────────────────────────
+// ── Turn completion (idempotent) ─────────────────────────────
 
-/** Close an active turn — compute duration, write completed record, delete active file */
-export function closeTurn(
-  projectFp: string,
-  sessionId: string,
-  agentKey: string,
+function getClosingPath(projectFp: string, sessionId: string, agentKey: string): string {
+  return path.join(getClosingDir(projectFp), `${sessionId}__${agentKey}.json`);
+}
+
+/** Check if a turn_id already exists in the completed JSONL (dedup guard) */
+function isTurnAlreadyCompleted(projectFp: string, sessionId: string, agentKey: string, turnId: string): boolean {
+  const completedPath = getCompletedLogPath(projectFp, sessionId, agentKey);
+  try {
+    const content = fs.readFileSync(completedPath, 'utf-8');
+    for (const line of content.split('\n')) {
+      if (line.includes(`"turn_id":"${turnId}"`)) return true;
+    }
+  } catch {
+    // No completed file yet
+  }
+  return false;
+}
+
+/** Build a CompletedTurn record from an active turn state */
+function buildCompletedTurn(
+  active: ActiveTurnState,
   reason: StopReason,
   extras?: Partial<Pick<CompletedTurn, 'repo_loc_bucket' | 'repo_file_count_bucket'>>,
-): CompletedTurn | null {
-  const active = getActiveTurn(projectFp, sessionId, agentKey);
-  if (!active) return null;
-
+): CompletedTurn {
   const now = Date.now();
   const endedAt = new Date(now).toISOString();
   const wallSeconds = Math.max(0, Math.round((now - active.started_at_ms) / 1000));
 
-  // Active seconds: time from start to last event, capped at wall
   let activeSeconds = wallSeconds;
   if (active.last_event_at_ms != null && active.tool_calls > 0) {
     activeSeconds = Math.min(
@@ -121,7 +138,18 @@ export function closeTurn(
   }
   const waitSeconds = Math.max(0, wallSeconds - activeSeconds);
 
-  const completed: CompletedTurn = {
+  // Auto-fill repo buckets from project meta if not provided via extras
+  let locBucket = extras?.repo_loc_bucket ?? null;
+  let fileCountBucket = extras?.repo_file_count_bucket ?? null;
+  if (!locBucket || !fileCountBucket) {
+    const meta = loadProjectMeta(active.project_fp);
+    if (meta) {
+      if (!locBucket) locBucket = meta.loc_bucket;
+      if (!fileCountBucket) fileCountBucket = meta.file_count_bucket;
+    }
+  }
+
+  return {
     turn_id: active.turn_id,
     work_item_id: active.work_item_id,
     session_id: active.session_id,
@@ -152,32 +180,91 @@ export function closeTurn(
     model: active.model,
     source: active.source,
     stop_reason: reason,
-    repo_loc_bucket: extras?.repo_loc_bucket ?? null,
-    repo_file_count_bucket: extras?.repo_file_count_bucket ?? null,
+    repo_loc_bucket: locBucket,
+    repo_file_count_bucket: fileCountBucket,
   };
+}
 
-  // Append to completed JSONL
+/**
+ * Idempotent close turn — guaranteed to produce at most one completed record.
+ *
+ * Protocol:
+ * 1. Read active file → if missing, check closing/ for crash recovery
+ * 2. Rename active → closing (atomic staging)
+ * 3. Dedup check: if turn_id already in completed JSONL, delete closing and return
+ * 4. Append completed record to JSONL
+ * 5. Append closing event to event log
+ * 6. Delete closing file
+ */
+export function closeTurn(
+  projectFp: string,
+  sessionId: string,
+  agentKey: string,
+  reason: StopReason,
+  extras?: Partial<Pick<CompletedTurn, 'repo_loc_bucket' | 'repo_file_count_bucket'>>,
+): CompletedTurn | null {
+  const activePath = getActiveTurnPath(projectFp, sessionId, agentKey);
+  const closingPath = getClosingPath(projectFp, sessionId, agentKey);
+  let active: ActiveTurnState | null = null;
+
+  let recoveredFromClosing = false;
+
+  // Step 1: Try to read from active, or fall back to closing (crash recovery)
+  try {
+    active = JSON.parse(fs.readFileSync(activePath, 'utf-8')) as ActiveTurnState;
+  } catch {
+    // No active file — check closing for crash recovery
+    try {
+      active = JSON.parse(fs.readFileSync(closingPath, 'utf-8')) as ActiveTurnState;
+      recoveredFromClosing = true;
+    } catch {
+      // Neither active nor closing — turn already closed or never existed
+      return null;
+    }
+  }
+
+  // Step 2: Stage — rename active → closing (if not already in closing)
+  if (!recoveredFromClosing) {
+    ensureDir(getClosingDir(projectFp));
+    try {
+      fs.renameSync(activePath, closingPath);
+    } catch {
+      // Rename failed — if closing exists (concurrent call), proceed; otherwise bail
+      try {
+        fs.statSync(closingPath);
+      } catch {
+        return null;
+      }
+    }
+  }
+
+  // Step 3: Dedup check — only needed during crash recovery
+  if (recoveredFromClosing && isTurnAlreadyCompleted(projectFp, sessionId, agentKey, active.turn_id)) {
+    try { fs.unlinkSync(closingPath); } catch { /* already gone */ }
+    return null;
+  }
+
+  // Step 4: Build and append completed record
+  const completed = buildCompletedTurn(active, reason, extras);
   const completedPath = getCompletedLogPath(projectFp, sessionId, agentKey);
   ensureDir(path.dirname(completedPath));
   fs.appendFileSync(completedPath, JSON.stringify(completed) + '\n');
 
-  // Remove active file BEFORE event log — if crash happens after completed JSONL
-  // is written but before active is cleared, the next closeTurn call will find
-  // no active file and return null (safe, no duplicate).
-  clearActiveTurn(projectFp, sessionId, agentKey);
-
-  // Append closing event (non-fatal — completed record is already persisted)
+  // Step 5: Append closing event (non-fatal)
   try {
     ensureDir(path.dirname(getEventLogPath(projectFp, sessionId, agentKey)));
     appendEvent(projectFp, sessionId, agentKey, {
       seq: active.tool_calls + 1,
-      ts: endedAt,
-      ts_ms: now,
-      event: reason === 'stop' ? 'turn_stopped' : reason === 'stop_failure' ? 'turn_stop_failure' : 'session_ended',
+      ts: completed.ended_at,
+      ts_ms: Date.now(),
+      event: STOP_REASON_TO_EVENT[reason] ?? 'turn_stopped',
     });
   } catch {
-    // Event log append failure is non-fatal — completed turn is already saved
+    // Event log failure is non-fatal — completed record is already persisted
   }
+
+  // Step 6: Clean up closing file
+  try { fs.unlinkSync(closingPath); } catch { /* already gone */ }
 
   return completed;
 }
@@ -219,13 +306,6 @@ export function loadRecentCompletedTurns(projectFp: string, limit: number): Comp
 }
 
 // ── Internals ────────────────────────────────────────────────
-
-/** Atomic write: write to temp file, then rename */
-function atomicWrite(filePath: string, data: string): void {
-  const tmp = filePath + '.tmp.' + crypto.randomBytes(4).toString('hex');
-  fs.writeFileSync(tmp, data);
-  fs.renameSync(tmp, filePath);
-}
 
 /** Read all JSONL files from the completed directory */
 function readAllCompletedJsonl(projectFp: string): CompletedTurn[] {

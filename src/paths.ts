@@ -7,6 +7,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
+import * as crypto from 'node:crypto';
 
 const FALLBACK_DATA_DIR = path.join(os.homedir(), '.claude', 'plugins', 'claude-eta');
 
@@ -43,6 +44,16 @@ export function getSessionsDir(projectFp: string): string {
 /** Cache directory: <project>/cache/ */
 export function getCacheDir(projectFp: string): string {
   return path.join(getProjectDir(projectFp), 'cache');
+}
+
+/** Global config: <data>/config/ */
+export function getConfigDir(): string {
+  return path.join(getPluginDataDir(), 'config');
+}
+
+/** Closing staging dir (idempotent closeTurn): <project>/closing/ */
+export function getClosingDir(projectFp: string): string {
+  return path.join(getProjectDir(projectFp), 'closing');
 }
 
 /** Community data: <data>/community/ */
@@ -92,6 +103,13 @@ export function getSchemaVersionPath(): string {
 /** Ensure a directory exists (recursive, no-op if exists) */
 export function ensureDir(dirPath: string): void {
   fs.mkdirSync(dirPath, { recursive: true });
+}
+
+/** Atomic write: write to temp file, then rename (prevents corruption from concurrent access) */
+export function atomicWrite(filePath: string, data: string): void {
+  const tmp = filePath + '.tmp.' + crypto.randomBytes(4).toString('hex');
+  fs.writeFileSync(tmp, data);
+  fs.renameSync(tmp, filePath);
 }
 
 /** Ensure all project subdirectories exist */

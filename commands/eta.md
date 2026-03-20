@@ -9,7 +9,7 @@ allowed-tools: [Bash]
 Run the eta CLI script and show its output to the user verbatim:
 
 ```bash
-node ${CLAUDE_PLUGIN_ROOT}/dist/cli/eta.js $ARGUMENTS $(pwd)
+node "${CLAUDE_PLUGIN_ROOT}/dist/cli/eta.js" $ARGUMENTS "$(pwd)"
 ```
 
 Available commands:

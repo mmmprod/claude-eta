@@ -2,7 +2,7 @@
  * Auto-ETA decision module — pure functions, zero I/O.
  * Mirrors detector.ts pattern: called by on-prompt.ts hook.
  */
-import type { UserPreferences, LastEtaPrediction, TaskClassification } from './types.js';
+import type { LastEtaPrediction, TaskClassification } from './types.js';
 import type { ProjectStats } from './stats.js';
 import { estimateTask, scorePromptComplexity, fmtSec } from './stats.js';
 
@@ -33,9 +33,16 @@ export function checkDisableRequest(prompt: string): boolean {
   return DISABLE_PATTERNS.test(prompt) && !CODING_TERMS.test(prompt);
 }
 
+/** Minimal prefs shape needed by auto-eta — compatible with both v1 and v2 */
+export interface AutoEtaPrefs {
+  auto_eta: boolean;
+  prompts_since_last_eta: number;
+  last_eta_task_id?: string | null | undefined;
+}
+
 /** Evaluate whether to inject an auto-ETA. Pure function — no I/O. */
 export function evaluateAutoEta(params: {
-  prefs: UserPreferences;
+  prefs: AutoEtaPrefs;
   stats: ProjectStats;
   etaAccuracy: Record<string, { hits: number; misses: number }>;
   classification: TaskClassification;

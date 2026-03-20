@@ -92,6 +92,8 @@ export type TurnEventType =
   | 'tool_fail'
   | 'turn_stopped'
   | 'turn_stop_failure'
+  | 'turn_replaced'
+  | 'turn_migrated'
   | 'session_ended'
   | 'subagent_started'
   | 'subagent_stopped';
@@ -197,7 +199,7 @@ export interface CompletedTurn {
   repo_file_count_bucket: string | null;
 }
 
-// ── Hook stdin types ─────────────────────────────────────────
+// ── Hook stdin types (aligned with official Claude Code spec) ─
 
 /** Common fields shared by all hook events */
 export interface HookStdinBase {
@@ -208,15 +210,15 @@ export interface HookStdinBase {
   hook_event_name?: string;
   agent_id?: string;
   agent_type?: string;
-  model?: {
-    id?: string;
-    display_name?: string;
-  };
+  /** Model ID — string per official spec. Legacy compat: may arrive as object. */
+  model?: string | { id?: string; display_name?: string };
 }
 
 /** SessionStart hook stdin */
 export interface SessionStartStdin extends HookStdinBase {
-  source?: string;
+  source?: 'startup' | 'resume' | 'clear' | 'compact';
+  /** Model is always a string in SessionStart per official spec */
+  model?: string | { id?: string; display_name?: string };
 }
 
 /** UserPromptSubmit hook stdin */
@@ -232,12 +234,15 @@ export interface PostToolUseStdin extends HookStdinBase {
   tool_use_id?: string;
 }
 
-/** PostToolUseFailure hook stdin (same shape as PostToolUse) */
+/** PostToolUseFailure hook stdin — includes error info per official spec */
 export interface PostToolUseFailureStdin extends HookStdinBase {
   tool_name?: string;
   tool_input?: Record<string, unknown>;
-  tool_response?: Record<string, unknown>;
   tool_use_id?: string;
+  /** Error message from the failed tool call */
+  error?: string;
+  /** Whether the failure was caused by a user interrupt */
+  is_interrupt?: boolean;
 }
 
 /** Stop hook stdin */
@@ -246,10 +251,18 @@ export interface StopStdin extends HookStdinBase {
   last_assistant_message?: string;
 }
 
-/** StopFailure hook stdin */
+/** StopFailure hook stdin — error is an enum per official spec */
 export interface StopFailureStdin extends HookStdinBase {
-  stop_hook_active?: boolean;
-  error?: string;
+  error?:
+    | 'rate_limit'
+    | 'authentication_failed'
+    | 'billing_error'
+    | 'invalid_request'
+    | 'server_error'
+    | 'max_output_tokens'
+    | 'unknown';
+  error_details?: string;
+  last_assistant_message?: string;
 }
 
 /** SubagentStart hook stdin */
@@ -257,12 +270,14 @@ export interface SubagentStartStdin extends HookStdinBase {
   // agent_id and agent_type come from HookStdinBase
 }
 
-/** SubagentStop hook stdin */
+/** SubagentStop hook stdin — full fields per official spec */
 export interface SubagentStopStdin extends HookStdinBase {
   stop_hook_active?: boolean;
+  agent_transcript_path?: string;
+  last_assistant_message?: string;
 }
 
-/** SessionEnd hook stdin */
+/** SessionEnd hook stdin — includes reason per official spec */
 export interface SessionEndStdin extends HookStdinBase {
-  // Only base fields needed
+  reason?: 'clear' | 'resume' | 'logout' | 'prompt_input_exit' | 'bypass_permissions_disabled' | 'other';
 }

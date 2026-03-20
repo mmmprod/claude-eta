@@ -5,10 +5,12 @@
 import { readStdin } from '../stdin.js';
 import { resolveProjectIdentity } from '../identity.js';
 import { upsertSession } from '../event-store.js';
+import { extractModelId } from '../hook-model.js';
 import { needsMigration, migrateLegacyProject, legacySlug } from '../migrate.js';
 import { loadCompletedTurnsCompat, turnsToTaskEntries } from '../compat.js';
 import { computeStats, formatStatsContext, CALIBRATION_THRESHOLD } from '../stats.js';
 import { getRepoMetrics } from '../repo-metrics.js';
+import { upsertProjectMeta } from '../project-meta.js';
 import type { SessionMeta, SessionStartStdin } from '../types.js';
 
 async function main(): Promise<void> {
@@ -20,8 +22,8 @@ async function main(): Promise<void> {
   const identity = resolveProjectIdentity(cwd);
   const { fp, displayName, resolvedPath } = identity;
 
-  // Model source of truth: SessionStart (fixes defect 5)
-  const model = stdin.model?.display_name ?? stdin.model?.id ?? null;
+  // Model source of truth: SessionStart (official spec: model is string)
+  const model = extractModelId(stdin.model);
 
   // Upsert session metadata (v2)
   const now = new Date().toISOString();
@@ -48,8 +50,20 @@ async function main(): Promise<void> {
   const turns = loadCompletedTurnsCompat(cwd);
   const completed = turns.length;
 
-  // Compute repo metrics (cached 24h per project)
-  getRepoMetrics(cwd, fp);
+  // Compute repo metrics (cached 24h per project) and persist to meta.json
+  const repoMetrics = getRepoMetrics(cwd, fp);
+  if (repoMetrics) {
+    upsertProjectMeta(fp, {
+      project_fp: fp,
+      display_name: displayName,
+      cwd_realpath: resolvedPath,
+      legacy_slug: slug,
+      file_count: repoMetrics.fileCount,
+      file_count_bucket: repoMetrics.fileCountBucket,
+      loc_bucket: repoMetrics.locBucketValue,
+      repo_metrics_updated_at: repoMetrics.computedAt,
+    });
+  }
 
   if (completed === 0) {
     process.stdout.write(

@@ -2,13 +2,13 @@
  * PostToolUseFailure hook — tracks tool failures on the active turn.
  * Same structure as PostToolUse but always increments errors.
  */
-import type { PostToolUseStdin } from '../types.js';
+import type { PostToolUseFailureStdin } from '../types.js';
 import { readStdin } from '../stdin.js';
 import { getActiveTurn, setActiveTurn, appendEvent } from '../event-store.js';
 import { resolveProjectIdentity } from '../identity.js';
 
 async function main(): Promise<void> {
-  const stdin = await readStdin<PostToolUseStdin>();
+  const stdin = await readStdin<PostToolUseFailureStdin>();
   if (!stdin) return;
 
   const cwd = stdin.cwd;
@@ -50,6 +50,8 @@ async function main(): Promise<void> {
       event: 'tool_fail',
       tool_name: toolName || undefined,
       ok: false,
+      error: stdin.error ?? null,
+      is_interrupt: stdin.is_interrupt ?? null,
     });
   } catch {
     // Non-fatal on hot path

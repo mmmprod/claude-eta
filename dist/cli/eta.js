@@ -7,9 +7,11 @@
  */
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import * as os from 'node:os';
 import { fileURLToPath } from 'node:url';
-import { loadProject, loadPreferences, savePreferences } from '../store.js';
+import { getPluginDataDir } from '../paths.js';
+import { loadPreferencesV2, savePreferencesV2 } from '../preferences.js';
+import { loadProjectMeta } from '../project-meta.js';
+import { resolveProjectIdentity } from '../identity.js';
 import { loadCompletedTurnsCompat, turnsToTaskEntries } from '../compat.js';
 import { showExport } from './export.js';
 import { showContribute, executeContribute } from './contribute.js';
@@ -17,7 +19,7 @@ import { showCompare } from './compare.js';
 import { showAdminExport } from './admin-export.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const EXPORT_DIR = path.join(os.homedir(), '.claude', 'plugins', 'claude-eta', 'export');
+const EXPORT_DIR = path.join(getPluginDataDir(), 'export');
 // ── Formatting helpers ────────────────────────────────────────
 function fmtDuration(seconds) {
     if (seconds < 60)
@@ -104,21 +106,43 @@ function showStats(tasks) {
         console.log(`| ${col(cls, 9)} | ${col(String(count), 5, 'right')} | ${col(fmtDuration(avgDur), 12)} | ${col(String(avgTools), 9, 'right')} | ${col(String(avgFiles), 9, 'right')} |`);
     }
 }
-function showInspect(data) {
-    const completed = data.tasks.filter((t) => t.duration_seconds !== null);
-    console.log(`## Data Inspection\n`);
-    console.log(`| Field             | Value                          |`);
-    console.log(`|-------------------|--------------------------------|`);
-    console.log(`| Project           | ${col(data.project, 30)}|`);
-    console.log(`| Data file created | ${col(data.created, 30)}|`);
-    console.log(`| Total tasks       | ${col(String(data.tasks.length), 30)}|`);
-    console.log(`| Completed         | ${col(String(completed.length), 30)}|`);
-    console.log(`\n### What is stored per task\n`);
-    console.log('Each task entry contains: `task_id`, `session_id`, `project`, `timestamp_start`, `timestamp_end`, `duration_seconds`, `prompt_summary` (first 80 chars of prompt), `classification`, `tool_calls`, `files_read`, `files_edited`, `files_created`, `errors`, `model`.');
+function showInspect(cwd, tasks) {
+    const { fp, displayName } = resolveProjectIdentity(cwd);
+    const meta = loadProjectMeta(fp);
+    const completed = tasks.filter((t) => t.duration_seconds !== null);
+    console.log(`## Data Inspection (v2)\n`);
+    console.log(`| Field               | Value                          |`);
+    console.log(`|---------------------|--------------------------------|`);
+    console.log(`| Project             | ${col(displayName, 30)}|`);
+    console.log(`| Fingerprint         | ${col(fp, 30)}|`);
+    console.log(`| Data dir            | ${col(getPluginDataDir(), 30)}|`);
+    console.log(`| Total turns         | ${col(String(tasks.length), 30)}|`);
+    console.log(`| Completed           | ${col(String(completed.length), 30)}|`);
+    if (meta) {
+        console.log(`| Created             | ${col(meta.created, 30)}|`);
+        if (meta.file_count != null) {
+            console.log(`| Repo files          | ${col(String(meta.file_count), 30)}|`);
+        }
+        if (meta.loc_bucket) {
+            console.log(`| LOC bucket          | ${col(meta.loc_bucket, 30)}|`);
+        }
+        if (meta.legacy_slug) {
+            console.log(`| Legacy migration    | ${col(`from ${meta.legacy_slug}`, 30)}|`);
+        }
+        if (meta.eta_accuracy) {
+            const acc = meta.eta_accuracy;
+            const types = Object.keys(acc.by_classification);
+            if (types.length > 0) {
+                console.log(`| Accuracy types      | ${col(types.join(', '), 30)}|`);
+            }
+        }
+    }
+    console.log(`\n### What is stored per turn\n`);
+    console.log('Each completed turn contains: `turn_id`, `work_item_id`, `session_id`, `agent_key`, `classification`, `prompt_summary`, `wall_seconds`, `active_seconds`, `tool_calls`, `files_read`, `files_edited`, `files_created`, `errors`, `model`, `stop_reason`.');
     console.log('\n**Not stored**: full prompt text, file contents, conversation content, code.');
-    if (data.tasks.length > 0) {
-        const last = data.tasks[data.tasks.length - 1];
-        console.log(`\n### Latest task entry (raw)\n`);
+    if (tasks.length > 0) {
+        const last = tasks[tasks.length - 1];
+        console.log(`\n### Latest turn (raw)\n`);
         console.log('```json');
         console.log(JSON.stringify(last, null, 2));
         console.log('```');
@@ -208,28 +232,31 @@ function showRecap(tasks) {
     }
 }
 // ── Auto ──────────────────────────────────────────────────────
-function showAuto(data) {
-    const prefs = loadPreferences();
+function showAuto(cwd) {
+    const prefs = loadPreferencesV2();
     console.log(`## Auto-ETA Status\n`);
     console.log(`Master switch: **${prefs.auto_eta ? 'enabled' : 'disabled'}**${prefs.auto_eta ? '' : ' (enable with `/eta auto on`)'}\n`);
-    const accuracy = data.eta_accuracy ?? {};
+    // Read accuracy from v2 project meta
+    const { fp } = resolveProjectIdentity(cwd);
+    const meta = loadProjectMeta(fp);
+    const accuracy = meta?.eta_accuracy?.by_classification ?? {};
     const types = Object.keys(accuracy).sort();
     if (types.length === 0) {
         console.log('No predictions recorded yet.');
         return;
     }
-    console.log(`| Type      | Predictions | Accuracy  | Status              |`);
+    console.log(`| Type      | Predictions | Coverage  | Status              |`);
     console.log(`|-----------|-------------|-----------|---------------------|`);
     for (const type of types) {
-        const { hits, misses } = accuracy[type];
-        const total = hits + misses;
-        const pct = total > 0 ? Math.round((hits / total) * 100) : 0;
+        const { interval80_hits, interval80_total } = accuracy[type];
+        const total = interval80_total;
+        const pct = total > 0 ? Math.round((interval80_hits / total) * 100) : 0;
         let status = 'active';
         if (total < 10)
-            status = '< 10 predictions';
-        else if (misses / total > 0.5)
-            status = 'disabled (low accuracy)';
-        const accStr = total >= 10 ? `${hits}/${total} ${pct}%` : '-';
+            status = 'warming';
+        else if (interval80_hits / total < 0.5)
+            status = 'suppressed (low coverage)';
+        const accStr = total >= 10 ? `${interval80_hits}/${total} ${pct}%` : `${interval80_hits}/${total}`;
         console.log(`| ${col(type, 9)} | ${col(String(total), 11, 'right')} | ${col(accStr, 9)} | ${col(status, 19)} |`);
     }
 }
@@ -292,9 +319,10 @@ async function main() {
         case 'auto': {
             const subArg = process.argv[3];
             if (subArg === 'on' || subArg === 'off') {
-                const prefs = loadPreferences();
+                const prefs = loadPreferencesV2();
                 prefs.auto_eta = subArg === 'on';
-                savePreferences(prefs);
+                prefs.updated_at = new Date().toISOString();
+                savePreferencesV2(prefs);
                 console.log(subArg === 'on'
                     ? 'Auto-ETA **enabled**. Estimates will appear when conditions are met (min 5 tasks of the same type, not "other", not conversational).'
                     : 'Auto-ETA **disabled**.');
@@ -308,38 +336,34 @@ async function main() {
     // Sync commands — load data via compat layer (v2 or legacy)
     const turns = loadCompletedTurnsCompat(cwd);
     const tasks = turnsToTaskEntries(turns);
-    // Also load legacy data for commands that still need ProjectData shape
-    const data = loadProject(project);
-    if (tasks.length === 0 && data.tasks.length === 0) {
+    if (tasks.length === 0) {
         console.log('No tasks tracked yet. claude-eta is recording — data will appear after your first completed task.');
         return;
     }
-    // Prefer v2 turns if available, else fall back to legacy tasks
-    const displayTasks = tasks.length > 0 ? tasks : data.tasks;
     switch (mode) {
         case 'history':
-            showHistory(displayTasks);
+            showHistory(tasks);
             break;
         case 'stats':
-            showStats(displayTasks);
+            showStats(tasks);
             break;
         case 'inspect':
-            showInspect(data);
+            showInspect(cwd, tasks);
             break;
         case 'recap':
-            showRecap(displayTasks);
+            showRecap(tasks);
             break;
         case 'auto':
-            showAuto(data);
+            showAuto(cwd);
             break;
         case 'insights': {
             const { computeAllInsights, formatInsightsReport } = await import('../insights/index.js');
-            const results = computeAllInsights(displayTasks);
+            const results = computeAllInsights(tasks);
             console.log(formatInsightsReport(results));
             break;
         }
         default:
-            showSession(data.tasks);
+            showSession(tasks);
             break;
     }
     console.log(FEEDBACK_LINE);

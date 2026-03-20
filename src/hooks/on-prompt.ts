@@ -11,8 +11,10 @@ import type { UserPromptSubmitStdin } from '../types.js';
 import { readStdin } from '../stdin.js';
 import { resolveProjectIdentity } from '../identity.js';
 import { getSession, getActiveTurn, startTurn, closeTurn } from '../event-store.js';
+import { extractModelId } from '../hook-model.js';
 import { loadCompletedTurnsCompat, turnsToTaskEntries } from '../compat.js';
-import { loadPreferences, savePreferences, setLastEta, consumeLastCompleted } from '../store.js';
+import { loadPreferencesV2, savePreferencesV2 } from '../preferences.js';
+import { setLastEtaV2, consumeLastCompletedV2 } from '../ephemeral.js';
 import { checkDisableRequest, evaluateAutoEta } from '../auto-eta.js';
 import { classifyPrompt, summarizePrompt } from '../classify.js';
 import {
@@ -57,8 +59,8 @@ async function main(): Promise<void> {
     closeTurn(fp, sessionId, agentKey, 'replaced_by_new_prompt');
   }
 
-  // Pick up recap from the last completed task (consume-once, legacy system)
-  const lastCompleted = consumeLastCompleted();
+  // Pick up recap from the last completed task (consume-once, v2 ephemeral)
+  const lastCompleted = consumeLastCompletedV2(fp, sessionId);
 
   // Load completed turns for stats BEFORE creating the new turn
   const turns = loadCompletedTurnsCompat(cwd);
@@ -68,7 +70,7 @@ async function main(): Promise<void> {
   // Get model from SessionMeta (source of truth, set in SessionStart)
   // Fixes defect 5: model no longer from UserPromptSubmit stdin
   const sessionMeta = getSession(fp, sessionId);
-  const model = sessionMeta?.model ?? stdin.model?.display_name ?? stdin.model?.id ?? null;
+  const model = sessionMeta?.model ?? extractModelId(stdin.model);
 
   // Classify and summarize prompt
   const classification = classifyPrompt(prompt);
@@ -134,14 +136,14 @@ async function main(): Promise<void> {
 
   // Auto-ETA evaluation (only when calibrated)
   if (stats) {
-    const prefs = loadPreferences();
+    const prefs = loadPreferencesV2();
 
     if (checkDisableRequest(prompt)) {
       prefs.auto_eta = false;
-      savePreferences(prefs);
+      prefs.updated_at = new Date().toISOString();
+      savePreferencesV2(prefs);
       contextParts.push('[claude-eta] Auto-ETA disabled. Re-enable anytime with /eta auto on.');
     } else {
-      // Use legacy eta_accuracy from store for now (will migrate in Phase 9)
       const decision = evaluateAutoEta({
         prefs,
         stats,
@@ -154,14 +156,16 @@ async function main(): Promise<void> {
       switch (decision.action) {
         case 'inject':
           contextParts.push(decision.injection);
-          setLastEta(decision.prediction);
+          setLastEtaV2(fp, sessionId, decision.prediction);
           prefs.prompts_since_last_eta = 0;
           prefs.last_eta_task_id = turnId;
-          savePreferences(prefs);
+          prefs.updated_at = new Date().toISOString();
+          savePreferencesV2(prefs);
           break;
         case 'cooldown':
           prefs.prompts_since_last_eta++;
-          savePreferences(prefs);
+          prefs.updated_at = new Date().toISOString();
+          savePreferencesV2(prefs);
           break;
       }
     }

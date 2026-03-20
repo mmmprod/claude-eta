@@ -12,6 +12,7 @@ async function main(): Promise<void> {
   if (!stdin?.cwd || !stdin.session_id) return;
 
   const { fp } = resolveProjectIdentity(stdin.cwd);
+  // reason available per official spec (clear, resume, logout, etc.)
   closeAllSessionTurns(fp, stdin.session_id, 'session_end');
 }
 
