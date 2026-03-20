@@ -263,6 +263,7 @@ before(() => {
 
 after(() => {
   fs.rmSync(TEST_ROOT, { recursive: true, force: true });
+  delete process.env.CLAUDE_PLUGIN_DATA;
 });
 
 // ── Tests ────────────────────────────────────────────────────

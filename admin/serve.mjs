@@ -6,7 +6,7 @@ import { dirname, join } from 'node:path';
 
 const dir = dirname(fileURLToPath(import.meta.url));
 const html = readFileSync(join(dir, 'dashboard.html'));
-const port = process.argv[2] || 3737;
+const port = Number(process.argv[2]) || 3737;
 
 createServer((_, res) => {
   res.writeHead(200, { 'Content-Type': 'text/html' });

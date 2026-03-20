@@ -136,8 +136,8 @@ td.mono { font-family: var(--mono); }
 </div>
 
 <script>
-/* All data in this dashboard comes from a locally-generated JSON file
-   produced by /eta admin-export. No external or untrusted input. */
+/* Data source: locally-generated JSON from /eta admin-export.
+   All user-derived strings are escaped via esc() before insertion. */
 
 const dropZone = document.getElementById('drop-zone');
 const dropArea = document.getElementById('drop-area');
@@ -290,7 +290,7 @@ function renderInsights(root, insights) {
       case 'model-comparison': body='<p>Fastest: <strong style="color:var(--accent)">'+esc(ins.fastestModel)+'</strong></p>'+ins.byModel.map(m=>'<p>'+esc(m.model)+': '+fmtDur(m.medianDuration)+' ('+m.count+')</p>').join(''); break;
       default: body='<p style="color:var(--text-muted)">Sample size: '+ins.sampleSize+'</p>';
     }
-    cards += '<div class="card"><div class="card-header"><span class="dot"></span> '+(kindLabels[ins.kind]||ins.kind)+'</div><div style="font-size:12px;line-height:1.8">'+body+'</div></div>';
+    cards += '<div class="card"><div class="card-header"><span class="dot"></span> '+(kindLabels[ins.kind]||esc(ins.kind))+'</div><div style="font-size:12px;line-height:1.8">'+body+'</div></div>';
   }
   root.appendChild(createEl('<div class="section-title"><span class="section-num">05</span> Insights <span style="font-size:12px;color:var(--text-muted);font-family:var(--mono)">'+insights.length+'/9</span></div><div class="grid grid-3">'+cards+'</div>'));
 }
