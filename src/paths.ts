@@ -124,4 +124,5 @@ export function ensureProjectDirs(projectFp: string): void {
   ensureDir(getCompletedDir(projectFp));
   ensureDir(getSessionsDir(projectFp));
   ensureDir(getCacheDir(projectFp));
+  ensureDir(getLocksDir(projectFp));
 }

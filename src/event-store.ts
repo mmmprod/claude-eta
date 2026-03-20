@@ -402,12 +402,8 @@ function readAllCompletedJsonl(projectFp: string): CompletedTurn[] {
     // No completed dir yet
   }
 
-  // Sort by started_at ascending (oldest first) so callers can rely on deterministic order
-  turns.sort((a, b) => {
-    const ta = new Date(a.started_at).getTime();
-    const tb = new Date(b.started_at).getTime();
-    return ta - tb;
-  });
+  // Sort by started_at ascending — ISO 8601 strings are lexicographically sortable
+  turns.sort((a, b) => a.started_at.localeCompare(b.started_at));
 
   return turns;
 }
