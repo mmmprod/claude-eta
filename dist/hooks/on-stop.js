@@ -1,5 +1,5 @@
 import { readStdin } from '../stdin.js';
-import { loadProject, flushActiveTask, getActiveTask, setLastCompleted, consumeLastEta, saveProject } from '../store.js';
+import { loadProject, flushActiveTask, getActiveTask, setLastCompleted, consumeLastEta, saveProject, } from '../store.js';
 import { computeStats, fmtSec } from '../stats.js';
 import { extractDurations, findBullshitEstimate } from '../detector.js';
 function blockWithCorrection(reason) {
@@ -62,10 +62,8 @@ async function main() {
         const lastEta = consumeLastEta();
         if (lastEta) {
             const lastTask = flushedData.tasks[flushedData.tasks.length - 1];
-            if (lastTask?.task_id === lastEta.task_id &&
-                lastTask.duration_seconds != null) {
-                const hit = lastTask.duration_seconds >= lastEta.low &&
-                    lastTask.duration_seconds <= lastEta.high;
+            if (lastTask?.task_id === lastEta.task_id && lastTask.duration_seconds != null) {
+                const hit = lastTask.duration_seconds >= lastEta.low && lastTask.duration_seconds <= lastEta.high;
                 const accuracy = flushedData.eta_accuracy ?? {};
                 accuracy[lastEta.classification] ??= { hits: 0, misses: 0 };
                 if (hit)

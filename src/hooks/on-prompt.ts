@@ -7,7 +7,16 @@ import * as crypto from 'node:crypto';
 import * as path from 'node:path';
 import type { UserPromptSubmitStdin, TaskEntry } from '../types.js';
 import { readStdin } from '../stdin.js';
-import { loadProject, addTask, setActiveTask, flushActiveTask, consumeLastCompleted, loadPreferences, savePreferences, setLastEta } from '../store.js';
+import {
+  loadProject,
+  addTask,
+  setActiveTask,
+  flushActiveTask,
+  consumeLastCompleted,
+  loadPreferences,
+  savePreferences,
+  setLastEta,
+} from '../store.js';
 import { checkDisableRequest, evaluateAutoEta } from '../auto-eta.js';
 import { classifyPrompt, summarizePrompt } from '../classify.js';
 import {

@@ -81,10 +81,15 @@ describe('evaluateAutoEta conditions', () => {
     assert.equal(r.action, 'skip');
   });
   it('skips when interval too wide', () => {
-    const r = evaluateAutoEta(baseParams({
-      stats: { totalCompleted: 20, overall: { median: 30, p25: 1, p75: 100 },
-        byClassification: [{ classification: 'bugfix', count: 10, median: 30, p25: 1, p75: 100, volatility: 'high' }] },
-    }));
+    const r = evaluateAutoEta(
+      baseParams({
+        stats: {
+          totalCompleted: 20,
+          overall: { median: 30, p25: 1, p75: 100 },
+          byClassification: [{ classification: 'bugfix', count: 10, median: 30, p25: 1, p75: 100, volatility: 'high' }],
+        },
+      }),
+    );
     assert.equal(r.action, 'skip');
   });
   it('skips when type auto-disabled by accuracy', () => {
@@ -112,23 +117,39 @@ describe('high volatility adjustment', () => {
 
 describe('cooldown', () => {
   it('injects on first prompt of new task', () => {
-    const r = evaluateAutoEta(baseParams({
-      prefs: { auto_eta: true, prompts_since_last_eta: 3, last_eta_task_id: 'old' }, taskId: 'new' }));
+    const r = evaluateAutoEta(
+      baseParams({
+        prefs: { auto_eta: true, prompts_since_last_eta: 3, last_eta_task_id: 'old' },
+        taskId: 'new',
+      }),
+    );
     assert.equal(r.action, 'inject');
   });
   it('returns cooldown on 2nd prompt same task', () => {
-    const r = evaluateAutoEta(baseParams({
-      prefs: { auto_eta: true, prompts_since_last_eta: 1, last_eta_task_id: 'same' }, taskId: 'same' }));
+    const r = evaluateAutoEta(
+      baseParams({
+        prefs: { auto_eta: true, prompts_since_last_eta: 1, last_eta_task_id: 'same' },
+        taskId: 'same',
+      }),
+    );
     assert.equal(r.action, 'cooldown');
   });
   it('injects when cooldown reached', () => {
-    const r = evaluateAutoEta(baseParams({
-      prefs: { auto_eta: true, prompts_since_last_eta: COOLDOWN_INTERVAL, last_eta_task_id: 'same' }, taskId: 'same' }));
+    const r = evaluateAutoEta(
+      baseParams({
+        prefs: { auto_eta: true, prompts_since_last_eta: COOLDOWN_INTERVAL, last_eta_task_id: 'same' },
+        taskId: 'same',
+      }),
+    );
     assert.equal(r.action, 'inject');
   });
   it('resets cooldown when task changes', () => {
-    const r = evaluateAutoEta(baseParams({
-      prefs: { auto_eta: true, prompts_since_last_eta: 2, last_eta_task_id: 'a' }, taskId: 'b' }));
+    const r = evaluateAutoEta(
+      baseParams({
+        prefs: { auto_eta: true, prompts_since_last_eta: 2, last_eta_task_id: 'a' },
+        taskId: 'b',
+      }),
+    );
     assert.equal(r.action, 'inject');
   });
 });
@@ -154,10 +175,20 @@ describe('self-check accuracy', () => {
     const project = 'test-hit-' + Date.now();
     const data = loadProject(project);
     data.tasks.push({
-      task_id: 't1', session_id: 's', project,
-      timestamp_start: new Date().toISOString(), timestamp_end: new Date().toISOString(),
-      duration_seconds: 30, prompt_summary: 'test', classification: 'bugfix',
-      tool_calls: 1, files_read: 0, files_edited: 0, files_created: 0, errors: 0, model: 'test',
+      task_id: 't1',
+      session_id: 's',
+      project,
+      timestamp_start: new Date().toISOString(),
+      timestamp_end: new Date().toISOString(),
+      duration_seconds: 30,
+      prompt_summary: 'test',
+      classification: 'bugfix',
+      tool_calls: 1,
+      files_read: 0,
+      files_edited: 0,
+      files_created: 0,
+      errors: 0,
+      model: 'test',
     });
     saveProject(data);
     setLastEta({ low: 10, high: 60, classification: 'bugfix', task_id: 't1', timestamp: new Date().toISOString() });
@@ -176,10 +207,20 @@ describe('self-check accuracy', () => {
     const project = 'test-miss-' + Date.now();
     const data = loadProject(project);
     data.tasks.push({
-      task_id: 't2', session_id: 's', project,
-      timestamp_start: new Date().toISOString(), timestamp_end: new Date().toISOString(),
-      duration_seconds: 120, prompt_summary: 'test', classification: 'bugfix',
-      tool_calls: 1, files_read: 0, files_edited: 0, files_created: 0, errors: 0, model: 'test',
+      task_id: 't2',
+      session_id: 's',
+      project,
+      timestamp_start: new Date().toISOString(),
+      timestamp_end: new Date().toISOString(),
+      duration_seconds: 120,
+      prompt_summary: 'test',
+      classification: 'bugfix',
+      tool_calls: 1,
+      files_read: 0,
+      files_edited: 0,
+      files_created: 0,
+      errors: 0,
+      model: 'test',
     });
     saveProject(data);
     setLastEta({ low: 10, high: 30, classification: 'bugfix', task_id: 't2', timestamp: new Date().toISOString() });

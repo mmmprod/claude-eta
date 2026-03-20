@@ -205,7 +205,10 @@ describe('loadProject eta_accuracy normalization', () => {
 
   it('normalizes missing eta_accuracy to empty object (parse path)', () => {
     const project = 'test-eta-norm-parse-' + Date.now();
-    const slug = project.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    const slug = project
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '');
     const filePath = path.join(DATA_DIR, `${slug}.json`);
     // Write a JSON file WITHOUT eta_accuracy
     fs.writeFileSync(filePath, JSON.stringify({ project, created: new Date().toISOString(), tasks: [] }), 'utf-8');

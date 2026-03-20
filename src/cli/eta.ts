@@ -249,7 +249,9 @@ function showRecap(tasks: TaskEntry[]): void {
 function showAuto(data: { eta_accuracy?: Record<string, { hits: number; misses: number }> }): void {
   const prefs = loadPreferences();
   console.log(`## Auto-ETA Status\n`);
-  console.log(`Master switch: **${prefs.auto_eta ? 'enabled' : 'disabled'}**${prefs.auto_eta ? '' : ' (enable with `/eta auto on`)'}\n`);
+  console.log(
+    `Master switch: **${prefs.auto_eta ? 'enabled' : 'disabled'}**${prefs.auto_eta ? '' : ' (enable with `/eta auto on`)'}\n`,
+  );
 
   const accuracy = data.eta_accuracy ?? {};
   const types = Object.keys(accuracy).sort();
@@ -352,9 +354,11 @@ async function main(): Promise<void> {
         const prefs = loadPreferences();
         prefs.auto_eta = subArg === 'on';
         savePreferences(prefs);
-        console.log(subArg === 'on'
-          ? 'Auto-ETA **enabled**. Estimates will appear when conditions are met (min 5 tasks of the same type, not "other", not conversational).'
-          : 'Auto-ETA **disabled**.');
+        console.log(
+          subArg === 'on'
+            ? 'Auto-ETA **enabled**. Estimates will appear when conditions are met (min 5 tasks of the same type, not "other", not conversational).'
+            : 'Auto-ETA **disabled**.',
+        );
       } else {
         showAuto(data);
       }
