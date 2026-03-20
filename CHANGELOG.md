@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.3](https://github.com/mmmprod/claude-eta/compare/claude-eta-v0.3.2...claude-eta-v0.3.3) (2026-03-20)
+
+
+### Bug Fixes
+
+* bullshit detector skips past-tense durations ([#30](https://github.com/mmmprod/claude-eta/issues/30)) ([cb9358f](https://github.com/mmmprod/claude-eta/commit/cb9358ff2c306c402f5c36b45fbc86033b1bdc66))
+
 ## [0.3.2](https://github.com/mmmprod/claude-eta/compare/claude-eta-v0.3.1...claude-eta-v0.3.2) (2026-03-19)
 
 
