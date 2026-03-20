@@ -1,4 +1,9 @@
-/** Root data directory — uses CLAUDE_PLUGIN_DATA if available, else dev fallback */
+/**
+ * Root data directory — uses CLAUDE_PLUGIN_DATA if available,
+ * else auto-detects the runtime data dir under ~/.claude/plugins/data/,
+ * else falls back to ~/.claude/plugins/claude-eta for local dev.
+ * Auto-detect result is memoized for process lifetime.
+ */
 export declare function getPluginDataDir(): string;
 /** Project-specific directory: <data>/projects/<project_fp>/ */
 export declare function getProjectDir(projectFp: string): string;

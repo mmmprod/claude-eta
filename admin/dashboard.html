@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>claude-eta // admin</title>
+<!-- __ADMIN_DATA_INJECTION__ -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Space+Grotesk:wght@300;400;500;600;700&display=swap');
@@ -116,9 +117,10 @@ td.mono { font-family: var(--mono); }
   <h1>claude-eta <span>//</span> admin</h1>
   <div class="drop-area" id="drop-area">
     <p>Drop <strong>admin-export.json</strong> here</p>
-    <code>/eta admin-export</code>
+    <p style="font-size:11px;color:var(--text-muted)">or click to browse</p>
     <input type="file" id="file-input" accept=".json">
   </div>
+  <p style="color:var(--text-muted);font-size:11px;margin-top:8px">Run <code style="color:var(--accent);background:var(--surface-2);padding:2px 8px;border-radius:4px;font-size:11px">/eta admin-export</code> to generate a standalone dashboard you can open directly</p>
 </div>
 
 <div id="dashboard">
@@ -198,7 +200,7 @@ function renderHealth(root, h) {
       '<div class="card stat"><div class="stat-value ' + fc + '">' + h.stop_failure_rate_pct + '%</div><div class="stat-label">Stop Failure Rate</div></div>' +
     '</div>' +
     '<div class="grid grid-2">' +
-      '<div class="card"><div class="card-header"><span class="dot"></span> Stop Reasons</div><canvas id="chart-stop-reasons" height="120"></canvas></div>' +
+      '<div class="card"><div class="card-header"><span class="dot"></span> Stop Reasons</div><div class="chart-container"><canvas id="chart-stop-reasons"></canvas></div></div>' +
       '<div class="card"><div class="card-header"><span class="dot ' + (h.last_event_by_project.some(p => p.stale) ? 'warn' : '') + '"></span> Projects</div><div class="table-wrap"><table><tr><th>Project</th><th>Last Event</th><th>Status</th></tr>' + projRows + '</table></div></div>' +
     '</div>'
   ));
@@ -222,7 +224,7 @@ function renderEtaAccuracy(root, acc) {
   root.appendChild(createEl(
     '<div class="section-title"><span class="section-num">02</span> ETA Accuracy</div>' +
     '<div class="grid grid-2">' +
-      '<div class="card"><div class="card-header"><span class="dot"></span> Global Accuracy by Type</div><canvas id="chart-eta-global" height="200"></canvas></div>' +
+      '<div class="card"><div class="card-header"><span class="dot"></span> Global Accuracy by Type</div><div class="chart-container"><canvas id="chart-eta-global"></canvas></div></div>' +
       '<div class="card"><div class="card-header"><span class="dot ' + (acc.auto_disabled_types.length > 0 ? 'error' : '') + '"></span> Per Project</div><div class="table-wrap"><table><tr><th>Project</th><th>Type</th><th>Hits</th><th>Misses</th><th>Rate</th></tr>' + rows + '</table></div>' + disabledNote + '</div>' +
     '</div>'
   ));
@@ -238,8 +240,8 @@ function renderDataQuality(root, dq) {
   root.appendChild(createEl(
     '<div class="section-title"><span class="section-num">03</span> Data Quality</div>' +
     '<div class="grid grid-3">' +
-      '<div class="card"><div class="card-header"><span class="dot"></span> Classification Distribution</div><canvas id="chart-cls-dist" height="200"></canvas></div>' +
-      '<div class="card"><div class="card-header"><span class="dot"></span> Weekly Volume</div><canvas id="chart-weekly" height="200"></canvas></div>' +
+      '<div class="card"><div class="card-header"><span class="dot"></span> Classification Distribution</div><div class="chart-container"><canvas id="chart-cls-dist"></canvas></div></div>' +
+      '<div class="card"><div class="card-header"><span class="dot"></span> Weekly Volume</div><div class="chart-container"><canvas id="chart-weekly"></canvas></div></div>' +
       '<div class="card"><div class="card-header"><span class="dot"></span> Type Coverage</div><div class="table-wrap"><table><tr><th>Type</th><th>Count</th><th>Auto-ETA</th><th>Robust</th></tr>'+covRows+'</table></div></div>' +
     '</div>' +
     '<div class="grid grid-2">' +
@@ -308,6 +310,11 @@ function renderSubagents(root, sub) {
     '</div>' +
     (sub.by_agent_type.length > 0 ? '<div class="card" style="margin-bottom:32px"><div class="card-header"><span class="dot"></span> By Agent Type</div><div class="table-wrap"><table><tr><th>Agent Type</th><th>Count</th><th>Median Duration</th></tr>'+rows+'</table></div></div>' : '')
   ));
+}
+
+// Auto-load embedded data (standalone export mode)
+if (window.__ADMIN_DATA__) {
+  render(window.__ADMIN_DATA__);
 }
 </script>
 </body>
