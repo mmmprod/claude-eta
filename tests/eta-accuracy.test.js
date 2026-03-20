@@ -179,9 +179,7 @@ describe('accuracy gate fires with persisted data', () => {
       stats: {
         totalCompleted: 20,
         overall: { median: 60, p25: 50, p75: 80 },
-        byClassification: [
-          { classification: 'bugfix', count: 10, median: 60, p25: 50, p75: 80, volatility: 'medium' },
-        ],
+        byClassification: [{ classification: 'bugfix', count: 10, median: 60, p25: 50, p75: 80, volatility: 'medium' }],
       },
       etaAccuracy,
       classification: 'bugfix',
@@ -217,9 +215,7 @@ describe('accuracy gate fires with persisted data', () => {
       stats: {
         totalCompleted: 20,
         overall: { median: 60, p25: 50, p75: 80 },
-        byClassification: [
-          { classification: 'bugfix', count: 10, median: 60, p25: 50, p75: 80, volatility: 'medium' },
-        ],
+        byClassification: [{ classification: 'bugfix', count: 10, median: 60, p25: 50, p75: 80, volatility: 'medium' }],
       },
       etaAccuracy,
       classification: 'bugfix',
