@@ -1,7 +1,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
-import type { ProjectData, TaskEntry, ActiveTask, LastCompleted } from './types.js';
+import type { ProjectData, TaskEntry, ActiveTask, LastCompleted, UserPreferences, LastEtaPrediction } from './types.js';
 
 const DATA_DIR = path.join(os.homedir(), '.claude', 'plugins', 'claude-eta', 'data');
 
@@ -44,9 +44,10 @@ export function loadProject(project: string): ProjectData {
     const content = fs.readFileSync(filePath, 'utf-8');
     const data = JSON.parse(content) as ProjectData;
     data.tasks = data.tasks.map(normalizeTask);
+    data.eta_accuracy = data.eta_accuracy ?? {};
     return data;
   } catch {
-    return { project, created: new Date().toISOString(), tasks: [] };
+    return { project, created: new Date().toISOString(), tasks: [], eta_accuracy: {} };
   }
 }
 
@@ -171,6 +172,54 @@ export function consumeLastCompleted(maxAgeMs = 30 * 60 * 1000): LastCompleted |
     const data = JSON.parse(fs.readFileSync(p, 'utf-8')) as LastCompleted;
     fs.unlinkSync(p);
     if (Date.now() - mtime > maxAgeMs) return null;
+    return data;
+  } catch {
+    return null;
+  }
+}
+
+// ── Preferences (_preferences.json) ──────────────────────────
+
+function getPreferencesPath(): string {
+  return path.join(DATA_DIR, '_preferences.json');
+}
+
+export function loadPreferences(): UserPreferences {
+  try {
+    const content = fs.readFileSync(getPreferencesPath(), 'utf-8');
+    const prefs = JSON.parse(content) as Partial<UserPreferences>;
+    return {
+      auto_eta: prefs.auto_eta ?? false,
+      prompts_since_last_eta: prefs.prompts_since_last_eta ?? 0,
+      last_eta_task_id: prefs.last_eta_task_id,
+    };
+  } catch {
+    return { auto_eta: false, prompts_since_last_eta: 0 };
+  }
+}
+
+export function savePreferences(prefs: UserPreferences): void {
+  ensureDataDir();
+  fs.writeFileSync(getPreferencesPath(), JSON.stringify(prefs, null, 2), 'utf-8');
+}
+
+// ── Last ETA prediction (_last_eta.json) ─────────────────────
+
+function getLastEtaPath(): string {
+  return path.join(DATA_DIR, '_last_eta.json');
+}
+
+export function setLastEta(prediction: LastEtaPrediction): void {
+  ensureDataDir();
+  fs.writeFileSync(getLastEtaPath(), JSON.stringify(prediction), 'utf-8');
+}
+
+/** Read and delete in one shot. No maxAge — task_id mismatch guards stale files. */
+export function consumeLastEta(): LastEtaPrediction | null {
+  const p = getLastEtaPath();
+  try {
+    const data = JSON.parse(fs.readFileSync(p, 'utf-8')) as LastEtaPrediction;
+    fs.unlinkSync(p);
     return data;
   } catch {
     return null;

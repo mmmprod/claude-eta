@@ -33,10 +33,15 @@ const DURATION_RE = /(\d+(?:\.\d+)?)\s*(seconds?|secs?|minutes?|mins?|hours?|hrs
 const ESTIMATE_CONTEXT_RE = /\b(will\s+take|should\s+take|take\s+about|takes?\s+(?:roughly|approximately|around)|(va|devrait)\s+prendre|prendra|environ|about|approximately|around|roughly|estimated?\s+at|need\s+(?:about|around)|require[ds]?\s+(?:about|around)|expect\s+(?:about|around)|looking\s+at\s+(?:about|around))\b/i;
 /** Find all time duration mentions in text */
 export function extractDurations(text, options) {
+    // Filter out plugin-injected lines to avoid self-detection
+    const filteredText = text
+        .split('\n')
+        .filter((line) => !line.includes('\u23F1') && !line.includes('[claude-eta'))
+        .join('\n');
     const results = [];
     DURATION_RE.lastIndex = 0;
     let match;
-    while ((match = DURATION_RE.exec(text)) !== null) {
+    while ((match = DURATION_RE.exec(filteredText)) !== null) {
         const num = parseFloat(match[1]);
         const unit = match[2].toLowerCase();
         const multiplier = UNIT_SECONDS[unit];
@@ -45,8 +50,8 @@ export function extractDurations(text, options) {
         // Only keep durations that look like estimates (have estimation verbs nearby)
         if (options?.estimatesOnly) {
             const start = Math.max(0, match.index - 120);
-            const end = Math.min(text.length, match.index + match[0].length + 40);
-            const context = text.slice(start, end);
+            const end = Math.min(filteredText.length, match.index + match[0].length + 40);
+            const context = filteredText.slice(start, end);
             if (!ESTIMATE_CONTEXT_RE.test(context))
                 continue;
         }

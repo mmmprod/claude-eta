@@ -44,10 +44,16 @@ const ESTIMATE_CONTEXT_RE =
 
 /** Find all time duration mentions in text */
 export function extractDurations(text: string, options?: { estimatesOnly?: boolean }): DetectedEstimate[] {
+  // Filter out plugin-injected lines to avoid self-detection
+  const filteredText = text
+    .split('\n')
+    .filter((line) => !line.includes('\u23F1') && !line.includes('[claude-eta'))
+    .join('\n');
+
   const results: DetectedEstimate[] = [];
   DURATION_RE.lastIndex = 0;
   let match;
-  while ((match = DURATION_RE.exec(text)) !== null) {
+  while ((match = DURATION_RE.exec(filteredText)) !== null) {
     const num = parseFloat(match[1]);
     const unit = match[2].toLowerCase();
     const multiplier = UNIT_SECONDS[unit];
@@ -56,8 +62,8 @@ export function extractDurations(text: string, options?: { estimatesOnly?: boole
     // Only keep durations that look like estimates (have estimation verbs nearby)
     if (options?.estimatesOnly) {
       const start = Math.max(0, match.index - 120);
-      const end = Math.min(text.length, match.index + match[0].length + 40);
-      const context = text.slice(start, end);
+      const end = Math.min(filteredText.length, match.index + match[0].length + 40);
+      const context = filteredText.slice(start, end);
       if (!ESTIMATE_CONTEXT_RE.test(context)) continue;
     }
 

@@ -6,7 +6,8 @@
 import * as crypto from 'node:crypto';
 import * as path from 'node:path';
 import { readStdin } from '../stdin.js';
-import { loadProject, addTask, setActiveTask, flushActiveTask, consumeLastCompleted } from '../store.js';
+import { loadProject, addTask, setActiveTask, flushActiveTask, consumeLastCompleted, loadPreferences, savePreferences, setLastEta, } from '../store.js';
+import { checkDisableRequest, evaluateAutoEta } from '../auto-eta.js';
 import { classifyPrompt, summarizePrompt } from '../classify.js';
 import { computeStats, formatStatsContext, estimateTask, scorePromptComplexity, getDefaultEstimate, formatColdStartContext, formatTaskRecap, } from '../stats.js';
 function projectName(cwd) {
@@ -75,6 +76,39 @@ async function main() {
         const completedCount = data.tasks.filter((t) => t.duration_seconds != null).length;
         const estimate = getDefaultEstimate(task.classification, complexity);
         contextParts.push(formatColdStartContext(estimate, completedCount));
+    }
+    // Auto-ETA evaluation (only when calibrated)
+    if (stats) {
+        const prefs = loadPreferences();
+        if (checkDisableRequest(prompt)) {
+            prefs.auto_eta = false;
+            savePreferences(prefs);
+            contextParts.push('[claude-eta] Auto-ETA disabled. Re-enable anytime with /eta auto on.');
+        }
+        else {
+            const decision = evaluateAutoEta({
+                prefs,
+                stats,
+                etaAccuracy: data.eta_accuracy ?? {},
+                classification: task.classification,
+                prompt,
+                taskId,
+            });
+            switch (decision.action) {
+                case 'inject':
+                    contextParts.push(decision.injection);
+                    setLastEta(decision.prediction);
+                    prefs.prompts_since_last_eta = 0;
+                    prefs.last_eta_task_id = taskId;
+                    savePreferences(prefs);
+                    break;
+                case 'cooldown':
+                    prefs.prompts_since_last_eta++;
+                    savePreferences(prefs);
+                    break;
+                // 'skip': no action
+            }
+        }
     }
     respond(contextParts.join('\n'));
 }

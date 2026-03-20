@@ -1,26 +1,29 @@
 import { readStdin } from '../stdin.js';
-import { loadProject, flushActiveTask, getActiveTask, setLastCompleted } from '../store.js';
+import { loadProject, flushActiveTask, getActiveTask, setLastCompleted, consumeLastEta, saveProject, } from '../store.js';
 import { computeStats, fmtSec } from '../stats.js';
 import { extractDurations, findBullshitEstimate } from '../detector.js';
 function blockWithCorrection(reason) {
     process.stdout.write(JSON.stringify({ decision: 'block', reason }));
 }
-/** Flush the active task and record a recap for the next prompt to pick up */
+/** Flush the active task and record a recap for the next prompt to pick up.
+ *  Returns the updated ProjectData (caller can reuse for self-check). */
 function flushAndRecord() {
     const data = flushActiveTask();
     if (!data)
-        return;
+        return null;
     const lastTask = data.tasks[data.tasks.length - 1];
     if (lastTask?.duration_seconds != null) {
         const { classification, duration_seconds, tool_calls, files_read, files_edited, files_created } = lastTask;
         setLastCompleted({ classification, duration_seconds, tool_calls, files_read, files_edited, files_created });
     }
+    return data;
 }
 async function main() {
     const stdin = await readStdin();
     // If stop hook already fired (correction delivered), just flush
     if (stdin?.stop_hook_active) {
         flushAndRecord();
+        consumeLastEta(); // cleanup, don't score
         return;
     }
     // Check for bad time estimates in Claude's last message
@@ -53,7 +56,25 @@ async function main() {
         }
     }
     // No bad estimate detected — flush normally
-    flushAndRecord();
+    const flushedData = flushAndRecord();
+    // Self-check Auto-ETA accuracy (reuse flushed data, avoid redundant loadProject)
+    if (flushedData && active) {
+        const lastEta = consumeLastEta();
+        if (lastEta) {
+            const lastTask = flushedData.tasks[flushedData.tasks.length - 1];
+            if (lastTask?.task_id === lastEta.task_id && lastTask.duration_seconds != null) {
+                const hit = lastTask.duration_seconds >= lastEta.low && lastTask.duration_seconds <= lastEta.high;
+                const accuracy = flushedData.eta_accuracy ?? {};
+                accuracy[lastEta.classification] ??= { hits: 0, misses: 0 };
+                if (hit)
+                    accuracy[lastEta.classification].hits++;
+                else
+                    accuracy[lastEta.classification].misses++;
+                flushedData.eta_accuracy = accuracy;
+                saveProject(flushedData);
+            }
+        }
+    }
 }
 void main();
 //# sourceMappingURL=on-stop.js.map

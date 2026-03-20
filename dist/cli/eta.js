@@ -8,7 +8,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
-import { loadProject } from '../store.js';
+import { loadProject, loadPreferences, savePreferences } from '../store.js';
 import { showExport } from './export.js';
 import { showContribute, executeContribute } from './contribute.js';
 import { showCompare } from './compare.js';
@@ -202,10 +202,38 @@ function showRecap(tasks) {
         }
     }
 }
+// ── Auto ──────────────────────────────────────────────────────
+function showAuto(data) {
+    const prefs = loadPreferences();
+    console.log(`## Auto-ETA Status\n`);
+    console.log(`Master switch: **${prefs.auto_eta ? 'enabled' : 'disabled'}**${prefs.auto_eta ? '' : ' (enable with `/eta auto on`)'}\n`);
+    const accuracy = data.eta_accuracy ?? {};
+    const types = Object.keys(accuracy).sort();
+    if (types.length === 0) {
+        console.log('No predictions recorded yet.');
+        return;
+    }
+    console.log(`| Type      | Predictions | Accuracy  | Status              |`);
+    console.log(`|-----------|-------------|-----------|---------------------|`);
+    for (const type of types) {
+        const { hits, misses } = accuracy[type];
+        const total = hits + misses;
+        const pct = total > 0 ? Math.round((hits / total) * 100) : 0;
+        let status = 'active';
+        if (total < 10)
+            status = '< 10 predictions';
+        else if (misses / total > 0.5)
+            status = 'disabled (low accuracy)';
+        const accStr = total >= 10 ? `${hits}/${total} ${pct}%` : '-';
+        console.log(`| ${col(type, 9)} | ${col(String(total), 11, 'right')} | ${col(accStr, 9)} | ${col(status, 19)} |`);
+    }
+}
 // ── Main ──────────────────────────────────────────────────────
 async function main() {
     const mode = process.argv[2] ?? 'session';
-    const cwd = process.argv[3] ?? process.cwd();
+    // Last arg is always cwd (appended by command runner as $(pwd)).
+    // Earlier positional args (e.g. "auto on") sit between mode and cwd.
+    const cwd = process.argv.at(-1) ?? process.cwd();
     const project = path.basename(cwd);
     const confirm = process.argv.includes('--confirm');
     const pluginVersion = getPluginVersion();
@@ -222,12 +250,15 @@ async function main() {
         console.log(`| \`/eta export\`                | Anonymize & save to local JSON                 |`);
         console.log(`| \`/eta contribute\`            | Preview what would be shared                   |`);
         console.log(`| \`/eta contribute --confirm\`  | Upload anonymized data (opt-in)                |`);
+        console.log(`| \`/eta auto\`                  | Auto-ETA status and accuracy               |`);
+        console.log(`| \`/eta auto on\`               | Enable Auto-ETA injection                  |`);
+        console.log(`| \`/eta auto off\`              | Disable Auto-ETA injection                 |`);
         console.log(`| \`/eta help\`                  | This help                                      |`);
         console.log(`\nAll data is 100% local by default. Community features (\`compare\`, \`contribute\`) are opt-in.`);
         console.log(FEEDBACK_LINE);
         return;
     }
-    // Async commands (don't need local task data to exist)
+    // Commands that don't need local task data to exist
     switch (mode) {
         case 'contribute':
             if (confirm) {
@@ -246,6 +277,21 @@ async function main() {
             showExport(project, pluginVersion);
             console.log(FEEDBACK_LINE);
             return;
+        case 'auto': {
+            const subArg = process.argv[3];
+            if (subArg === 'on' || subArg === 'off') {
+                const prefs = loadPreferences();
+                prefs.auto_eta = subArg === 'on';
+                savePreferences(prefs);
+                console.log(subArg === 'on'
+                    ? 'Auto-ETA **enabled**. Estimates will appear when conditions are met (min 5 tasks of the same type, not "other", not conversational).'
+                    : 'Auto-ETA **disabled**.');
+                console.log(FEEDBACK_LINE);
+                return;
+            }
+            // `/eta auto` (status) falls through to sync section below
+            break;
+        }
     }
     // Sync commands
     const data = loadProject(project);
@@ -265,6 +311,9 @@ async function main() {
             break;
         case 'recap':
             showRecap(data.tasks);
+            break;
+        case 'auto':
+            showAuto(data);
             break;
         default:
             showSession(data.tasks);

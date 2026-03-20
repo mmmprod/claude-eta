@@ -12,6 +12,10 @@ import {
   getActiveTask,
   clearActiveTask,
   incrementActive,
+  savePreferences,
+  loadPreferences,
+  setLastEta,
+  consumeLastEta,
 } from '../dist/store.js';
 
 const DATA_DIR = path.join(os.homedir(), '.claude', 'plugins', 'claude-eta', 'data');
@@ -27,8 +31,10 @@ function testProjectPath() {
 function cleanup() {
   const p = testProjectPath();
   if (fs.existsSync(p)) fs.unlinkSync(p);
-  const active = path.join(DATA_DIR, '_active.json');
-  if (fs.existsSync(active)) fs.unlinkSync(active);
+  for (const f of ['_active.json', '_preferences.json', '_last_eta.json']) {
+    const fp = path.join(DATA_DIR, f);
+    if (fs.existsSync(fp)) fs.unlinkSync(fp);
+  }
 }
 
 function makeTask(overrides = {}) {
@@ -151,5 +157,63 @@ describe('store', () => {
       incrementActive({ tool_calls: 1 }); // should not throw
       assert.equal(getActiveTask(), null);
     });
+  });
+});
+
+describe('preferences', () => {
+  it('load/save roundtrip', () => {
+    const prefs = { auto_eta: true, prompts_since_last_eta: 3, last_eta_task_id: 'abc' };
+    savePreferences(prefs);
+    const loaded = loadPreferences();
+    assert.deepEqual(loaded, prefs);
+    // cleanup
+    const fp = path.join(DATA_DIR, '_preferences.json');
+    if (fs.existsSync(fp)) fs.unlinkSync(fp);
+  });
+
+  it('returns defaults when file missing', () => {
+    // Ensure no leftover file
+    const fp = path.join(DATA_DIR, '_preferences.json');
+    if (fs.existsSync(fp)) fs.unlinkSync(fp);
+    const loaded = loadPreferences();
+    assert.equal(loaded.auto_eta, false);
+    assert.equal(loaded.prompts_since_last_eta, 0);
+    assert.equal(loaded.last_eta_task_id, undefined);
+  });
+});
+
+describe('lastEta', () => {
+  it('consumeLastEta reads and deletes', () => {
+    const pred = { low: 10, high: 60, classification: 'bugfix', task_id: 'x', timestamp: new Date().toISOString() };
+    setLastEta(pred);
+    const result = consumeLastEta();
+    assert.deepEqual(result, pred);
+    assert.equal(consumeLastEta(), null); // file deleted
+  });
+
+  it('consumeLastEta returns null when file missing', () => {
+    assert.equal(consumeLastEta(), null);
+  });
+});
+
+describe('loadProject eta_accuracy normalization', () => {
+  it('normalizes missing eta_accuracy to empty object (catch path)', () => {
+    const project = 'test-eta-norm-catch-' + Date.now();
+    const data = loadProject(project);
+    assert.deepEqual(data.eta_accuracy, {});
+  });
+
+  it('normalizes missing eta_accuracy to empty object (parse path)', () => {
+    const project = 'test-eta-norm-parse-' + Date.now();
+    const slug = project
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '');
+    const filePath = path.join(DATA_DIR, `${slug}.json`);
+    // Write a JSON file WITHOUT eta_accuracy
+    fs.writeFileSync(filePath, JSON.stringify({ project, created: new Date().toISOString(), tasks: [] }), 'utf-8');
+    const loaded = loadProject(project);
+    assert.deepEqual(loaded.eta_accuracy, {});
+    fs.unlinkSync(filePath);
   });
 });

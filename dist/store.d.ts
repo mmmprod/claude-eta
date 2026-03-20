@@ -1,4 +1,4 @@
-import type { ProjectData, TaskEntry, ActiveTask, LastCompleted } from './types.js';
+import type { ProjectData, TaskEntry, ActiveTask, LastCompleted, UserPreferences, LastEtaPrediction } from './types.js';
 export declare function loadProject(project: string): ProjectData;
 export declare function saveProject(data: ProjectData): void;
 export declare function addTask(project: string, task: TaskEntry): void;
@@ -14,4 +14,9 @@ export declare function flushActiveTask(): ProjectData | null;
 export declare function setLastCompleted(info: LastCompleted): void;
 /** Read and delete in one shot. Discards stale files (e.g. from a crashed session). */
 export declare function consumeLastCompleted(maxAgeMs?: number): LastCompleted | null;
+export declare function loadPreferences(): UserPreferences;
+export declare function savePreferences(prefs: UserPreferences): void;
+export declare function setLastEta(prediction: LastEtaPrediction): void;
+/** Read and delete in one shot. No maxAge — task_id mismatch guards stale files. */
+export declare function consumeLastEta(): LastEtaPrediction | null;
 //# sourceMappingURL=store.d.ts.map
