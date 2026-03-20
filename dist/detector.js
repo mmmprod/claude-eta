@@ -29,8 +29,8 @@ const UNIT_SECONDS = {
     semaines: 604800,
 };
 const DURATION_RE = /(\d+(?:\.\d+)?)\s*(seconds?|secs?|minutes?|mins?|hours?|hrs?|days?|weeks?|secondes?|heures?|jours?|semaines?)\b/gi;
-/** Words before a duration that indicate a past report, not a future estimate */
-const PAST_CONTEXT_RE = /\b(took|lasted|completed|finished|elapsed|spent|ran|total\s+time|duration|avg|average|median|session|previous|recorded|en\s+tout)\b/i;
+/** Verbs/phrases that signal a future time estimate (not a past report or example) */
+const ESTIMATE_CONTEXT_RE = /\b(will\s+take|should\s+take|take\s+about|takes?\s+(?:roughly|approximately|around)|(va|devrait)\s+prendre|prendra|environ|about|approximately|around|roughly|estimated?\s+at|need\s+(?:about|around)|require[ds]?\s+(?:about|around)|expect\s+(?:about|around)|looking\s+at\s+(?:about|around))\b/i;
 /** Find all time duration mentions in text */
 export function extractDurations(text, options) {
     const results = [];
@@ -42,13 +42,12 @@ export function extractDurations(text, options) {
         const multiplier = UNIT_SECONDS[unit];
         if (!multiplier || num <= 0)
             continue;
-        // Skip durations preceded by past-tense/reporting words (not estimates)
-        // Only look within the current sentence to avoid cross-sentence false negatives
-        if (options?.skipPastContext) {
-            const raw = text.slice(Math.max(0, match.index - 120), match.index);
-            const sentenceBreak = Math.max(raw.lastIndexOf('.'), raw.lastIndexOf('\n'), raw.lastIndexOf('!'), raw.lastIndexOf('?'));
-            const before = sentenceBreak >= 0 ? raw.slice(sentenceBreak + 1) : raw;
-            if (PAST_CONTEXT_RE.test(before))
+        // Only keep durations that look like estimates (have estimation verbs nearby)
+        if (options?.estimatesOnly) {
+            const start = Math.max(0, match.index - 120);
+            const end = Math.min(text.length, match.index + match[0].length + 40);
+            const context = text.slice(start, end);
+            if (!ESTIMATE_CONTEXT_RE.test(context))
                 continue;
         }
         results.push({ raw: match[0], seconds: num * multiplier });
