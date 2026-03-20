@@ -1,6 +1,6 @@
 ---
 description: Show task duration stats — current session, history, or project averages
-argument-hint: [session|history|stats|inspect|compare|export|contribute|auto|help]
+argument-hint: [session|history|stats|inspect|compare|export|contribute|auto|insights|recap|admin-export|help]
 allowed-tools: [Bash]
 ---
 
@@ -9,7 +9,7 @@ allowed-tools: [Bash]
 Run the eta CLI script and show its output to the user verbatim:
 
 ```bash
-node ${CLAUDE_PLUGIN_ROOT}/dist/cli/eta.js $ARGUMENTS $(pwd)
+node "${CLAUDE_PLUGIN_ROOT}/dist/cli/eta.js" $ARGUMENTS "$(pwd)"
 ```
 
 Available commands:

@@ -60,7 +60,7 @@ export interface LastEtaPrediction {
 }
 export type RunnerKind = 'main' | 'subagent';
 export type StopReason = 'stop' | 'stop_failure' | 'session_end' | 'replaced_by_new_prompt' | 'subagent_stop' | 'migrated';
-export type TurnEventType = 'turn_started' | 'tool_ok' | 'tool_fail' | 'turn_stopped' | 'turn_stop_failure' | 'session_ended' | 'subagent_started' | 'subagent_stopped';
+export type TurnEventType = 'turn_started' | 'tool_ok' | 'tool_fail' | 'turn_stopped' | 'turn_stop_failure' | 'turn_replaced' | 'turn_migrated' | 'session_ended' | 'subagent_started' | 'subagent_stopped';
 /** Session-level metadata (one per session per project) */
 export interface SessionMeta {
     session_id: string;
@@ -167,14 +167,20 @@ export interface HookStdinBase {
     hook_event_name?: string;
     agent_id?: string;
     agent_type?: string;
-    model?: {
+    /** Model ID — string per official spec. Legacy compat: may arrive as object. */
+    model?: string | {
         id?: string;
         display_name?: string;
     };
 }
 /** SessionStart hook stdin */
 export interface SessionStartStdin extends HookStdinBase {
-    source?: string;
+    source?: 'startup' | 'resume' | 'clear' | 'compact';
+    /** Model is always a string in SessionStart per official spec */
+    model?: string | {
+        id?: string;
+        display_name?: string;
+    };
 }
 /** UserPromptSubmit hook stdin */
 export interface UserPromptSubmitStdin extends HookStdinBase {
@@ -187,31 +193,38 @@ export interface PostToolUseStdin extends HookStdinBase {
     tool_response?: Record<string, unknown>;
     tool_use_id?: string;
 }
-/** PostToolUseFailure hook stdin (same shape as PostToolUse) */
+/** PostToolUseFailure hook stdin — includes error info per official spec */
 export interface PostToolUseFailureStdin extends HookStdinBase {
     tool_name?: string;
     tool_input?: Record<string, unknown>;
-    tool_response?: Record<string, unknown>;
     tool_use_id?: string;
+    /** Error message from the failed tool call */
+    error?: string;
+    /** Whether the failure was caused by a user interrupt */
+    is_interrupt?: boolean;
 }
 /** Stop hook stdin */
 export interface StopStdin extends HookStdinBase {
     stop_hook_active?: boolean;
     last_assistant_message?: string;
 }
-/** StopFailure hook stdin */
+/** StopFailure hook stdin — error is an enum per official spec */
 export interface StopFailureStdin extends HookStdinBase {
-    stop_hook_active?: boolean;
-    error?: string;
+    error?: 'rate_limit' | 'authentication_failed' | 'billing_error' | 'invalid_request' | 'server_error' | 'max_output_tokens' | 'unknown';
+    error_details?: string;
+    last_assistant_message?: string;
 }
 /** SubagentStart hook stdin */
 export interface SubagentStartStdin extends HookStdinBase {
 }
-/** SubagentStop hook stdin */
+/** SubagentStop hook stdin — full fields per official spec */
 export interface SubagentStopStdin extends HookStdinBase {
     stop_hook_active?: boolean;
+    agent_transcript_path?: string;
+    last_assistant_message?: string;
 }
-/** SessionEnd hook stdin */
+/** SessionEnd hook stdin — includes reason per official spec */
 export interface SessionEndStdin extends HookStdinBase {
+    reason?: 'clear' | 'resume' | 'logout' | 'prompt_input_exit' | 'bypass_permissions_disabled' | 'other';
 }
 //# sourceMappingURL=types.d.ts.map

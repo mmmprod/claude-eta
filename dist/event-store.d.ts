@@ -12,7 +12,17 @@ export declare function getActiveTurn(projectFp: string, sessionId: string, agen
 export declare function setActiveTurn(state: ActiveTurnState): void;
 /** Append a single event to the event log (O(1) append, no read-modify-write) */
 export declare function appendEvent(projectFp: string, sessionId: string, agentKey: string, event: EventRecord): void;
-/** Close an active turn — compute duration, write completed record, delete active file */
+/**
+ * Idempotent close turn — guaranteed to produce at most one completed record.
+ *
+ * Protocol:
+ * 1. Read active file → if missing, check closing/ for crash recovery
+ * 2. Rename active → closing (atomic staging)
+ * 3. Dedup check: if turn_id already in completed JSONL, delete closing and return
+ * 4. Append completed record to JSONL
+ * 5. Append closing event to event log
+ * 6. Delete closing file
+ */
 export declare function closeTurn(projectFp: string, sessionId: string, agentKey: string, reason: StopReason, extras?: Partial<Pick<CompletedTurn, 'repo_loc_bucket' | 'repo_file_count_bucket'>>): CompletedTurn | null;
 /** Close all active turns for a session (used by SessionEnd) */
 export declare function closeAllSessionTurns(projectFp: string, sessionId: string, reason: StopReason): CompletedTurn[];

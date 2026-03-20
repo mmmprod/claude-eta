@@ -2,7 +2,7 @@ import { readStdin } from '../stdin.js';
 import { resolveProjectIdentity } from '../identity.js';
 import { getActiveTurn, closeTurn, setActiveTurn } from '../event-store.js';
 import { loadCompletedTurnsCompat, turnsToTaskEntries } from '../compat.js';
-import { setLastCompleted, consumeLastEta } from '../store.js';
+import { setLastCompletedV2, consumeLastEtaV2 } from '../ephemeral.js';
 import { computeStats, fmtSec } from '../stats.js';
 import { extractDurations, findBullshitEstimate, resolveDetectorReference } from '../detector.js';
 function blockWithCorrection(reason) {
@@ -30,9 +30,9 @@ async function main() {
         try {
             const completed = closeTurn(fp, sessionId, agentKey, 'stop');
             if (completed) {
-                recordRecap(completed);
+                recordRecap(fp, sessionId, completed);
             }
-            consumeLastEta();
+            consumeLastEtaV2(fp, sessionId);
         }
         catch {
             // Swallow — loop prevention is more important than clean close
@@ -72,22 +72,21 @@ async function main() {
     // ── Normal close ───────────────────────────────────────────
     const completed = closeTurn(fp, sessionId, agentKey, 'stop');
     if (completed) {
-        recordRecap(completed);
+        recordRecap(fp, sessionId, completed);
     }
     // Self-check Auto-ETA accuracy
     if (completed) {
-        const lastEta = consumeLastEta();
+        const lastEta = consumeLastEtaV2(fp, sessionId);
         if (lastEta && lastEta.task_id === completed.turn_id) {
             const hit = completed.wall_seconds >= lastEta.low && completed.wall_seconds <= lastEta.high;
-            // TODO: migrate eta_accuracy to v2 cache in Phase 9
-            // For now we just consume the prediction
+            // TODO: persist accuracy to v2 project meta (P7)
             void hit;
         }
     }
 }
 /** Record a recap from the completed turn for the next prompt to pick up */
-function recordRecap(completed) {
-    setLastCompleted({
+function recordRecap(projectFp, sessionId, completed) {
+    setLastCompletedV2(projectFp, sessionId, {
         classification: completed.classification,
         duration_seconds: completed.wall_seconds,
         tool_calls: completed.tool_calls,
