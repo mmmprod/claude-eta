@@ -19,18 +19,18 @@ import { taskEntryToCompletedTurn } from './convert.js';
 
 const MIGRATION_MARKER = 'migrated-from-legacy.json';
 
-/** Check if a legacy project file exists and hasn't been migrated yet */
-export function needsMigration(projectFp: string, legacySlug: string): boolean {
+/** Check if a legacy project file exists and hasn't been migrated yet. Returns the path if migration is needed. */
+export function needsMigration(projectFp: string, legacySlug: string): string | null {
   const legacyPath = findLegacyFile(`${legacySlug}.json`);
-  if (!legacyPath) return false; // No legacy file anywhere
+  if (!legacyPath) return null; // No legacy file anywhere
 
   const markerPath = path.join(getProjectDir(projectFp), MIGRATION_MARKER);
 
   try {
     fs.accessSync(markerPath, fs.constants.R_OK);
-    return false; // Already migrated
+    return null; // Already migrated
   } catch {
-    return true; // Legacy exists but not yet migrated
+    return legacyPath; // Legacy exists but not yet migrated
   }
 }
 
@@ -42,11 +42,7 @@ export function migrateLegacyProject(
   cwdRealpath: string,
 ): { migratedCount: number } {
   // Idempotence: skip if already migrated
-  if (!needsMigration(projectFp, legacySlug)) {
-    return { migratedCount: 0 };
-  }
-
-  const legacyPath = findLegacyFile(`${legacySlug}.json`);
+  const legacyPath = needsMigration(projectFp, legacySlug);
   if (!legacyPath) return { migratedCount: 0 };
 
   let data: ProjectData;
