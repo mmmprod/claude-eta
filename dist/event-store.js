@@ -191,9 +191,10 @@ export function closeTurn(projectFp, sessionId, agentKey, reason, extras) {
             fs.renameSync(activePath, closingPath);
         }
         catch {
-            // Rename failed — if closing exists (concurrent call), proceed; otherwise bail
+            // Rename failed — if closing exists (concurrent call), treat as recovery; otherwise bail
             try {
                 fs.statSync(closingPath);
+                recoveredFromClosing = true;
             }
             catch {
                 return null;

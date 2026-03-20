@@ -229,9 +229,10 @@ export function closeTurn(
     try {
       fs.renameSync(activePath, closingPath);
     } catch {
-      // Rename failed — if closing exists (concurrent call), proceed; otherwise bail
+      // Rename failed — if closing exists (concurrent call), treat as recovery; otherwise bail
       try {
         fs.statSync(closingPath);
+        recoveredFromClosing = true;
       } catch {
         return null;
       }

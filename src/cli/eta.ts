@@ -392,6 +392,18 @@ async function main(): Promise<void> {
   const turns = loadCompletedTurnsCompat(cwd);
   const tasks = turnsToTaskEntries(turns);
 
+  // auto and inspect work even with zero completed turns
+  if (mode === 'auto') {
+    showAuto(cwd);
+    console.log(FEEDBACK_LINE);
+    return;
+  }
+  if (mode === 'inspect') {
+    showInspect(cwd, tasks);
+    console.log(FEEDBACK_LINE);
+    return;
+  }
+
   if (tasks.length === 0) {
     console.log('No tasks tracked yet. claude-eta is recording — data will appear after your first completed task.');
     return;
@@ -404,14 +416,8 @@ async function main(): Promise<void> {
     case 'stats':
       showStats(tasks);
       break;
-    case 'inspect':
-      showInspect(cwd, tasks);
-      break;
     case 'recap':
       showRecap(tasks);
-      break;
-    case 'auto':
-      showAuto(cwd);
       break;
     case 'insights': {
       const { computeAllInsights, formatInsightsReport } = await import('../insights/index.js');

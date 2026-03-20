@@ -67,7 +67,13 @@ export function consumeLastCompletedV2(fp: string, sessionId: string, maxAgeMs =
   if (!state.last_completed) return null;
   // Use updated_at from the JSON (not filesystem mtime) to avoid TOCTOU
   const age = Date.now() - new Date(state.updated_at).getTime();
-  if (age > maxAgeMs) return null;
+  if (age > maxAgeMs) {
+    // Clear stale recap so it doesn't resurface if another write refreshes updated_at
+    state.last_completed = null;
+    state.updated_at = new Date().toISOString();
+    writeEphemeral(fp, sessionId, state);
+    return null;
+  }
   const completed = state.last_completed;
   state.last_completed = null;
   state.updated_at = new Date().toISOString();

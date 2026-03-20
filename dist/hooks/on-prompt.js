@@ -10,7 +10,6 @@ import * as crypto from 'node:crypto';
 import { readStdin } from '../stdin.js';
 import { resolveProjectIdentity } from '../identity.js';
 import { getSession, getActiveTurn, startTurn, closeTurn } from '../event-store.js';
-import { extractModelId } from '../hook-model.js';
 import { loadCompletedTurnsCompat, turnsToTaskEntries } from '../compat.js';
 import { loadPreferencesV2, savePreferencesV2 } from '../preferences.js';
 import { setLastEtaV2, consumeLastCompletedV2 } from '../ephemeral.js';
@@ -55,7 +54,9 @@ async function main() {
     // Get model from SessionMeta (source of truth, set in SessionStart)
     // Fixes defect 5: model no longer from UserPromptSubmit stdin
     const sessionMeta = getSession(fp, sessionId);
-    const model = sessionMeta?.model ?? extractModelId(stdin.model);
+    // Model comes from SessionMeta only (set in SessionStart).
+    // UserPromptSubmit stdin does not include model per official spec.
+    const model = sessionMeta?.model ?? null;
     // Classify and summarize prompt
     const classification = classifyPrompt(prompt);
     const promptSummary = summarizePrompt(prompt);
