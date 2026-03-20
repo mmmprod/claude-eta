@@ -12,12 +12,7 @@
  */
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import {
-  getPluginDataDir,
-  getActiveDir,
-  getSessionsDir,
-  getLegacyDataDir,
-} from '../paths.js';
+import { getPluginDataDir, getActiveDir, getSessionsDir, getLegacyDataDir } from '../paths.js';
 import { loadCompletedTurns } from '../event-store.js';
 import { turnsToTaskEntries } from '../compat.js';
 import { computeAllInsights } from '../insights/index.js';
@@ -88,10 +83,7 @@ function discoverProjects(): ProjectInfo[] {
       // Most recent event timestamp
       let lastEventAt: string | null = null;
       if (turns.length > 0) {
-        lastEventAt = turns.reduce(
-          (latest, t) => (t.ended_at > latest ? t.ended_at : latest),
-          turns[0].ended_at,
-        );
+        lastEventAt = turns.reduce((latest, t) => (t.ended_at > latest ? t.ended_at : latest), turns[0].ended_at);
       }
       for (const at of activeTurns) {
         if (!lastEventAt || at.started_at > lastEventAt) lastEventAt = at.started_at;
@@ -142,9 +134,7 @@ function buildHealth(allTurns: CompletedTurn[], projects: ProjectInfo[], pluginV
   for (const t of allTurns) {
     if (!uptimeSince || t.started_at < uptimeSince) uptimeSince = t.started_at;
   }
-  const uptimeDays = uptimeSince
-    ? Math.floor((Date.now() - new Date(uptimeSince).getTime()) / 86_400_000)
-    : 0;
+  const uptimeDays = uptimeSince ? Math.floor((Date.now() - new Date(uptimeSince).getTime()) / 86_400_000) : 0;
 
   // Stop reason distribution
   const stopReasons: Record<string, number> = {};
@@ -283,7 +273,9 @@ function buildDataQuality(projects: ProjectInfo[], allTurns: CompletedTurn[]) {
   const timeRatios = projects
     .filter((p) => p.turns.length > 0)
     .map((p) => {
-      let sumWall = 0, sumActive = 0, sumWait = 0;
+      let sumWall = 0,
+        sumActive = 0,
+        sumWait = 0;
       for (const t of p.turns) {
         sumWall += t.wall_seconds;
         sumActive += t.active_seconds;
@@ -309,7 +301,13 @@ function buildDataQuality(projects: ProjectInfo[], allTurns: CompletedTurn[]) {
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([week, count]) => ({ week, count }));
 
-  return { by_project: byProject, classification_distribution: classificationDistribution, type_coverage: typeCoverage, time_ratios: timeRatios, weekly_volume: weeklyVolume };
+  return {
+    by_project: byProject,
+    classification_distribution: classificationDistribution,
+    type_coverage: typeCoverage,
+    time_ratios: timeRatios,
+    weekly_volume: weeklyVolume,
+  };
 }
 
 // ── Section 4: Supabase ──────────────────────────────────────
@@ -323,9 +321,7 @@ async function buildSupabase() {
 
     const baselines = result.data;
     const computedAts = baselines.map((b) => b.computed_at).filter(Boolean);
-    const lastRefresh = computedAts.length > 0
-      ? computedAts.reduce((a, b) => (b > a ? b : a))
-      : null;
+    const lastRefresh = computedAts.length > 0 ? computedAts.reduce((a, b) => (b > a ? b : a)) : null;
     const types = [...new Set(baselines.map((b) => b.task_type))];
     const totalSamples = baselines.reduce((s, b) => s + b.sample_count, 0);
 
@@ -411,9 +407,13 @@ export async function showAdminExport(pluginVersion: string): Promise<void> {
   console.log(`| Projects | ${projCount} |`);
   console.log(`| Total turns (all-time) | ${data.health.total_turns_alltime} |`);
   console.log(`| Active turns now | ${data.health.active_turns_count} |`);
-  console.log(`| Uptime | ${data.health.uptime_days} days (since ${data.health.uptime_since?.slice(0, 10) ?? 'n/a'}) |`);
+  console.log(
+    `| Uptime | ${data.health.uptime_days} days (since ${data.health.uptime_since?.slice(0, 10) ?? 'n/a'}) |`,
+  );
   console.log(`| Insights computed | ${data.insights.length}/9 |`);
   console.log(`| Supabase | ${data.supabase.available ? 'connected' : 'offline'} |`);
-  console.log(`| Subagent ratio | ${data.subagents.ratio} (${data.subagents.subagent_turns} sub / ${data.subagents.main_turns} main) |`);
+  console.log(
+    `| Subagent ratio | ${data.subagents.ratio} (${data.subagents.subagent_turns} sub / ${data.subagents.main_turns} main) |`,
+  );
   console.log(`\nDrop this JSON into your admin dashboard HTML to visualize.`);
 }

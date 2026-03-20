@@ -12,7 +12,7 @@
  */
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { getPluginDataDir, getActiveDir, getSessionsDir, getLegacyDataDir, } from '../paths.js';
+import { getPluginDataDir, getActiveDir, getSessionsDir, getLegacyDataDir } from '../paths.js';
 import { loadCompletedTurns } from '../event-store.js';
 import { turnsToTaskEntries } from '../compat.js';
 import { computeAllInsights } from '../insights/index.js';
@@ -108,9 +108,7 @@ function buildHealth(allTurns, projects, pluginVersion) {
         if (!uptimeSince || t.started_at < uptimeSince)
             uptimeSince = t.started_at;
     }
-    const uptimeDays = uptimeSince
-        ? Math.floor((Date.now() - new Date(uptimeSince).getTime()) / 86_400_000)
-        : 0;
+    const uptimeDays = uptimeSince ? Math.floor((Date.now() - new Date(uptimeSince).getTime()) / 86_400_000) : 0;
     // Stop reason distribution
     const stopReasons = {};
     for (const t of allTurns) {
@@ -251,7 +249,13 @@ function buildDataQuality(projects, allTurns) {
     const weeklyVolume = [...weekCounts.entries()]
         .sort(([a], [b]) => a.localeCompare(b))
         .map(([week, count]) => ({ week, count }));
-    return { by_project: byProject, classification_distribution: classificationDistribution, type_coverage: typeCoverage, time_ratios: timeRatios, weekly_volume: weeklyVolume };
+    return {
+        by_project: byProject,
+        classification_distribution: classificationDistribution,
+        type_coverage: typeCoverage,
+        time_ratios: timeRatios,
+        weekly_volume: weeklyVolume,
+    };
 }
 // ── Section 4: Supabase ──────────────────────────────────────
 async function buildSupabase() {
@@ -262,9 +266,7 @@ async function buildSupabase() {
         }
         const baselines = result.data;
         const computedAts = baselines.map((b) => b.computed_at).filter(Boolean);
-        const lastRefresh = computedAts.length > 0
-            ? computedAts.reduce((a, b) => (b > a ? b : a))
-            : null;
+        const lastRefresh = computedAts.length > 0 ? computedAts.reduce((a, b) => (b > a ? b : a)) : null;
         const types = [...new Set(baselines.map((b) => b.task_type))];
         const totalSamples = baselines.reduce((s, b) => s + b.sample_count, 0);
         return {

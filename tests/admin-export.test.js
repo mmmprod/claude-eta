@@ -91,66 +91,174 @@ before(() => {
     last_seen_at: '2026-03-10T09:00:00.000Z',
   });
 
-  writeCompletedTurn(fpA, 'sess-a1', 'main', makeTurn({
-    project_fp: fpA, session_id: 'sess-a1', project_display_name: 'project-alpha',
-    classification: 'bugfix', wall_seconds: 30, active_seconds: 25, wait_seconds: 5,
-    stop_reason: 'stop', started_at: '2026-03-10T08:00:00.000Z', ended_at: '2026-03-10T08:00:30.000Z',
-  }));
-  writeCompletedTurn(fpA, 'sess-a1', 'main', makeTurn({
-    project_fp: fpA, session_id: 'sess-a1', project_display_name: 'project-alpha',
-    classification: 'bugfix', wall_seconds: 45, active_seconds: 40, wait_seconds: 5,
-    stop_reason: 'stop', started_at: '2026-03-10T08:01:00.000Z', ended_at: '2026-03-10T08:01:45.000Z',
-  }));
-  writeCompletedTurn(fpA, 'sess-a1', 'main', makeTurn({
-    project_fp: fpA, session_id: 'sess-a1', project_display_name: 'project-alpha',
-    classification: 'bugfix', wall_seconds: 20, active_seconds: 18, wait_seconds: 2,
-    stop_reason: 'stop_failure', started_at: '2026-03-10T08:02:00.000Z', ended_at: '2026-03-10T08:02:20.000Z',
-  }));
-  writeCompletedTurn(fpA, 'sess-a1', 'main', makeTurn({
-    project_fp: fpA, session_id: 'sess-a1', project_display_name: 'project-alpha',
-    classification: 'feature', wall_seconds: 120, active_seconds: 100, wait_seconds: 20,
-    stop_reason: 'stop', started_at: '2026-03-10T08:03:00.000Z', ended_at: '2026-03-10T08:05:00.000Z',
-  }));
-  writeCompletedTurn(fpA, 'sess-a1', 'main', makeTurn({
-    project_fp: fpA, session_id: 'sess-a1', project_display_name: 'project-alpha',
-    classification: 'other', wall_seconds: 10, active_seconds: 8, wait_seconds: 2,
-    stop_reason: 'replaced_by_new_prompt', started_at: '2026-03-10T08:06:00.000Z', ended_at: '2026-03-10T08:06:10.000Z',
-  }));
+  writeCompletedTurn(
+    fpA,
+    'sess-a1',
+    'main',
+    makeTurn({
+      project_fp: fpA,
+      session_id: 'sess-a1',
+      project_display_name: 'project-alpha',
+      classification: 'bugfix',
+      wall_seconds: 30,
+      active_seconds: 25,
+      wait_seconds: 5,
+      stop_reason: 'stop',
+      started_at: '2026-03-10T08:00:00.000Z',
+      ended_at: '2026-03-10T08:00:30.000Z',
+    }),
+  );
+  writeCompletedTurn(
+    fpA,
+    'sess-a1',
+    'main',
+    makeTurn({
+      project_fp: fpA,
+      session_id: 'sess-a1',
+      project_display_name: 'project-alpha',
+      classification: 'bugfix',
+      wall_seconds: 45,
+      active_seconds: 40,
+      wait_seconds: 5,
+      stop_reason: 'stop',
+      started_at: '2026-03-10T08:01:00.000Z',
+      ended_at: '2026-03-10T08:01:45.000Z',
+    }),
+  );
+  writeCompletedTurn(
+    fpA,
+    'sess-a1',
+    'main',
+    makeTurn({
+      project_fp: fpA,
+      session_id: 'sess-a1',
+      project_display_name: 'project-alpha',
+      classification: 'bugfix',
+      wall_seconds: 20,
+      active_seconds: 18,
+      wait_seconds: 2,
+      stop_reason: 'stop_failure',
+      started_at: '2026-03-10T08:02:00.000Z',
+      ended_at: '2026-03-10T08:02:20.000Z',
+    }),
+  );
+  writeCompletedTurn(
+    fpA,
+    'sess-a1',
+    'main',
+    makeTurn({
+      project_fp: fpA,
+      session_id: 'sess-a1',
+      project_display_name: 'project-alpha',
+      classification: 'feature',
+      wall_seconds: 120,
+      active_seconds: 100,
+      wait_seconds: 20,
+      stop_reason: 'stop',
+      started_at: '2026-03-10T08:03:00.000Z',
+      ended_at: '2026-03-10T08:05:00.000Z',
+    }),
+  );
+  writeCompletedTurn(
+    fpA,
+    'sess-a1',
+    'main',
+    makeTurn({
+      project_fp: fpA,
+      session_id: 'sess-a1',
+      project_display_name: 'project-alpha',
+      classification: 'other',
+      wall_seconds: 10,
+      active_seconds: 8,
+      wait_seconds: 2,
+      stop_reason: 'replaced_by_new_prompt',
+      started_at: '2026-03-10T08:06:00.000Z',
+      ended_at: '2026-03-10T08:06:10.000Z',
+    }),
+  );
 
   // Active turn for project A
   writeActiveTurn(fpA, 'sess-a1', 'main', {
-    session_id: 'sess-a1', agent_key: 'main',
-    classification: 'refactor', runner_kind: 'main',
-    started_at: '2026-03-20T17:00:00.000Z', tool_calls: 5,
+    session_id: 'sess-a1',
+    agent_key: 'main',
+    classification: 'refactor',
+    runner_kind: 'main',
+    started_at: '2026-03-20T17:00:00.000Z',
+    tool_calls: 5,
   });
 
   // Project B: 2 subagent turns
   const fpB = 'projB_fp00002';
   writeSessionMeta(fpB, 'sess-b1', {
-    session_id: 'sess-b1', project_fp: fpB, project_display_name: 'project-beta',
-    cwd_realpath: '/tmp/beta', model: 'claude-opus-4', source: 'cli',
-    session_agent_type: null, started_at: '2026-03-18T14:00:00.000Z', last_seen_at: '2026-03-18T15:00:00.000Z',
+    session_id: 'sess-b1',
+    project_fp: fpB,
+    project_display_name: 'project-beta',
+    cwd_realpath: '/tmp/beta',
+    model: 'claude-opus-4',
+    source: 'cli',
+    session_agent_type: null,
+    started_at: '2026-03-18T14:00:00.000Z',
+    last_seen_at: '2026-03-18T15:00:00.000Z',
   });
 
-  writeCompletedTurn(fpB, 'sess-b1', 'main', makeTurn({
-    project_fp: fpB, session_id: 'sess-b1', project_display_name: 'project-beta',
-    runner_kind: 'main', classification: 'feature', wall_seconds: 60, active_seconds: 55, wait_seconds: 5,
-    stop_reason: 'stop', started_at: '2026-03-18T14:00:00.000Z', ended_at: '2026-03-18T14:01:00.000Z',
-  }));
-  writeCompletedTurn(fpB, 'sess-b1', 'sub_explore', makeTurn({
-    project_fp: fpB, session_id: 'sess-b1', agent_key: 'sub_explore',
-    project_display_name: 'project-beta',
-    runner_kind: 'subagent', agent_type: 'Explore', classification: 'other',
-    wall_seconds: 15, active_seconds: 14, wait_seconds: 1,
-    stop_reason: 'subagent_stop', started_at: '2026-03-18T14:01:00.000Z', ended_at: '2026-03-18T14:01:15.000Z',
-  }));
-  writeCompletedTurn(fpB, 'sess-b1', 'sub_plan', makeTurn({
-    project_fp: fpB, session_id: 'sess-b1', agent_key: 'sub_plan',
-    project_display_name: 'project-beta',
-    runner_kind: 'subagent', agent_type: 'Plan', classification: 'other',
-    wall_seconds: 20, active_seconds: 18, wait_seconds: 2,
-    stop_reason: 'subagent_stop', started_at: '2026-03-18T14:01:15.000Z', ended_at: '2026-03-18T14:01:35.000Z',
-  }));
+  writeCompletedTurn(
+    fpB,
+    'sess-b1',
+    'main',
+    makeTurn({
+      project_fp: fpB,
+      session_id: 'sess-b1',
+      project_display_name: 'project-beta',
+      runner_kind: 'main',
+      classification: 'feature',
+      wall_seconds: 60,
+      active_seconds: 55,
+      wait_seconds: 5,
+      stop_reason: 'stop',
+      started_at: '2026-03-18T14:00:00.000Z',
+      ended_at: '2026-03-18T14:01:00.000Z',
+    }),
+  );
+  writeCompletedTurn(
+    fpB,
+    'sess-b1',
+    'sub_explore',
+    makeTurn({
+      project_fp: fpB,
+      session_id: 'sess-b1',
+      agent_key: 'sub_explore',
+      project_display_name: 'project-beta',
+      runner_kind: 'subagent',
+      agent_type: 'Explore',
+      classification: 'other',
+      wall_seconds: 15,
+      active_seconds: 14,
+      wait_seconds: 1,
+      stop_reason: 'subagent_stop',
+      started_at: '2026-03-18T14:01:00.000Z',
+      ended_at: '2026-03-18T14:01:15.000Z',
+    }),
+  );
+  writeCompletedTurn(
+    fpB,
+    'sess-b1',
+    'sub_plan',
+    makeTurn({
+      project_fp: fpB,
+      session_id: 'sess-b1',
+      agent_key: 'sub_plan',
+      project_display_name: 'project-beta',
+      runner_kind: 'subagent',
+      agent_type: 'Plan',
+      classification: 'other',
+      wall_seconds: 20,
+      active_seconds: 18,
+      wait_seconds: 2,
+      stop_reason: 'subagent_stop',
+      started_at: '2026-03-18T14:01:15.000Z',
+      ended_at: '2026-03-18T14:01:35.000Z',
+    }),
+  );
 });
 
 after(() => {
