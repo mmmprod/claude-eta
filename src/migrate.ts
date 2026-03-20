@@ -19,8 +19,8 @@ import { taskEntryToCompletedTurn } from './convert.js';
 
 const MIGRATION_MARKER = 'migrated-from-legacy.json';
 
-/** Check if a legacy project file exists and hasn't been migrated yet. Returns the path if migration is needed. */
-export function needsMigration(projectFp: string, legacySlug: string): string | null {
+/** Return the legacy project path when migration is still pending. */
+function getPendingMigrationLegacyPath(projectFp: string, legacySlug: string): string | null {
   const legacyPath = findLegacyFile(`${legacySlug}.json`);
   if (!legacyPath) return null; // No legacy file anywhere
 
@@ -34,6 +34,11 @@ export function needsMigration(projectFp: string, legacySlug: string): string | 
   }
 }
 
+/** Check if a legacy project file exists and hasn't been migrated yet. */
+export function needsMigration(projectFp: string, legacySlug: string): boolean {
+  return getPendingMigrationLegacyPath(projectFp, legacySlug) !== null;
+}
+
 /** Migrate legacy project data to v2 format */
 export function migrateLegacyProject(
   projectFp: string,
@@ -42,7 +47,7 @@ export function migrateLegacyProject(
   cwdRealpath: string,
 ): { migratedCount: number } {
   // Idempotence: skip if already migrated
-  const legacyPath = needsMigration(projectFp, legacySlug);
+  const legacyPath = getPendingMigrationLegacyPath(projectFp, legacySlug);
   if (!legacyPath) return { migratedCount: 0 };
 
   let data: ProjectData;
