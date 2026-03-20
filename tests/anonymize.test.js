@@ -1,5 +1,6 @@
 import { describe, it, after } from 'node:test';
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
 import * as crypto from 'node:crypto';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
@@ -38,36 +39,35 @@ describe('contributorHash', () => {
   });
 
   it('migrates contributor ID from old path to new path', () => {
-    // Create a fresh temp dir for this migration test
-    const migrationDir = fs.mkdtempSync(path.join(os.tmpdir(), 'eta-migrate-'));
+    const migrationHome = fs.mkdtempSync(path.join(os.tmpdir(), 'eta-home-'));
+    const migrationDataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'eta-data-'));
     const oldId = crypto.randomUUID();
-    const oldPath = path.join(os.homedir(), '.claude', 'plugins', 'claude-eta', '.contributor_id');
-    const oldPathDir = path.dirname(oldPath);
-    const hadOldFile = fs.existsSync(oldPath);
-    let hadOldDir = false;
+    const oldPath = path.join(migrationHome, '.claude', 'plugins', 'claude-eta', '.contributor_id');
+    const newPath = path.join(migrationDataDir, 'community', '.contributor_id');
+    const script = `
+      const { contributorHash } = await import('./dist/anonymize.js');
+      process.stdout.write(contributorHash());
+    `;
 
     try {
-      // Set up the old file if it doesn't exist
-      if (!hadOldFile) {
-        hadOldDir = !fs.existsSync(oldPathDir);
-        fs.mkdirSync(oldPathDir, { recursive: true });
-        fs.writeFileSync(oldPath, oldId, 'utf-8');
-      }
+      fs.mkdirSync(path.dirname(oldPath), { recursive: true });
+      fs.writeFileSync(oldPath, oldId, 'utf-8');
 
-      // Import a fresh module instance with a clean data dir (no new-path file)
-      // We can't easily re-import, but we can verify the file was read in a simpler way:
-      // Just verify the old file exists and the migration path in the code is correct
-      const newPath = path.join(migrationDir, 'community', '.contributor_id');
-      assert.ok(!fs.existsSync(newPath), 'new path should not exist yet');
+      execFileSync(process.execPath, ['--input-type=module', '-e', script], {
+        cwd: process.cwd(),
+        env: {
+          ...process.env,
+          HOME: migrationHome,
+          CLAUDE_PLUGIN_DATA: migrationDataDir,
+        },
+      });
+
+      assert.ok(fs.existsSync(newPath), 'new path should exist after migration');
+      assert.equal(fs.readFileSync(newPath, 'utf-8').trim(), oldId);
+      assert.ok(!fs.existsSync(oldPath), 'old path should be removed after migration');
     } finally {
-      // Clean up: only remove what we created
-      if (!hadOldFile) {
-        try { fs.unlinkSync(oldPath); } catch {}
-        if (hadOldDir) {
-          try { fs.rmdirSync(oldPathDir); } catch {}
-        }
-      }
-      fs.rmSync(migrationDir, { recursive: true, force: true });
+      fs.rmSync(migrationHome, { recursive: true, force: true });
+      fs.rmSync(migrationDataDir, { recursive: true, force: true });
     }
   });
 });
@@ -87,22 +87,12 @@ describe('projectHash', () => {
     assert.notEqual(projectHash('foo'), projectHash('bar'));
   });
 
-  it('uses local salt — output differs from unsalted SHA-256', () => {
-    const unsalted = crypto.createHash('sha256').update('app').digest('hex');
-    const salted = projectHash('app');
-    assert.notEqual(salted, unsalted, 'projectHash should NOT equal plain SHA-256 of the project name');
-  });
-
-  it('matches hashWithLocalSalt from identity module', () => {
-    const expected = hashWithLocalSalt('my-project');
-    assert.equal(projectHash('my-project'), expected);
-  });
-
-  it('is non-dictionnarisable — same name with different salt yields different hash', () => {
-    // Verify the hash includes the salt by checking it's not just hash(name)
-    const hash = projectHash('common-repo-name');
-    const bareHash = crypto.createHash('sha256').update('common-repo-name').digest('hex');
-    assert.notEqual(hash, bareHash, 'salt must prevent dictionary attacks');
+  it('uses local salt instead of raw SHA-256', () => {
+    const name = 'my-project';
+    const salted = projectHash(name);
+    const unsalted = crypto.createHash('sha256').update(name).digest('hex');
+    assert.equal(salted, hashWithLocalSalt(name));
+    assert.notEqual(salted, unsalted, 'projectHash should not match the unsalted project name hash');
   });
 });
 

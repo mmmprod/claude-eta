@@ -6,9 +6,10 @@ import * as crypto from 'node:crypto';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
-import { getCommunityDir, ensureDir } from './paths.js';
+import { getCommunityDir, ensureDir, atomicWrite } from './paths.js';
 import { hashWithLocalSalt } from './identity.js';
 const OLD_CONTRIBUTOR_ID_PATH = path.join(os.homedir(), '.claude', 'plugins', 'claude-eta', '.contributor_id');
+/** Return the persisted contributor ID file path in the plugin data directory. */
 function getContributorIdPath() {
     return path.join(getCommunityDir(), '.contributor_id');
 }
@@ -19,19 +20,29 @@ function getContributorId() {
     try {
         return fs.readFileSync(newPath, 'utf-8').trim();
     }
-    catch { /* not found at new path */ }
+    catch {
+        /* not found at new path */
+    }
     // Try old location (auto-migrate)
     try {
         const id = fs.readFileSync(OLD_CONTRIBUTOR_ID_PATH, 'utf-8').trim();
         ensureDir(path.dirname(newPath));
-        fs.writeFileSync(newPath, id, 'utf-8');
+        atomicWrite(newPath, id);
+        try {
+            fs.unlinkSync(OLD_CONTRIBUTOR_ID_PATH);
+        }
+        catch {
+            // Migration already succeeded once the new file exists.
+        }
         return id;
     }
-    catch { /* not found at old path either */ }
+    catch {
+        /* not found at old path either */
+    }
     // Generate new
     const id = crypto.randomUUID();
     ensureDir(path.dirname(newPath));
-    fs.writeFileSync(newPath, id, 'utf-8');
+    atomicWrite(newPath, id);
     return id;
 }
 /** One-way hash of the contributor UUID. */
