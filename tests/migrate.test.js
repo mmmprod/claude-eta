@@ -208,11 +208,12 @@ describe('loadCompletedTurnsCompat', () => {
 
     // Write a legacy project under the slug that matches /tmp basename
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'eta-compat-proj-'));
-    const slug = path.basename(tmpDir).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-    writeLegacyProject(slug, [
-      makeLegacyTask({ duration_seconds: 100 }),
-      makeLegacyTask({ duration_seconds: 200 }),
-    ]);
+    const slug = path
+      .basename(tmpDir)
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '');
+    writeLegacyProject(slug, [makeLegacyTask({ duration_seconds: 100 }), makeLegacyTask({ duration_seconds: 200 })]);
 
     const turns = loadCompletedTurnsCompat(tmpDir);
     assert.equal(turns.length, 2);

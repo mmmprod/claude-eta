@@ -57,7 +57,9 @@ describe('resolveProjectIdentity', () => {
       const fromLink = resolveProjectIdentity(linkDir);
       assert.equal(fromReal.fp, fromLink.fp);
     } finally {
-      try { fs.unlinkSync(linkDir); } catch {}
+      try {
+        fs.unlinkSync(linkDir);
+      } catch {}
       fs.rmSync(realDir, { recursive: true, force: true });
     }
   });

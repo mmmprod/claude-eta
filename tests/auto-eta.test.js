@@ -106,7 +106,9 @@ describe('evaluateAutoEta conditions', () => {
         stats: {
           totalCompleted: 100,
           overall: { median: 30, p25: 1, p75: 3000 },
-          byClassification: [{ classification: 'bugfix', count: 50, median: 30, p25: 1, p75: 3000, volatility: 'high' }],
+          byClassification: [
+            { classification: 'bugfix', count: 50, median: 30, p25: 1, p75: 3000, volatility: 'high' },
+          ],
         },
       }),
     );

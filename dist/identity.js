@@ -50,6 +50,9 @@ let _cachedSalt = null;
 export function hashWithLocalSalt(value) {
     if (_cachedSalt === null)
         _cachedSalt = getLocalSalt();
-    return crypto.createHash('sha256').update(_cachedSalt + value).digest('hex');
+    return crypto
+        .createHash('sha256')
+        .update(_cachedSalt + value)
+        .digest('hex');
 }
 //# sourceMappingURL=identity.js.map

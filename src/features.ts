@@ -42,10 +42,8 @@ export function extractFeatures(state: ActiveTurnState): TraceFeatures {
     grep_calls: state.grep_calls,
     glob_calls: state.glob_calls,
     errors: state.errors,
-    first_edit_delay_ms:
-      state.first_edit_at_ms != null ? state.first_edit_at_ms - state.started_at_ms : null,
-    first_bash_delay_ms:
-      state.first_bash_at_ms != null ? state.first_bash_at_ms - state.started_at_ms : null,
+    first_edit_delay_ms: state.first_edit_at_ms != null ? state.first_edit_at_ms - state.started_at_ms : null,
+    first_bash_delay_ms: state.first_bash_at_ms != null ? state.first_bash_at_ms - state.started_at_ms : null,
     read_write_ratio: writeOps > 0 ? state.files_read / writeOps : state.files_read,
     phase: detectPhase(state),
   };

@@ -60,11 +60,7 @@ export function startTurn(state: ActiveTurnState): void {
 }
 
 /** Read active turn state (returns null if no active turn) */
-export function getActiveTurn(
-  projectFp: string,
-  sessionId: string,
-  agentKey: string,
-): ActiveTurnState | null {
+export function getActiveTurn(projectFp: string, sessionId: string, agentKey: string): ActiveTurnState | null {
   try {
     const raw = fs.readFileSync(getActiveTurnPath(projectFp, sessionId, agentKey), 'utf-8');
     return JSON.parse(raw) as ActiveTurnState;
@@ -92,12 +88,7 @@ function clearActiveTurn(projectFp: string, sessionId: string, agentKey: string)
 // ── Event logging ────────────────────────────────────────────
 
 /** Append a single event to the event log (O(1) append, no read-modify-write) */
-export function appendEvent(
-  projectFp: string,
-  sessionId: string,
-  agentKey: string,
-  event: EventRecord,
-): void {
+export function appendEvent(projectFp: string, sessionId: string, agentKey: string, event: EventRecord): void {
   const filePath = getEventLogPath(projectFp, sessionId, agentKey);
   // Directory must already exist (created by startTurn → ensureProjectDirs)
   fs.appendFileSync(filePath, JSON.stringify(event) + '\n');

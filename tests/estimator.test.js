@@ -117,16 +117,39 @@ describe('toTaskEstimate', () => {
 describe('detectPhase', () => {
   function makeState(overrides = {}) {
     return {
-      turn_id: 'test', work_item_id: 'test', session_id: 'sess', agent_key: 'main',
-      agent_id: null, agent_type: null, runner_kind: 'main',
-      project_fp: 'fp', project_display_name: 'test',
-      classification: 'bugfix', prompt_summary: 'test', prompt_complexity: 2,
-      started_at: new Date().toISOString(), started_at_ms: Date.now(),
-      tool_calls: 0, files_read: 0, files_edited: 0, files_created: 0,
-      unique_files: 0, bash_calls: 0, bash_failures: 0, grep_calls: 0, glob_calls: 0,
-      errors: 0, first_tool_at_ms: null, first_edit_at_ms: null, first_bash_at_ms: null,
-      last_event_at_ms: null, last_assistant_message: null,
-      model: null, source: null, status: 'active', path_fps: [],
+      turn_id: 'test',
+      work_item_id: 'test',
+      session_id: 'sess',
+      agent_key: 'main',
+      agent_id: null,
+      agent_type: null,
+      runner_kind: 'main',
+      project_fp: 'fp',
+      project_display_name: 'test',
+      classification: 'bugfix',
+      prompt_summary: 'test',
+      prompt_complexity: 2,
+      started_at: new Date().toISOString(),
+      started_at_ms: Date.now(),
+      tool_calls: 0,
+      files_read: 0,
+      files_edited: 0,
+      files_created: 0,
+      unique_files: 0,
+      bash_calls: 0,
+      bash_failures: 0,
+      grep_calls: 0,
+      glob_calls: 0,
+      errors: 0,
+      first_tool_at_ms: null,
+      first_edit_at_ms: null,
+      first_bash_at_ms: null,
+      last_event_at_ms: null,
+      last_assistant_message: null,
+      model: null,
+      source: null,
+      status: 'active',
+      path_fps: [],
       ...overrides,
     };
   }
@@ -140,10 +163,7 @@ describe('detectPhase', () => {
   });
 
   it('returns validate after first bash', () => {
-    assert.equal(
-      detectPhase(makeState({ first_edit_at_ms: Date.now(), first_bash_at_ms: Date.now() })),
-      'validate',
-    );
+    assert.equal(detectPhase(makeState({ first_edit_at_ms: Date.now(), first_bash_at_ms: Date.now() })), 'validate');
   });
 
   it('returns repair_loop after bash failure + edits', () => {

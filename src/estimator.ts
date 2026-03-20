@@ -101,11 +101,7 @@ export function estimateInitial(
  * Refine an estimate with live trace data.
  * Uses elapsed time and phase to adjust remaining time.
  */
-export function estimateWithTrace(
-  initial: EtaEstimate,
-  _elapsedSeconds: number,
-  phase: TaskPhase,
-): EtaEstimate {
+export function estimateWithTrace(initial: EtaEstimate, _elapsedSeconds: number, phase: TaskPhase): EtaEstimate {
   // Phase multipliers: how much of the total time is typically remaining
   const phaseRemaining: Record<TaskPhase, number> = {
     explore: 0.7, // 70% of work remaining
@@ -132,10 +128,7 @@ export function estimateWithTrace(
 // ── Backward compat adapter ──────────────────────────────────
 
 /** Convert EtaEstimate to the legacy TaskEstimate shape for existing consumers */
-export function toTaskEstimate(
-  est: EtaEstimate,
-  complexity: number,
-): import('./stats.js').TaskEstimate {
+export function toTaskEstimate(est: EtaEstimate, complexity: number): import('./stats.js').TaskEstimate {
   return {
     low: est.p50_wall,
     high: est.p80_wall,

@@ -6,7 +6,7 @@
  */
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { getLegacyDataDir, getProjectDir, getCompletedDir, ensureDir, ensureProjectDirs, getProjectMetaPath } from './paths.js';
+import { getLegacyDataDir, getProjectDir, getCompletedDir, ensureDir, ensureProjectDirs, getProjectMetaPath, } from './paths.js';
 import { taskEntryToCompletedTurn } from './convert.js';
 const MIGRATION_MARKER = 'migrated-from-legacy.json';
 /** Check if a legacy project file exists and hasn't been migrated yet */

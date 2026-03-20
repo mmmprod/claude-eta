@@ -64,5 +64,8 @@ let _cachedSalt: string | null = null;
 /** Hash a value with the local salt — one-way, privacy-safe */
 export function hashWithLocalSalt(value: string): string {
   if (_cachedSalt === null) _cachedSalt = getLocalSalt();
-  return crypto.createHash('sha256').update(_cachedSalt + value).digest('hex');
+  return crypto
+    .createHash('sha256')
+    .update(_cachedSalt + value)
+    .digest('hex');
 }

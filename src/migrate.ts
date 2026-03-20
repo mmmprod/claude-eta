@@ -7,7 +7,14 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { TaskEntry, ProjectData } from './types.js';
-import { getLegacyDataDir, getProjectDir, getCompletedDir, ensureDir, ensureProjectDirs, getProjectMetaPath } from './paths.js';
+import {
+  getLegacyDataDir,
+  getProjectDir,
+  getCompletedDir,
+  ensureDir,
+  ensureProjectDirs,
+  getProjectMetaPath,
+} from './paths.js';
 import { taskEntryToCompletedTurn } from './convert.js';
 
 const MIGRATION_MARKER = 'migrated-from-legacy.json';
@@ -64,9 +71,7 @@ export function migrateLegacyProject(
   // Write marker FIRST to prevent double-migration race condition.
   // If crash happens after marker but before data write, we lose history
   // (recoverable by deleting marker), but we never get duplicates.
-  const completedTasks = data.tasks.filter(
-    (t) => t.duration_seconds != null && t.duration_seconds > 0,
-  );
+  const completedTasks = data.tasks.filter((t) => t.duration_seconds != null && t.duration_seconds > 0);
   writeMarker(projectFp, legacySlug, completedTasks.length);
 
   // Write project meta

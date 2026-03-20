@@ -96,10 +96,7 @@ export function findBullshitEstimate(
   if (durations.length === 0 || p75 <= 0) return null;
 
   const largest = durations.reduce((max, d) => (d.seconds > max.seconds ? d : max));
-  const threshold = Math.max(
-    p75 * DETECTOR_CONFIG.p75Multiplier,
-    median + DETECTOR_CONFIG.medianOffsetSeconds,
-  );
+  const threshold = Math.max(p75 * DETECTOR_CONFIG.p75Multiplier, median + DETECTOR_CONFIG.medianOffsetSeconds);
   return largest.seconds > threshold ? largest : null;
 }
 
@@ -108,7 +105,10 @@ export function findBullshitEstimate(
  * Hierarchy: classification-specific → global → null.
  */
 export function resolveDetectorReference(
-  stats: { overall: { median: number; p25: number; p75: number; }; byClassification: { classification: string; count: number; median: number; p25: number; p75: number }[] },
+  stats: {
+    overall: { median: number; p25: number; p75: number };
+    byClassification: { classification: string; count: number; median: number; p25: number; p75: number }[];
+  },
   classification: string,
 ): { median: number; p25: number; p75: number; count: number; source: string } | null {
   // 1. Classification-specific

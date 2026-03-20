@@ -127,7 +127,10 @@ describe('Stop hook integration', () => {
     const fp = getTestFp();
     const slug = 'test-stop-hook-project';
     // Seed 10 legacy tasks so stats are available via compat
-    seedLegacyData(slug, Array.from({ length: 10 }, () => makeLegacyTask()));
+    seedLegacyData(
+      slug,
+      Array.from({ length: 10 }, () => makeLegacyTask()),
+    );
     seedActiveTurn(fp, SESSION_ID, 'main');
 
     const output = runStopHook({
@@ -160,7 +163,10 @@ describe('Stop hook integration', () => {
 
   it('flushes normally when no BS detected', () => {
     const fp = getTestFp();
-    seedLegacyData('test-stop-hook-project', Array.from({ length: 10 }, () => makeLegacyTask()));
+    seedLegacyData(
+      'test-stop-hook-project',
+      Array.from({ length: 10 }, () => makeLegacyTask()),
+    );
     seedActiveTurn(fp, SESSION_ID, 'main');
 
     const output = runStopHook({
@@ -175,7 +181,10 @@ describe('Stop hook integration', () => {
 
   it('handles undefined stop_hook_active (runs BS detection)', () => {
     const fp = getTestFp();
-    seedLegacyData('test-stop-hook-project', Array.from({ length: 10 }, () => makeLegacyTask()));
+    seedLegacyData(
+      'test-stop-hook-project',
+      Array.from({ length: 10 }, () => makeLegacyTask()),
+    );
     seedActiveTurn(fp, SESSION_ID, 'main');
 
     const output = runStopHook({
