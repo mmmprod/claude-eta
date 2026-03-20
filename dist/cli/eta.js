@@ -253,6 +253,7 @@ async function main() {
         console.log(`| \`/eta auto\`                  | Auto-ETA status and accuracy               |`);
         console.log(`| \`/eta auto on\`               | Enable Auto-ETA injection                  |`);
         console.log(`| \`/eta auto off\`              | Disable Auto-ETA injection                 |`);
+        console.log(`| \`/eta insights\`              | Deep patterns in your task data             |`);
         console.log(`| \`/eta help\`                  | This help                                      |`);
         console.log(`\nAll data is 100% local by default. Community features (\`compare\`, \`contribute\`) are opt-in.`);
         console.log(FEEDBACK_LINE);
@@ -315,6 +316,12 @@ async function main() {
         case 'auto':
             showAuto(data);
             break;
+        case 'insights': {
+            const { computeAllInsights, formatInsightsReport } = await import('../insights/index.js');
+            const results = computeAllInsights(data.tasks);
+            console.log(formatInsightsReport(results));
+            break;
+        }
         default:
             showSession(data.tasks);
             break;
