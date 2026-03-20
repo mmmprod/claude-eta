@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.0](https://github.com/mmmprod/claude-eta/compare/claude-eta-v0.4.0...claude-eta-v0.5.0) (2026-03-20)
+
+
+### Features
+
+* /eta auto — opt-in time estimates at response start ([#37](https://github.com/mmmprod/claude-eta/issues/37)) ([caece8d](https://github.com/mmmprod/claude-eta/commit/caece8d2e10a33782b5b2d6b3854c32e4506a04d))
+
 ## [0.4.0](https://github.com/mmmprod/claude-eta/compare/claude-eta-v0.3.4...claude-eta-v0.4.0) (2026-03-20)
 
 
