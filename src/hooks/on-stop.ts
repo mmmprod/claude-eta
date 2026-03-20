@@ -8,7 +8,7 @@
  */
 import type { StopStdin } from '../types.js';
 import { readStdin } from '../stdin.js';
-import { loadProject, flushActiveTask, getActiveTask, setLastCompleted } from '../store.js';
+import { loadProject, flushActiveTask, getActiveTask, setLastCompleted, consumeLastEta, saveProject } from '../store.js';
 import { computeStats, fmtSec } from '../stats.js';
 import { extractDurations, findBullshitEstimate } from '../detector.js';
 
@@ -34,6 +34,7 @@ async function main(): Promise<void> {
   // If stop hook already fired (correction delivered), just flush
   if (stdin?.stop_hook_active) {
     flushAndRecord();
+    consumeLastEta(); // cleanup, don't score
     return;
   }
 
@@ -74,7 +75,33 @@ async function main(): Promise<void> {
   }
 
   // No bad estimate detected — flush normally
+  const activeBeforeFlush = getActiveTask();
   flushAndRecord();
+
+  // Self-check Auto-ETA accuracy
+  if (stdin?.stop_hook_active) {
+    // BS detector fired — duration includes correction time, skip scoring
+    consumeLastEta(); // cleanup only
+  } else if (activeBeforeFlush) {
+    const lastEta = consumeLastEta();
+    if (lastEta) {
+      const projectData = loadProject(activeBeforeFlush.project);
+      const lastTask = projectData.tasks[projectData.tasks.length - 1];
+      if (
+        lastTask?.task_id === lastEta.task_id &&
+        lastTask.duration_seconds != null
+      ) {
+        const hit =
+          lastTask.duration_seconds >= lastEta.low &&
+          lastTask.duration_seconds <= lastEta.high;
+        projectData.eta_accuracy ??= {};
+        projectData.eta_accuracy[lastEta.classification] ??= { hits: 0, misses: 0 };
+        if (hit) projectData.eta_accuracy[lastEta.classification].hits++;
+        else projectData.eta_accuracy[lastEta.classification].misses++;
+        saveProject(projectData);
+      }
+    }
+  }
 }
 
 void main();
