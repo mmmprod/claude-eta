@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.0](https://github.com/mmmprod/claude-eta/compare/claude-eta-v0.5.0...claude-eta-v0.6.0) (2026-03-20)
+
+
+### Features
+
+* /eta insights — 9 deep analyses on dormant task data ([#39](https://github.com/mmmprod/claude-eta/issues/39)) ([5b0a619](https://github.com/mmmprod/claude-eta/commit/5b0a61931e056d61e9bf769778920cf264237c87))
+
 ## [0.5.0](https://github.com/mmmprod/claude-eta/compare/claude-eta-v0.4.0...claude-eta-v0.5.0) (2026-03-20)
 
 
