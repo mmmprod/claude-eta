@@ -9,6 +9,7 @@
  */
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { randomUUID } from 'node:crypto';
 // crypto no longer needed — atomicWrite moved to paths.ts
 import type { SessionMeta, ActiveTurnState, EventRecord, CompletedTurn, StopReason } from './types.js';
 import type { TurnEventType } from './types.js';
@@ -198,13 +199,97 @@ const STALE_LOCK_MS = 60_000;
 /** O_EXCL open flags — atomic "create only if not exists" on POSIX */
 const LOCK_FLAGS = fs.constants.O_WRONLY | fs.constants.O_CREAT | fs.constants.O_EXCL;
 
-/** Try to open a lock file with O_EXCL; returns fd or null */
-function tryOpenLock(lockPath: string): number | null {
+type LockOwner = {
+  pid: number;
+  token: string;
+  created_at_ms: number;
+};
+
+type LockHandle = {
+  fd: number;
+  owner: LockOwner;
+};
+
+function createLockOwner(): LockOwner {
+  return {
+    pid: process.pid,
+    token: randomUUID(),
+    created_at_ms: Date.now(),
+  };
+}
+
+function parseLockOwner(raw: string): LockOwner | null {
   try {
-    return fs.openSync(lockPath, LOCK_FLAGS);
+    const parsed = JSON.parse(raw) as Partial<LockOwner>;
+    const pid = parsed.pid;
+    const token = parsed.token;
+    const createdAtMs = parsed.created_at_ms;
+    if (!Number.isInteger(pid) || pid == null || pid <= 0) return null;
+    if (typeof token !== 'string' || token.length === 0) return null;
+    if (typeof createdAtMs !== 'number' || !Number.isFinite(createdAtMs)) return null;
+    return {
+      pid,
+      token,
+      created_at_ms: createdAtMs,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function sameLockOwner(left: LockOwner | null, right: LockOwner | null): boolean {
+  if (!left || !right) return left === right;
+  return left.pid === right.pid && left.token === right.token && left.created_at_ms === right.created_at_ms;
+}
+
+function readLockOwner(lockPath: string): LockOwner | null {
+  try {
+    return parseLockOwner(fs.readFileSync(lockPath, 'utf-8'));
+  } catch {
+    return null;
+  }
+}
+
+function isProcessAlive(pid: number | null | undefined): boolean {
+  if (!Number.isInteger(pid) || pid == null || pid <= 0) return false;
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    return (error as NodeJS.ErrnoException).code === 'EPERM';
+  }
+}
+
+function sameFileIdentity(left: fs.Stats, right: fs.Stats): boolean {
+  return left.dev === right.dev && left.ino === right.ino && left.mtimeMs === right.mtimeMs && left.size === right.size;
+}
+
+/** Try to open a lock file with O_EXCL; returns handle or null */
+function tryOpenLock(lockPath: string): LockHandle | null {
+  const owner = createLockOwner();
+  let fd: number | null = null;
+
+  try {
+    fd = fs.openSync(lockPath, LOCK_FLAGS);
+    fs.writeFileSync(fd, JSON.stringify(owner), 'utf-8');
+    fs.fsyncSync(fd);
+    return { fd, owner };
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'EEXIST') {
       return null;
+    }
+
+    if (fd !== null) {
+      try {
+        fs.closeSync(fd);
+      } catch {
+        /* best-effort cleanup */
+      }
+      try {
+        fs.unlinkSync(lockPath);
+      } catch {
+        /* best-effort cleanup */
+      }
     }
     throw error;
   }
@@ -232,42 +317,54 @@ function compareCompletedTurns(left: CompletedTurn, right: CompletedTurn): numbe
  * Returns the file descriptor on success, or null if lock is held.
  * Recovers stale locks older than STALE_LOCK_MS.
  */
-function acquireLock(lockPath: string): number | null {
+function acquireLock(lockPath: string): LockHandle | null {
   ensureDir(path.dirname(lockPath));
 
-  const fd = tryOpenLock(lockPath);
-  if (fd !== null) return fd;
+  const handle = tryOpenLock(lockPath);
+  if (handle !== null) return handle;
 
-  // Lock file exists — check for staleness
+  // Lock file exists — check for staleness and only recover if the recorded owner is dead.
   try {
-    const stat = fs.statSync(lockPath);
-    if (Date.now() - stat.mtimeMs > STALE_LOCK_MS) {
-      // Stale lock — remove and retry once
-      try {
-        fs.unlinkSync(lockPath);
-      } catch {
-        /* race: another process cleaned it */
-      }
-      return tryOpenLock(lockPath);
+    const snapshotStat = fs.statSync(lockPath);
+    if (Date.now() - snapshotStat.mtimeMs <= STALE_LOCK_MS) {
+      return null;
     }
+
+    const snapshotOwner = readLockOwner(lockPath);
+    if (snapshotOwner && isProcessAlive(snapshotOwner.pid)) {
+      return null;
+    }
+
+    const currentStat = fs.statSync(lockPath);
+    const currentOwner = readLockOwner(lockPath);
+    if (!sameFileIdentity(snapshotStat, currentStat) || !sameLockOwner(snapshotOwner, currentOwner)) {
+      return null;
+    }
+
+    fs.unlinkSync(lockPath);
+    return tryOpenLock(lockPath);
   } catch {
     // stat failed — lock was just released, retry once
     return tryOpenLock(lockPath);
   }
-  return null;
 }
 
 /** Release an advisory lock: close fd + unlink file */
-function releaseLock(lockFd: number, lockPath: string): void {
+function releaseLock(lock: LockHandle, lockPath: string): void {
+  const shouldUnlink = sameLockOwner(readLockOwner(lockPath), lock.owner);
+
   try {
-    fs.closeSync(lockFd);
+    fs.closeSync(lock.fd);
   } catch {
     /* */
   }
-  try {
-    fs.unlinkSync(lockPath);
-  } catch {
-    /* */
+
+  if (shouldUnlink) {
+    try {
+      fs.unlinkSync(lockPath);
+    } catch {
+      /* */
+    }
   }
 }
 
@@ -293,8 +390,8 @@ export function closeTurn(
 ): CompletedTurn | null {
   // Step 0: Acquire advisory lock
   const lockPath = path.join(getLocksDir(projectFp), `${sessionId}__${agentKey}.lock`);
-  const lockFd = acquireLock(lockPath);
-  if (lockFd === null) {
+  const lock = acquireLock(lockPath);
+  if (lock === null) {
     // Lock already held — another process is closing this turn. Bail.
     return null;
   }
@@ -375,7 +472,7 @@ export function closeTurn(
     return completed;
   } finally {
     // Step 7: Always release the lock
-    releaseLock(lockFd, lockPath);
+    releaseLock(lock, lockPath);
   }
 }
 

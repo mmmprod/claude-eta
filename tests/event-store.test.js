@@ -1,8 +1,10 @@
 import { describe, it, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
+import { Worker } from 'node:worker_threads';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
+import { pathToFileURL } from 'node:url';
 
 let TEST_DATA_DIR;
 
@@ -21,6 +23,92 @@ async function loadModule() {
   // Force fresh import by adding cache-busting query
   const ts = Date.now() + Math.random();
   return await import(`../dist/event-store.js?t=${ts}`);
+}
+
+function getEventStoreModuleUrl() {
+  const ts = Date.now() + Math.random();
+  return `${pathToFileURL(path.resolve('dist/event-store.js')).href}?t=${ts}`;
+}
+
+function runConcurrentCloseTurnWorkers(projectFp, sessionId, agentKey, reason) {
+  const gate = new SharedArrayBuffer(Int32Array.BYTES_PER_ELEMENT);
+  const workerData = {
+    gate,
+    moduleUrl: getEventStoreModuleUrl(),
+    projectFp,
+    sessionId,
+    agentKey,
+    reason,
+  };
+  const workerSource = `
+    import { parentPort, workerData } from 'node:worker_threads';
+
+    const gate = new Int32Array(workerData.gate);
+    parentPort.postMessage({ type: 'ready' });
+    Atomics.wait(gate, 0, 0);
+
+    try {
+      const { closeTurn } = await import(workerData.moduleUrl);
+      const result = closeTurn(
+        workerData.projectFp,
+        workerData.sessionId,
+        workerData.agentKey,
+        workerData.reason,
+      );
+      parentPort.postMessage({ type: 'result', result });
+    } catch (error) {
+      parentPort.postMessage({
+        type: 'error',
+        error: error instanceof Error ? (error.stack ?? error.message) : String(error),
+      });
+    }
+  `;
+
+  const runWorker = () =>
+    new Promise((resolve, reject) => {
+      const worker = new Worker(workerSource, { eval: true, type: 'module', workerData });
+      let ready = false;
+      let finished = false;
+
+      worker.on('message', (message) => {
+        if (message?.type === 'ready') {
+          ready = true;
+          resolve({ worker, waitForResult });
+          return;
+        }
+        if (message?.type === 'error') {
+          finished = true;
+          reject(new Error(message.error));
+          return;
+        }
+        if (message?.type === 'result') {
+          finished = true;
+          waitForResult.resolve(message.result);
+        }
+      });
+
+      worker.on('error', reject);
+      worker.on('exit', (code) => {
+        if (!finished && !ready) {
+          reject(new Error(`Worker exited before becoming ready (${code})`));
+        } else if (!finished && code !== 0) {
+          waitForResult.reject(new Error(`Worker exited with code ${code}`));
+        }
+      });
+
+      const waitForResult = {};
+      waitForResult.promise = new Promise((resultResolve, resultReject) => {
+        waitForResult.resolve = resultResolve;
+        waitForResult.reject = resultReject;
+      }).finally(() => worker.terminate());
+    });
+
+  return Promise.all([runWorker(), runWorker()]).then((workers) => {
+    const gateView = new Int32Array(gate);
+    Atomics.store(gateView, 0, 1);
+    Atomics.notify(gateView, 0, workers.length);
+    return Promise.all(workers.map((entry) => entry.waitForResult.promise));
+  });
 }
 
 function makeActiveTurn(overrides = {}) {
@@ -495,7 +583,7 @@ describe('loadCompletedTurns / loadRecentCompletedTurns', () => {
 // ── closeTurn lock file ──────────────────────────────────────
 
 describe('closeTurn lock file', () => {
-  it('prevents duplicate appends when closeTurn is called twice on the same turn', async () => {
+  it('returns null when closeTurn is called twice sequentially on the same turn', async () => {
     const { startTurn, closeTurn } = await loadModule();
     const { getCompletedLogPath } = await import('../dist/paths.js');
 
@@ -518,6 +606,27 @@ describe('closeTurn lock file', () => {
     assert.equal(lines.length, 1, 'Expected exactly one completed record');
   });
 
+  it('allows only one overlapping closeTurn caller to complete the turn', async () => {
+    const { startTurn } = await loadModule();
+    const { getCompletedLogPath } = await import('../dist/paths.js');
+
+    const fp = 'lockrace123456789';
+    const state = makeActiveTurn({ project_fp: fp, session_id: 'sess-race', agent_key: 'main' });
+    startTurn(state);
+
+    const [first, second] = await runConcurrentCloseTurnWorkers(fp, 'sess-race', 'main', 'stop');
+    const successes = [first, second].filter(Boolean);
+    const misses = [first, second].filter((result) => result === null);
+
+    assert.equal(successes.length, 1, 'Exactly one overlapping closeTurn call should succeed');
+    assert.equal(misses.length, 1, 'Exactly one overlapping closeTurn call should bail on the lock');
+
+    const completedPath = getCompletedLogPath(fp, 'sess-race', 'main');
+    const content = fs.readFileSync(completedPath, 'utf-8').trim();
+    const lines = content.split('\n').filter((l) => l.trim());
+    assert.equal(lines.length, 1, 'Expected exactly one completed record after overlapping closeTurn calls');
+  });
+
   it('recovers stale lock files older than 60s', async () => {
     const { startTurn, closeTurn } = await loadModule();
     const { getLocksDir } = await import('../dist/paths.js');
@@ -530,7 +639,7 @@ describe('closeTurn lock file', () => {
     const locksDir = getLocksDir(fp);
     fs.mkdirSync(locksDir, { recursive: true });
     const lockPath = path.join(locksDir, 'sess-stale__main.lock');
-    fs.writeFileSync(lockPath, '');
+    fs.writeFileSync(lockPath, JSON.stringify({ pid: -1, token: 'stale-token', created_at_ms: Date.now() - 90_000 }));
     // Set mtime to 90 seconds ago (beyond the 60s stale threshold)
     const staleTime = new Date(Date.now() - 90_000);
     fs.utimesSync(lockPath, staleTime, staleTime);
@@ -556,15 +665,13 @@ describe('closeTurn lock file', () => {
     const locksDir = getLocksDir(fp);
     fs.mkdirSync(locksDir, { recursive: true });
     const lockPath = path.join(locksDir, 'sess-held__main.lock');
-    // Use O_EXCL to create it like acquireLock does
-    const fd = fs.openSync(lockPath, fs.constants.O_WRONLY | fs.constants.O_CREAT | fs.constants.O_EXCL);
+    fs.writeFileSync(lockPath, JSON.stringify({ pid: process.pid, token: 'live-token', created_at_ms: Date.now() }));
 
     try {
       // closeTurn should bail because lock is held
       const result = closeTurn(fp, 'sess-held', 'main', 'stop');
       assert.equal(result, null, 'closeTurn should return null when lock is held');
     } finally {
-      fs.closeSync(fd);
       fs.unlinkSync(lockPath);
     }
   });

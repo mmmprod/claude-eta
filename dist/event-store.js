@@ -9,6 +9,7 @@
  */
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { randomUUID } from 'node:crypto';
 import { loadProjectMeta } from './project-meta.js';
 import { ensureDir, ensureProjectDirs, getActiveTurnPath, getEventLogPath, getCompletedLogPath, getSessionMetaPath, getCompletedDir, getActiveDir, getClosingDir, getLocksDir, atomicWrite, atomicWriteIfAbsent, } from './paths.js';
 /** Canonical mapping from StopReason to TurnEventType */
@@ -164,14 +165,89 @@ function buildCompletedTurn(active, reason, extras) {
 const STALE_LOCK_MS = 60_000;
 /** O_EXCL open flags — atomic "create only if not exists" on POSIX */
 const LOCK_FLAGS = fs.constants.O_WRONLY | fs.constants.O_CREAT | fs.constants.O_EXCL;
-/** Try to open a lock file with O_EXCL; returns fd or null */
-function tryOpenLock(lockPath) {
+function createLockOwner() {
+    return {
+        pid: process.pid,
+        token: randomUUID(),
+        created_at_ms: Date.now(),
+    };
+}
+function parseLockOwner(raw) {
     try {
-        return fs.openSync(lockPath, LOCK_FLAGS);
+        const parsed = JSON.parse(raw);
+        const pid = parsed.pid;
+        const token = parsed.token;
+        const createdAtMs = parsed.created_at_ms;
+        if (!Number.isInteger(pid) || pid == null || pid <= 0)
+            return null;
+        if (typeof token !== 'string' || token.length === 0)
+            return null;
+        if (typeof createdAtMs !== 'number' || !Number.isFinite(createdAtMs))
+            return null;
+        return {
+            pid,
+            token,
+            created_at_ms: createdAtMs,
+        };
+    }
+    catch {
+        return null;
+    }
+}
+function sameLockOwner(left, right) {
+    if (!left || !right)
+        return left === right;
+    return left.pid === right.pid && left.token === right.token && left.created_at_ms === right.created_at_ms;
+}
+function readLockOwner(lockPath) {
+    try {
+        return parseLockOwner(fs.readFileSync(lockPath, 'utf-8'));
+    }
+    catch {
+        return null;
+    }
+}
+function isProcessAlive(pid) {
+    if (!Number.isInteger(pid) || pid == null || pid <= 0)
+        return false;
+    try {
+        process.kill(pid, 0);
+        return true;
+    }
+    catch (error) {
+        return error.code === 'EPERM';
+    }
+}
+function sameFileIdentity(left, right) {
+    return left.dev === right.dev && left.ino === right.ino && left.mtimeMs === right.mtimeMs && left.size === right.size;
+}
+/** Try to open a lock file with O_EXCL; returns handle or null */
+function tryOpenLock(lockPath) {
+    const owner = createLockOwner();
+    let fd = null;
+    try {
+        fd = fs.openSync(lockPath, LOCK_FLAGS);
+        fs.writeFileSync(fd, JSON.stringify(owner), 'utf-8');
+        fs.fsyncSync(fd);
+        return { fd, owner };
     }
     catch (error) {
         if (error.code === 'EEXIST') {
             return null;
+        }
+        if (fd !== null) {
+            try {
+                fs.closeSync(fd);
+            }
+            catch {
+                /* best-effort cleanup */
+            }
+            try {
+                fs.unlinkSync(lockPath);
+            }
+            catch {
+                /* best-effort cleanup */
+            }
         }
         throw error;
     }
@@ -198,42 +274,48 @@ function compareCompletedTurns(left, right) {
  */
 function acquireLock(lockPath) {
     ensureDir(path.dirname(lockPath));
-    const fd = tryOpenLock(lockPath);
-    if (fd !== null)
-        return fd;
-    // Lock file exists — check for staleness
+    const handle = tryOpenLock(lockPath);
+    if (handle !== null)
+        return handle;
+    // Lock file exists — check for staleness and only recover if the recorded owner is dead.
     try {
-        const stat = fs.statSync(lockPath);
-        if (Date.now() - stat.mtimeMs > STALE_LOCK_MS) {
-            // Stale lock — remove and retry once
-            try {
-                fs.unlinkSync(lockPath);
-            }
-            catch {
-                /* race: another process cleaned it */
-            }
-            return tryOpenLock(lockPath);
+        const snapshotStat = fs.statSync(lockPath);
+        if (Date.now() - snapshotStat.mtimeMs <= STALE_LOCK_MS) {
+            return null;
         }
+        const snapshotOwner = readLockOwner(lockPath);
+        if (snapshotOwner && isProcessAlive(snapshotOwner.pid)) {
+            return null;
+        }
+        const currentStat = fs.statSync(lockPath);
+        const currentOwner = readLockOwner(lockPath);
+        if (!sameFileIdentity(snapshotStat, currentStat) || !sameLockOwner(snapshotOwner, currentOwner)) {
+            return null;
+        }
+        fs.unlinkSync(lockPath);
+        return tryOpenLock(lockPath);
     }
     catch {
         // stat failed — lock was just released, retry once
         return tryOpenLock(lockPath);
     }
-    return null;
 }
 /** Release an advisory lock: close fd + unlink file */
-function releaseLock(lockFd, lockPath) {
+function releaseLock(lock, lockPath) {
+    const shouldUnlink = sameLockOwner(readLockOwner(lockPath), lock.owner);
     try {
-        fs.closeSync(lockFd);
+        fs.closeSync(lock.fd);
     }
     catch {
         /* */
     }
-    try {
-        fs.unlinkSync(lockPath);
-    }
-    catch {
-        /* */
+    if (shouldUnlink) {
+        try {
+            fs.unlinkSync(lockPath);
+        }
+        catch {
+            /* */
+        }
     }
 }
 /**
@@ -252,8 +334,8 @@ function releaseLock(lockFd, lockPath) {
 export function closeTurn(projectFp, sessionId, agentKey, reason, extras) {
     // Step 0: Acquire advisory lock
     const lockPath = path.join(getLocksDir(projectFp), `${sessionId}__${agentKey}.lock`);
-    const lockFd = acquireLock(lockPath);
-    if (lockFd === null) {
+    const lock = acquireLock(lockPath);
+    if (lock === null) {
         // Lock already held — another process is closing this turn. Bail.
         return null;
     }
@@ -333,7 +415,7 @@ export function closeTurn(projectFp, sessionId, agentKey, reason, extras) {
     }
     finally {
         // Step 7: Always release the lock
-        releaseLock(lockFd, lockPath);
+        releaseLock(lock, lockPath);
     }
 }
 /** Close all active turns for a session (used by SessionEnd) */
