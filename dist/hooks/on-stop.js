@@ -30,7 +30,7 @@ async function main() {
         const data = loadProject(active.project);
         const stats = computeStats(data.tasks);
         if (stats) {
-            const durations = extractDurations(message);
+            const durations = extractDurations(message, { skipPastContext: true });
             const bullshit = findBullshitEstimate(durations, stats.overall.p75, stats.overall.median);
             if (bullshit) {
                 // Find classification-specific stats for the current task

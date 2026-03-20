@@ -46,7 +46,7 @@ async function main(): Promise<void> {
     const stats = computeStats(data.tasks);
 
     if (stats) {
-      const durations = extractDurations(message);
+      const durations = extractDurations(message, { skipPastContext: true });
       const bullshit = findBullshitEstimate(durations, stats.overall.p75, stats.overall.median);
 
       if (bullshit) {
