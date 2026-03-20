@@ -7,8 +7,11 @@
  * - Uses event-store per-(session, agent) isolation (defect 1)
  */
 import * as crypto from 'node:crypto';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 import type { UserPromptSubmitStdin } from '../types.js';
 import { readStdin } from '../stdin.js';
+import { getPluginDataDir } from '../paths.js';
 import { resolveProjectIdentity } from '../identity.js';
 import { getSession, getActiveTurn, startTurn, closeTurn } from '../event-store.js';
 import { loadCompletedTurnsCompat, turnsToTaskEntries } from '../compat.js';
@@ -39,9 +42,42 @@ function respond(additionalContext?: string): void {
   process.stdout.write(JSON.stringify(response));
 }
 
+/** Temporary debug: dump stdin keys to file for 48h empirical validation.
+ *  Auto-disables after DEBUG_EXPIRY_MS. Remove this block after validation. */
+function debugDumpStdinKeys(stdin: Record<string, unknown>): void {
+  try {
+    const DEBUG_EXPIRY_MS = 48 * 60 * 60 * 1000;
+    const debugPath = path.join(getPluginDataDir(), 'debug-stdin-keys.jsonl');
+    // Check expiry: if first entry is >48h old, delete and stop
+    try {
+      const stat = fs.statSync(debugPath);
+      if (Date.now() - stat.birthtimeMs > DEBUG_EXPIRY_MS) {
+        fs.unlinkSync(debugPath);
+        return;
+      }
+    } catch {
+      // File doesn't exist yet — will be created
+    }
+    const entry = {
+      ts: new Date().toISOString(),
+      hook: 'UserPromptSubmit',
+      keys: Object.keys(stdin).sort(),
+      model_type: typeof stdin.model,
+      model_value: stdin.model,
+      has_agent_id: 'agent_id' in stdin,
+      has_agent_type: 'agent_type' in stdin,
+    };
+    fs.appendFileSync(debugPath, JSON.stringify(entry) + '\n');
+  } catch {
+    // Debug must never break the hook
+  }
+}
+
 async function main(): Promise<void> {
   const stdin = await readStdin<UserPromptSubmitStdin>();
   if (!stdin) return;
+
+  debugDumpStdinKeys(stdin as unknown as Record<string, unknown>);
 
   const cwd = stdin.cwd;
   const prompt = stdin.prompt ?? '';
