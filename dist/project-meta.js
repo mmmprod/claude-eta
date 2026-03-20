@@ -19,6 +19,27 @@ export function saveProjectMeta(fp, meta) {
     ensureDir(getProjectDir(fp));
     atomicWrite(getProjectMetaPath(fp), JSON.stringify(meta, null, 2));
 }
+/** Update ETA accuracy for a classification (hit or miss) */
+export function updateEtaAccuracy(fp, classification, hit) {
+    const meta = loadProjectMeta(fp);
+    if (!meta)
+        return;
+    const now = new Date().toISOString();
+    const accuracy = meta.eta_accuracy ?? {
+        by_classification: {},
+        updated_at: now,
+    };
+    const entry = accuracy.by_classification[classification] ?? {
+        interval80_hits: 0,
+        interval80_total: 0,
+    };
+    entry.interval80_total++;
+    if (hit)
+        entry.interval80_hits++;
+    accuracy.by_classification[classification] = entry;
+    accuracy.updated_at = now;
+    saveProjectMeta(fp, { ...meta, eta_accuracy: accuracy, updated_at: now });
+}
 /** Create or update project meta — merges with existing if present */
 export function upsertProjectMeta(fp, updates) {
     const existing = loadProjectMeta(fp);
