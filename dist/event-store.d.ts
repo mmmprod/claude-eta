@@ -4,12 +4,14 @@ export declare function upsertSession(meta: SessionMeta): void;
 /** Read session metadata (returns null if not found) */
 export declare function getSession(projectFp: string, sessionId: string): SessionMeta | null;
 /** Start a new turn — creates active file and appends turn_started event */
-export declare function startTurn(state: ActiveTurnState): void;
+export declare function startTurn(state: ActiveTurnState): boolean;
 /** Read active turn state (returns null if no active turn) */
 export declare function getActiveTurn(projectFp: string, sessionId: string, agentKey: string): ActiveTurnState | null;
 /** Write active turn state (atomic: temp file + rename).
  *  Directories must already exist (created by startTurn → ensureProjectDirs). */
-export declare function setActiveTurn(state: ActiveTurnState): void;
+export declare function setActiveTurn(state: ActiveTurnState, options?: {
+    createIfAbsent?: boolean;
+}): boolean;
 /** Append a single event to the event log (O(1) append, no read-modify-write) */
 export declare function appendEvent(projectFp: string, sessionId: string, agentKey: string, event: EventRecord): void;
 /**
