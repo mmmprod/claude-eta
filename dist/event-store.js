@@ -205,7 +205,9 @@ export function closeTurn(projectFp, sessionId, agentKey, reason, extras) {
         try {
             fs.unlinkSync(closingPath);
         }
-        catch { /* already gone */ }
+        catch {
+            /* already gone */
+        }
         return null;
     }
     // Step 4: Build and append completed record
@@ -230,7 +232,9 @@ export function closeTurn(projectFp, sessionId, agentKey, reason, extras) {
     try {
         fs.unlinkSync(closingPath);
     }
-    catch { /* already gone */ }
+    catch {
+        /* already gone */
+    }
     return completed;
 }
 /** Close all active turns for a session (used by SessionEnd) */

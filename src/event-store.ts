@@ -240,7 +240,11 @@ export function closeTurn(
 
   // Step 3: Dedup check — only needed during crash recovery
   if (recoveredFromClosing && isTurnAlreadyCompleted(projectFp, sessionId, agentKey, active.turn_id)) {
-    try { fs.unlinkSync(closingPath); } catch { /* already gone */ }
+    try {
+      fs.unlinkSync(closingPath);
+    } catch {
+      /* already gone */
+    }
     return null;
   }
 
@@ -264,7 +268,11 @@ export function closeTurn(
   }
 
   // Step 6: Clean up closing file
-  try { fs.unlinkSync(closingPath); } catch { /* already gone */ }
+  try {
+    fs.unlinkSync(closingPath);
+  } catch {
+    /* already gone */
+  }
 
   return completed;
 }
