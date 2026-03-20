@@ -1,15 +1,17 @@
 /**
  * /eta export — Anonymize and export task records to a local JSON file.
- * Output: ~/.claude/plugins/claude-eta/export/velocity-YYYY-MM.json
+ * Output: <pluginDataDir>/export/velocity-YYYY-MM.json
  */
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import * as os from 'node:os';
-import { loadProject } from '../store.js';
+import { loadCompletedTurnsCompat, turnsToTaskEntries } from '../compat.js';
+import { resolveProjectIdentity } from '../identity.js';
+import { loadProjectMeta } from '../project-meta.js';
+import { getPluginDataDir } from '../paths.js';
 import { contributorHash, projectHash, normalizeModel } from '../anonymize.js';
 import type { TaskEntry } from '../types.js';
 
-const EXPORT_DIR = path.join(os.homedir(), '.claude', 'plugins', 'claude-eta', 'export');
+const EXPORT_DIR = path.join(getPluginDataDir(), 'export');
 
 export interface AnonymizedRecord {
   task_type: string;
@@ -29,7 +31,7 @@ export interface AnonymizedRecord {
 
 export function anonymizeTask(
   task: TaskEntry,
-  projName: string,
+  projIdentifier: string,
   pluginVersion: string,
   projectMeta?: { file_count?: number; loc_bucket?: string },
 ): AnonymizedRecord | null {
@@ -44,7 +46,7 @@ export function anonymizeTask(
     files_created: task.files_created,
     errors: task.errors,
     model: normalizeModel(task.model),
-    project_hash: projectHash(projName),
+    project_hash: projectHash(projIdentifier),
     project_file_count: projectMeta?.file_count ?? null,
     project_loc_bucket: projectMeta?.loc_bucket ?? null,
     plugin_version: pluginVersion,
@@ -52,16 +54,19 @@ export function anonymizeTask(
   };
 }
 
-export function anonymizeProject(projName: string, pluginVersion: string): AnonymizedRecord[] {
-  const data = loadProject(projName);
-  const meta = { file_count: data.file_count, loc_bucket: data.loc_bucket };
-  return data.tasks
-    .map((t) => anonymizeTask(t, projName, pluginVersion, meta))
+export function anonymizeProject(cwd: string, pluginVersion: string): AnonymizedRecord[] {
+  const { fp, displayName } = resolveProjectIdentity(cwd);
+  const turns = loadCompletedTurnsCompat(cwd);
+  const tasks = turnsToTaskEntries(turns);
+  const meta = loadProjectMeta(fp);
+  const projectMeta = { file_count: meta?.file_count ?? undefined, loc_bucket: meta?.loc_bucket ?? undefined };
+  return tasks
+    .map((t) => anonymizeTask(t, displayName, pluginVersion, projectMeta))
     .filter((r): r is AnonymizedRecord => r !== null);
 }
 
-export function exportToFile(projName: string, pluginVersion: string): { path: string; count: number } {
-  const records = anonymizeProject(projName, pluginVersion);
+export function exportToFile(cwd: string, pluginVersion: string): { path: string; count: number } {
+  const records = anonymizeProject(cwd, pluginVersion);
   if (records.length === 0) return { path: '', count: 0 };
 
   fs.mkdirSync(EXPORT_DIR, { recursive: true });
@@ -73,8 +78,8 @@ export function exportToFile(projName: string, pluginVersion: string): { path: s
   return { path: filePath, count: records.length };
 }
 
-export function showExport(projName: string, pluginVersion: string): void {
-  const result = exportToFile(projName, pluginVersion);
+export function showExport(cwd: string, pluginVersion: string): void {
+  const result = exportToFile(cwd, pluginVersion);
   if (result.count === 0) {
     console.log('No completed tasks to export.');
     return;
