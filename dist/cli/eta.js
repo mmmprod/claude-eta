@@ -13,6 +13,8 @@ import { showExport } from './export.js';
 import { showContribute, executeContribute } from './contribute.js';
 import { showCompare } from './compare.js';
 const EXPORT_DIR = path.join(os.homedir(), '.claude', 'plugins', 'claude-eta', 'export');
+const ETA_COMMAND = '/eta';
+const ETA_FALLBACK_COMMAND = '/claude-eta:eta';
 // ── Formatting helpers ────────────────────────────────────────
 function fmtDuration(seconds) {
     if (seconds < 60)
@@ -156,18 +158,21 @@ async function main() {
     // Help
     if (mode === 'help') {
         console.log(`## claude-eta commands\n`);
+        console.log(`Shortcut: \`${ETA_COMMAND}\``);
+        console.log(`Fallback: \`${ETA_FALLBACK_COMMAND}\`\n`);
         console.log(`| Command                      | Description                                    |`);
         console.log(`|------------------------------|------------------------------------------------|`);
-        console.log(`| \`/eta\`                       | Current session stats                          |`);
-        console.log(`| \`/eta history\`               | Last 20 tasks with durations                   |`);
-        console.log(`| \`/eta stats\`                 | Averages by task type                          |`);
-        console.log(`| \`/eta inspect\`               | What data is stored (transparency)             |`);
-        console.log(`| \`/eta compare\`               | Your stats vs community baselines              |`);
-        console.log(`| \`/eta export\`                | Anonymize & save to local JSON                 |`);
-        console.log(`| \`/eta contribute\`            | Preview what would be shared                   |`);
-        console.log(`| \`/eta contribute --confirm\`  | Upload anonymized data (opt-in)                |`);
-        console.log(`| \`/eta help\`                  | This help                                      |`);
+        console.log(`| \`${ETA_COMMAND}\`              | Current session stats                          |`);
+        console.log(`| \`${ETA_COMMAND} history\`      | Last 20 tasks with durations                   |`);
+        console.log(`| \`${ETA_COMMAND} stats\`        | Averages by task type                          |`);
+        console.log(`| \`${ETA_COMMAND} inspect\`      | What data is stored (transparency)             |`);
+        console.log(`| \`${ETA_COMMAND} compare\`      | Your stats vs community baselines              |`);
+        console.log(`| \`${ETA_COMMAND} export\`       | Anonymize & save to local JSON                 |`);
+        console.log(`| \`${ETA_COMMAND} contribute\`   | Preview what would be shared                   |`);
+        console.log(`| \`${ETA_COMMAND} contribute --confirm\` | Upload anonymized data (opt-in)         |`);
+        console.log(`| \`${ETA_COMMAND} help\`         | This help                                      |`);
         console.log(`\nAll data is 100% local by default. Community features (\`compare\`, \`contribute\`) are opt-in.`);
+        console.log(`If the shortcut is not loaded in the current session yet, use \`${ETA_FALLBACK_COMMAND}\`.`);
         console.log(FEEDBACK_LINE);
         return;
     }

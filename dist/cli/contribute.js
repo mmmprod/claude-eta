@@ -10,6 +10,8 @@ import { loadProject } from '../store.js';
 import { anonymizeTask } from './export.js';
 import { insertVelocityRecords } from '../supabase.js';
 const STATE_PATH = path.join(os.homedir(), '.claude', 'plugins', 'claude-eta', 'data', '_contribute_state.json');
+const ETA_COMMAND = '/eta';
+const ETA_FALLBACK_COMMAND = '/claude-eta:eta';
 function loadState() {
     try {
         const raw = JSON.parse(fs.readFileSync(STATE_PATH, 'utf-8'));
@@ -73,7 +75,8 @@ export async function showContribute(projName, pluginVersion) {
     console.log('- Task type, duration, tool/file counts, model (normalized), project hash');
     console.log('\n### What is NOT sent');
     console.log('- Prompt text, file paths, project name, code, conversation content');
-    console.log('\n**To confirm**, run this command again with `--confirm`:\n' + '`/eta contribute --confirm`');
+    console.log(`\n**To confirm**, run this command again with \`--confirm\`:\n\`${ETA_COMMAND} contribute --confirm\``);
+    console.log(`If \`${ETA_COMMAND}\` is not available in this session yet, use \`${ETA_FALLBACK_COMMAND} contribute --confirm\`.`);
 }
 export async function executeContribute(projName, pluginVersion) {
     const { records, taskIds } = getNewRecords(projName, pluginVersion);

@@ -29,8 +29,10 @@ const UNIT_SECONDS = {
     semaines: 604800,
 };
 const DURATION_RE = /(\d+(?:\.\d+)?)\s*(seconds?|secs?|minutes?|mins?|hours?|hrs?|days?|weeks?|secondes?|heures?|jours?|semaines?)\b/gi;
+/** Words before a duration that indicate a past report, not a future estimate */
+const PAST_CONTEXT_RE = /\b(took|lasted|completed|finished|elapsed|spent|ran|total\s+time|duration|avg|average|median|session|previous|recorded|en\s+tout)\b/i;
 /** Find all time duration mentions in text */
-export function extractDurations(text) {
+export function extractDurations(text, options) {
     const results = [];
     DURATION_RE.lastIndex = 0;
     let match;
@@ -40,6 +42,12 @@ export function extractDurations(text) {
         const multiplier = UNIT_SECONDS[unit];
         if (!multiplier || num <= 0)
             continue;
+        // Skip durations preceded by past-tense/reporting words (not estimates)
+        if (options?.skipPastContext) {
+            const before = text.slice(Math.max(0, match.index - 120), match.index);
+            if (PAST_CONTEXT_RE.test(before))
+                continue;
+        }
         results.push({ raw: match[0], seconds: num * multiplier });
     }
     return results;

@@ -7,7 +7,9 @@ export interface DetectedEstimate {
     seconds: number;
 }
 /** Find all time duration mentions in text */
-export declare function extractDurations(text: string): DetectedEstimate[];
+export declare function extractDurations(text: string, options?: {
+    skipPastContext?: boolean;
+}): DetectedEstimate[];
 /**
  * Find the worst offender among durations.
  * Returns null if all estimates are within reasonable range.

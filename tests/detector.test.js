@@ -50,6 +50,39 @@ describe('extractDurations', () => {
     assert.equal(d.length, 1);
     assert.equal(d[0].seconds, 5400);
   });
+
+  it('skips past-context durations with skipPastContext', () => {
+    const opts = { skipPastContext: true };
+    assert.deepEqual(extractDurations('the session lasted 24 minutes', opts), []);
+    assert.deepEqual(extractDurations('took 30 seconds to complete', opts), []);
+    assert.deepEqual(extractDurations('Total time: 15 minutes', opts), []);
+    assert.deepEqual(extractDurations('median 29 seconds', opts), []);
+    assert.deepEqual(extractDurations('Previous task completed: 42 seconds', opts), []);
+    assert.deepEqual(extractDurations('average duration of 3 minutes', opts), []);
+  });
+
+  it('keeps future estimates with skipPastContext', () => {
+    const opts = { skipPastContext: true };
+    const d1 = extractDurations('this will take about 2 hours', opts);
+    assert.equal(d1.length, 1);
+    assert.equal(d1[0].seconds, 7200);
+
+    const d2 = extractDurations('I estimate 3 days for this refactor', opts);
+    assert.equal(d2.length, 1);
+    assert.equal(d2[0].seconds, 259200);
+  });
+
+  it('does not filter "was" as past context (too ambiguous)', () => {
+    const opts = { skipPastContext: true };
+    const d = extractDurations('I was thinking 2 hours for this', opts);
+    assert.equal(d.length, 1, '"was" should not trigger past-context filter');
+  });
+
+  it('still extracts all durations without skipPastContext', () => {
+    const d = extractDurations('the session lasted 24 minutes');
+    assert.equal(d.length, 1);
+    assert.equal(d[0].seconds, 1440);
+  });
 });
 
 describe('findBullshitEstimate', () => {
