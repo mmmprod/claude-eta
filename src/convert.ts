@@ -1,0 +1,44 @@
+/**
+ * Legacy TaskEntry → CompletedTurn conversion.
+ * Extracted to break the circular dependency between compat.ts and migrate.ts.
+ */
+import type { TaskEntry, CompletedTurn } from './types.js';
+
+/** Convert a legacy v1 TaskEntry to a v2 CompletedTurn */
+export function taskEntryToCompletedTurn(task: TaskEntry, projectFp: string, displayName: string): CompletedTurn {
+  const wallSeconds = task.duration_seconds ?? 0;
+  return {
+    turn_id: task.task_id,
+    work_item_id: task.task_id,
+    session_id: task.session_id || 'legacy',
+    agent_key: 'main',
+    agent_id: null,
+    agent_type: null,
+    runner_kind: 'main',
+    project_fp: projectFp,
+    project_display_name: displayName,
+    classification: task.classification ?? 'other',
+    prompt_summary: task.prompt_summary ?? '',
+    prompt_complexity: 0,
+    started_at: task.timestamp_start,
+    ended_at: task.timestamp_end ?? task.timestamp_start,
+    wall_seconds: wallSeconds,
+    active_seconds: wallSeconds,
+    wait_seconds: 0,
+    tool_calls: task.tool_calls ?? 0,
+    files_read: task.files_read ?? 0,
+    files_edited: task.files_edited ?? 0,
+    files_created: task.files_created ?? 0,
+    unique_files: 0,
+    bash_calls: 0,
+    bash_failures: 0,
+    grep_calls: 0,
+    glob_calls: 0,
+    errors: task.errors ?? 0,
+    model: task.model ?? null,
+    source: null,
+    stop_reason: 'migrated',
+    repo_loc_bucket: null,
+    repo_file_count_bucket: null,
+  };
+}

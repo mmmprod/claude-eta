@@ -23,8 +23,6 @@ Claude says *"this should take about 2 days."* You finish in 12 minutes. Every t
 
 claude-eta fixes this by building a feedback loop that doesn't exist: it times every task, counts every tool call, and feeds that data back to Claude before it responds.
 
-> **Early stage.** The core works. The algorithm gets smarter with more data. Every install helps.
-
 ## Install
 
 ```bash
@@ -44,10 +42,12 @@ claude plugin update claude-eta@claude-eta
 
 1. You type a prompt
 2. claude-eta classifies it, starts a timer, injects your velocity stats
-3. Claude works. Tool calls are counted silently.
+3. Claude works. Tool calls, file ops, errors are counted silently.
 4. Task completes. Duration recorded. Next estimate improves.
 
 After ~5 tasks, Claude gets your real numbers instead of guessing. When it still says something absurd, the bullshit detector catches it and corrects inline.
+
+9 hooks track the full lifecycle — including tool failures, subagents, and session end. Data is append-only JSONL, isolated per session and agent.
 
 ## Commands
 
@@ -56,11 +56,15 @@ After ~5 tasks, Claude gets your real numbers instead of guessing. When it still
 | `/eta` | Session stats |
 | `/eta history` | Last 20 tasks with real durations |
 | `/eta stats` | Averages by task type |
+| `/eta insights` | Deep patterns in your task data (9 analyses) |
 | `/eta compare` | You vs community baselines |
 | `/eta contribute` | Preview anonymized data to share |
 | `/eta contribute --confirm` | Upload (opt-in) |
 | `/eta export` | Save anonymized data locally |
 | `/eta inspect` | See exactly what's stored |
+| `/eta auto` | Auto-ETA status and accuracy |
+| `/eta auto on/off` | Toggle automatic ETA injection |
+| `/eta recap` | Today's daily journal |
 | `/eta help` | All commands |
 
 ## Help the algorithm
@@ -75,9 +79,7 @@ The estimation engine improves with data. Three ways to help:
 
 **100% local by default.** No cloud, no telemetry, no tracking.
 
-```
-~/.claude/plugins/claude-eta/data/my-project.json
-```
+Data lives under `${CLAUDE_PLUGIN_DATA}` (or `~/.claude/plugins/claude-eta/` for local dev). Project identity uses `sha256(realpath(cwd))` — two projects named `app` in different directories never collide.
 
 `/eta inspect` to see everything. `/eta export` to review before sharing.
 
@@ -88,10 +90,13 @@ Community features (`compare`, `contribute`) are opt-in. [Details below.](#commu
 | Layer | Status | What |
 |---|---|---|
 | 0 — Feedback Loop | Shipped | Task timing, classification, per-session recalibration |
-| 1 — Static Estimation | Shipped | Confidence intervals, complexity scoring, default baselines |
-| 2 — Live Refinement | Next | Mid-task ETA updates, phase detection, drift warnings |
+| 1 — Static Estimation | Shipped | Shrinkage quantile intervals, complexity scoring |
+| 2 — Live Refinement | Shipped | Phase detection (explore/edit/validate/repair), trace features |
 | 3 — Collective Intelligence | Shipped | Opt-in community baselines via `/eta contribute` |
-| BS Detector | Shipped | Catches absurd time claims, corrects inline |
+| 4 — Deep Insights | Shipped | 9 correlation/breakdown/temporal analyses |
+| BS Detector | Shipped | Catches absurd time claims using classification-specific baselines |
+| Auto-ETA | Shipped | Opt-in automatic ETA injection with accuracy self-check |
+| v2 Architecture | Shipped | Append-only JSONL, per-session isolation, 9 hooks, subagent support |
 
 ## Community baselines
 
@@ -164,7 +169,7 @@ npm install && npm run build && npm test
 
 **Data:** `/eta contribute --confirm` after a few sessions. More data = better baselines for everyone.
 
-The [Roadmap](#roadmap) shows what's next. Layer 2 is the frontier.
+The [Roadmap](#roadmap) shows what's next.
 
 ## License
 

@@ -1,136 +1,57 @@
 /**
- * SessionStart hook — injects passive velocity context for the project.
- * Fires on startup/resume/clear/compact so Claude always has calibration data.
- * Also updates project metadata (file count, LOC bucket) for analytics.
+ * SessionStart hook — v2: upserts session, runs migration, injects velocity context.
+ * Fires on startup/resume/clear/compact.
  */
-import * as fs from 'node:fs';
-import * as path from 'node:path';
 import { readStdin } from '../stdin.js';
-import { loadProject, saveProject } from '../store.js';
+import { resolveProjectIdentity } from '../identity.js';
+import { upsertSession } from '../event-store.js';
+import { needsMigration, migrateLegacyProject, legacySlug } from '../migrate.js';
+import { loadCompletedTurnsCompat, turnsToTaskEntries } from '../compat.js';
 import { computeStats, formatStatsContext, CALIBRATION_THRESHOLD } from '../stats.js';
-import { locBucket } from '../anonymize.js';
-
-interface SessionStartStdin {
-  session_id?: string;
-  cwd?: string;
-}
-
-const IGNORE_DIRS = new Set([
-  'node_modules',
-  '.git',
-  'dist',
-  'build',
-  '.next',
-  'coverage',
-  '__pycache__',
-  'vendor',
-  '.cache',
-  '.turbo',
-  '.output',
-]);
-
-const MAX_FILES = 50_000;
-
-/** Binary extensions excluded from LOC byte count (everything else counts as source) */
-const BINARY_EXTENSIONS = new Set([
-  '.png',
-  '.jpg',
-  '.jpeg',
-  '.gif',
-  '.webp',
-  '.ico',
-  '.bmp',
-  '.svg',
-  '.pdf',
-  '.zip',
-  '.tar',
-  '.gz',
-  '.bz2',
-  '.xz',
-  '.7z',
-  '.rar',
-  '.wasm',
-  '.o',
-  '.so',
-  '.dylib',
-  '.dll',
-  '.exe',
-  '.bin',
-  '.ttf',
-  '.otf',
-  '.woff',
-  '.woff2',
-  '.eot',
-  '.mp3',
-  '.mp4',
-  '.wav',
-  '.mov',
-  '.avi',
-  '.webm',
-  '.ogg',
-  '.sqlite',
-  '.db',
-]);
-
-/** Count source files and total bytes for LOC estimation */
-function countSourceFiles(dir: string): { fileCount: number; totalBytes: number } {
-  let fileCount = 0;
-  let totalBytes = 0;
-
-  function walk(d: string): void {
-    if (fileCount >= MAX_FILES) return;
-    let entries: fs.Dirent[];
-    try {
-      entries = fs.readdirSync(d, { withFileTypes: true });
-    } catch {
-      return;
-    }
-    for (const entry of entries) {
-      if (fileCount >= MAX_FILES) return;
-      if (entry.isDirectory()) {
-        if (!IGNORE_DIRS.has(entry.name) && !entry.name.startsWith('.')) {
-          walk(path.join(d, entry.name));
-        }
-      } else if (entry.isFile()) {
-        fileCount++;
-        // Skip binary files that skew LOC estimation
-        const ext = path.extname(entry.name).toLowerCase();
-        if (!BINARY_EXTENSIONS.has(ext)) {
-          try {
-            totalBytes += fs.statSync(path.join(d, entry.name)).size;
-          } catch {
-            /* skip unreadable files */
-          }
-        }
-      }
-    }
-  }
-
-  walk(dir);
-  return { fileCount, totalBytes };
-}
+import { getRepoMetrics } from '../repo-metrics.js';
+import type { SessionMeta, SessionStartStdin } from '../types.js';
 
 async function main(): Promise<void> {
   const stdin = await readStdin<SessionStartStdin>();
   const cwd = stdin?.cwd;
   if (!cwd) return;
 
-  const project = path.basename(cwd);
-  const data = loadProject(project);
-  const completed = data.tasks.filter((t) => t.duration_seconds != null).length;
+  const sessionId = stdin.session_id ?? 'unknown';
+  const identity = resolveProjectIdentity(cwd);
+  const { fp, displayName, resolvedPath } = identity;
 
-  // Update project metadata (file count, LOC bucket) — only write if changed
-  const { fileCount, totalBytes } = countSourceFiles(cwd);
-  const estimatedLoc = Math.round(totalBytes / 40);
-  const newBucket = locBucket(estimatedLoc);
-  if (data.file_count !== fileCount || data.loc_bucket !== newBucket) {
-    data.file_count = fileCount;
-    data.loc_bucket = newBucket;
-    saveProject(data);
+  // Model source of truth: SessionStart (fixes defect 5)
+  const model = stdin.model?.display_name ?? stdin.model?.id ?? null;
+
+  // Upsert session metadata (v2)
+  const now = new Date().toISOString();
+  const meta: SessionMeta = {
+    session_id: sessionId,
+    project_fp: fp,
+    project_display_name: displayName,
+    cwd_realpath: resolvedPath,
+    model,
+    source: stdin.source ?? null,
+    session_agent_type: stdin.agent_type ?? null,
+    started_at: now,
+    last_seen_at: now,
+  };
+  upsertSession(meta);
+
+  // Run migration if legacy data exists
+  const slug = legacySlug(displayName);
+  if (needsMigration(fp, slug)) {
+    migrateLegacyProject(fp, slug, displayName, resolvedPath);
   }
 
+  // Load completed turns via compat layer
+  const turns = loadCompletedTurnsCompat(cwd);
+  const completed = turns.length;
+
+  // Compute repo metrics (cached 24h per project)
+  getRepoMetrics(cwd, fp);
+
   if (completed === 0) {
-    // First-run welcome
     process.stdout.write(
       `[claude-eta] Plugin active — tracking task durations. Data is 100% local.\n` +
         `Calibration: 0/${CALIBRATION_THRESHOLD} tasks. Estimates unlock after a few completed tasks.`,
@@ -139,20 +60,19 @@ async function main(): Promise<void> {
   }
 
   if (completed < CALIBRATION_THRESHOLD) {
-    // Cold start progress
     process.stdout.write(
       `[claude-eta] Calibration: ${completed}/${CALIBRATION_THRESHOLD} tasks recorded. Estimates improving with each task.`,
     );
     return;
   }
 
-  // Calibrated — inject full velocity context
-  const stats = computeStats(data.tasks);
+  // Calibrated — inject velocity context
+  const tasks = turnsToTaskEntries(turns);
+  const stats = computeStats(tasks);
   if (!stats) return;
 
   let context = formatStatsContext(stats);
 
-  // One-time hint about community features (shown between tasks 5-7)
   if (completed >= CALIBRATION_THRESHOLD && completed <= CALIBRATION_THRESHOLD + 2) {
     context +=
       '\nTip: run `/eta compare` to see how your pace compares to the community, or `/eta help` for all commands.';
