@@ -80,7 +80,11 @@ export interface ProjectData {
 }
 ```
 
-`loadProject()` normalise `eta_accuracy` à `{}` (comme `normalizeTask` pour les tasks).
+`loadProject()` normalise `eta_accuracy` à `{}` dans les deux chemins :
+- Après parse JSON réussi : `data.eta_accuracy = data.eta_accuracy ?? {}`
+- Dans le catch fallback : ajouter `eta_accuracy: {}` à l'objet par défaut
+
+Puisque `loadProject` garantit `eta_accuracy` non-undefined, le paramètre `etaAccuracy` de `evaluateAutoEta` est `Record<string, ...>` (non-nullable). Le call site passe `data.eta_accuracy` directement.
 
 ### Store : 4 fonctions ajoutées (`src/store.ts`)
 
@@ -89,7 +93,7 @@ export interface ProjectData {
 | `loadPreferences()` | `_preferences.json` | try/catch, défauts `{ auto_eta: false, prompts_since_last_eta: 0 }` |
 | `savePreferences(prefs)` | `_preferences.json` | écriture directe |
 | `setLastEta(prediction)` | `_last_eta.json` | écriture directe |
-| `consumeLastEta()` | `_last_eta.json` | lire + supprimer (même pattern que `consumeLastCompleted`) |
+| `consumeLastEta(maxAgeMs?)` | `_last_eta.json` | lire + supprimer + guard fraîcheur (même pattern que `consumeLastCompleted`, défaut 30min) |
 
 ### Fichiers de données
 
@@ -120,16 +124,18 @@ export const DISABLE_PATTERNS = /\b(stop|disable|remove|hide|arrête|désactive|
 
 Ordre exact :
 
-1. **C1** : `prefs.auto_eta === true`
-2. **C3** : `clsStats = stats.byClassification.find(classification)`, `clsStats.count >= MIN_TYPE_TASKS`
-3. **C4** : si `clsStats.volatility === 'high'` alors mult = 1.5, conf = 60% ; sinon mult = 1, conf = 80%
-4. **C5** : `classification !== 'other'`
-5. **C6** : `prompt.length >= 20` ET `!CONVERSATIONAL_PATTERNS.test(prompt)`
-6. **Interval check** : `high > low * MAX_INTERVAL_RATIO` alors skip
+1. **Master switch** : `prefs.auto_eta === true`
+2. **Min type tasks** : `clsStats = stats.byClassification.find(classification)`, `clsStats.count >= MIN_TYPE_TASKS`
+3. **Volatility adjustment** : si `clsStats.volatility === 'high'` alors mult = 1.5, conf = 60% ; sinon mult = 1, conf = 80% (pas d'exclusion, ajustement)
+4. **Not "other"** : `classification !== 'other'`
+5. **Not conversational** : `prompt.length >= 20` ET `!CONVERSATIONAL_PATTERNS.test(prompt)`
+6. **Interval sanity** : `high > low * MAX_INTERVAL_RATIO` alors skip (low est garanti >= 1 par `estimateTask`)
 7. **Per-type accuracy** : `etaAccuracy[classification]` a 10+ prédictions ET misses/total > 0.5 alors skip
 8. **Cooldown** : premier prompt du task (taskId change) OU `prompts_since >= COOLDOWN_INTERVAL`
 
-Note : C2 (stats !== null) est vérifié par le hook avant l'appel. `evaluateAutoEta` reçoit `stats: ProjectStats` (non nullable).
+Précondition (vérifiée par le hook) : `stats !== null`. Le hook ne call pas `evaluateAutoEta` si stats est null. Le paramètre `stats: ProjectStats` est non-nullable.
+
+Note cooldown : `prefs.last_eta_task_id` démarre `undefined`. Au premier appel, `taskId !== undefined` est trivialement vrai, ce qui déclenche un reset correct. Pas de cas spécial nécessaire.
 
 Retour : `inject` (toutes conditions passent + cooldown OK), `cooldown` (conditions passent mais cooldown actif), `skip` (condition échouée).
 
@@ -194,7 +200,7 @@ Puis exec le regex sur filteredText au lieu de text.
 
 Nouveau mode `auto` avec sous-arguments :
 
-- `/eta auto` : statut (master switch + accuracy par type)
+- `/eta auto` : statut (master switch + accuracy par type). Appelle `loadPreferences()` + `loadProject()` pour afficher les deux.
 - `/eta auto on` : active auto_eta
 - `/eta auto off` : désactive auto_eta
 
@@ -228,63 +234,73 @@ Do not elaborate on it, do not caveat it, do not discuss it unless the user asks
 
 `fmtSec()` pour low/high. `clsStats.count` pour le count.
 
-## Tests (32 total)
+## Tests (34 total)
 
-### `tests/auto-eta.test.js` (30 tests)
+### `tests/auto-eta.test.js` (31 tests)
 
-**checkDisableRequest (4 tests)**
+**checkDisableRequest (5 tests)**
 
 1. "stop auto-eta" retourne true
 2. "désactive l'auto eta" retourne true
 3. "explain what eta means" retourne false
 4. "what is the eta for this" retourne false
+5. "remove the auto-eta module from the codebase" retourne true (coding task, mais matche le pattern — faux positif accepté car rare et bénin, l'user peut /eta auto on)
 
 **evaluateAutoEta conditions (10 tests)**
 
-5. C1 : auto_eta false retourne skip
-6. C3 : < 5 tasks du type retourne skip
-7. C3 : >= 5 tasks ne skip pas (positive)
-8. C4 : high volatility retourne inject (pas skip)
-9. C5 : classification "other" retourne skip
-10. C6a : prompt < 20 chars retourne skip
-11. C6b : prompt conversationnel retourne skip
-12. Interval trop large (high > 5 fois low) retourne skip
-13. Type auto-disabled (>50% miss sur 10+) retourne skip
-14. Toutes conditions passent retourne inject, contient marqueur auto-eta
+6. Master switch off : auto_eta false retourne skip
+7. Min type tasks : < 5 tasks du type retourne skip
+8. Min type tasks : >= 5 tasks ne skip pas (positive)
+9. Volatility : high volatility retourne inject (pas skip, juste ajustement)
+10. Not other : classification "other" retourne skip
+11. Not conversational : prompt < 20 chars retourne skip
+12. Not conversational : prompt "merci beaucoup" retourne skip
+13. Interval sanity : high > 5 fois low retourne skip
+14. Per-type accuracy : >50% miss sur 10+ retourne skip
+15. Toutes conditions passent retourne inject, contient marqueur auto-eta
 
 **High volatility values (1 test)**
 
-15. Volatility "high" retourne confidence 60%, intervalle x1.5
+16. Volatility "high" retourne confidence 60%, intervalle x1.5 (vérifie les valeurs numériques)
 
 **Cooldown (4 tests)**
 
-16. Premier prompt (new task) retourne inject
-17. 2ème prompt même tâche retourne cooldown
-18. 5ème prompt (prompts_since = 4) retourne inject
-19. Tâche change retourne reset puis inject
+17. Premier prompt (new task) retourne inject
+18. 2ème prompt même tâche retourne cooldown
+19. 5ème prompt (prompts_since = 4) retourne inject
+20. Tâche change retourne reset puis inject
 
 **Self-check accuracy (5 tests)**
 
-20. Durée dans l'intervalle retourne hits++ pour le type
-21. Durée hors intervalle retourne misses++ pour le type
-22. 6 miss sur 10 retourne type auto-désactivé (evaluateAutoEta skip)
-23. 5 miss sur 10 retourne reste actif (seuil >50% strict)
-24. Fichier _last_eta.json absent retourne self-check skip silencieusement
+21. Durée dans l'intervalle retourne hits++ pour le type
+22. Durée hors intervalle retourne misses++ pour le type
+23. 6 miss sur 10 retourne type auto-désactivé (evaluateAutoEta skip)
+24. 5 miss sur 10 retourne reste actif (seuil >50% strict)
+25. Fichier _last_eta.json absent retourne self-check skip silencieusement
 
-**Store preferences (3 tests)**
+**Store preferences (4 tests)**
 
-27. load/save roundtrip
-28. Fichier manquant retourne défauts
-29. consumeLastEta retourne read + delete
+26. load/save roundtrip
+27. Fichier manquant retourne défauts { auto_eta: false, prompts_since_last_eta: 0 }
+28. consumeLastEta retourne read + delete
+29. consumeLastEta stale file (> maxAgeMs) retourne null, fichier supprimé
 
 **Format injection (1 test)**
 
 30. Format complet : contient fmtSec(low), fmtSec(high), nom du type, count
 
+**loadProject normalization (1 test)**
+
+31. ProjectData sans eta_accuracy retourne {} après loadProject
+
 ### `tests/detector.test.js` (2 tests ajoutés)
 
-25. Ligne avec symbole horloge ignorée, estimation sur autre ligne extraite
-26. Ligne avec [claude-eta ignorée
+32. Ligne avec symbole horloge ignorée, estimation sur autre ligne extraite
+33. Ligne avec [claude-eta ignorée
+
+### `tests/store.test.js` (1 test ajouté)
+
+34. loadProject normalise eta_accuracy à {} pour les anciens fichiers JSON
 
 ## Fichiers modifiés/créés
 
@@ -299,8 +315,9 @@ Do not elaborate on it, do not caveat it, do not discuss it unless the user asks
 | `src/cli/eta.ts` | Mode auto (status/on/off) |
 | `commands/eta.md` | Ajout auto dans argument-hint |
 | `CLAUDE.md` | Ajout Auto-ETA dans Key modules |
-| `tests/auto-eta.test.js` | NOUVEAU : 30 tests |
+| `tests/auto-eta.test.js` | NOUVEAU : 31 tests |
 | `tests/detector.test.js` | 2 tests ajoutés |
+| `tests/store.test.js` | 1 test ajouté |
 
 ## Contraintes
 
