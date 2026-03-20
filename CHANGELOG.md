@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.9.1](https://github.com/mmmprod/claude-eta/compare/claude-eta-v0.9.0...claude-eta-v0.9.1) (2026-03-20)
+
+
+### Bug Fixes
+
+* **anonymize:** salt projectHash, move contributor ID to CLAUDE_PLUGIN_DATA ([#49](https://github.com/mmmprod/claude-eta/issues/49)) ([5887e37](https://github.com/mmmprod/claude-eta/commit/5887e37ff59094fdbe215955968af9569c55cb72))
+* migrate CLI surface (export/compare/contribute) to v2 data layer ([#52](https://github.com/mmmprod/claude-eta/issues/52)) ([1fb678c](https://github.com/mmmprod/claude-eta/commit/1fb678cef6a675896bde6be6bb7bf288e827c4aa))
+
 ## [0.9.0](https://github.com/mmmprod/claude-eta/compare/claude-eta-v0.8.1...claude-eta-v0.9.0) (2026-03-20)
 
 
