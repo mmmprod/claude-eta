@@ -5,6 +5,7 @@ import { loadCompletedTurnsCompat, turnsToTaskEntries } from '../compat.js';
 import { setLastCompletedV2, consumeLastEtaV2 } from '../ephemeral.js';
 import { computeStats, fmtSec } from '../stats.js';
 import { extractDurations, findBullshitEstimate, resolveDetectorReference } from '../detector.js';
+import { updateEtaAccuracy } from '../project-meta.js';
 function blockWithCorrection(reason) {
     process.stdout.write(JSON.stringify({ decision: 'block', reason }));
 }
@@ -79,8 +80,7 @@ async function main() {
         const lastEta = consumeLastEtaV2(fp, sessionId);
         if (lastEta && lastEta.task_id === completed.turn_id) {
             const hit = completed.wall_seconds >= lastEta.low && completed.wall_seconds <= lastEta.high;
-            // TODO: persist accuracy to v2 project meta (P7)
-            void hit;
+            updateEtaAccuracy(fp, completed.classification, hit);
         }
     }
 }
