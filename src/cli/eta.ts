@@ -8,7 +8,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
-import { loadProject } from '../store.js';
+import { loadProject, loadPreferences, savePreferences } from '../store.js';
 import { showExport } from './export.js';
 import { showContribute, executeContribute } from './contribute.js';
 import { showCompare } from './compare.js';
@@ -244,6 +244,36 @@ function showRecap(tasks: TaskEntry[]): void {
   }
 }
 
+// ── Auto ──────────────────────────────────────────────────────
+
+function showAuto(data: { eta_accuracy?: Record<string, { hits: number; misses: number }> }): void {
+  const prefs = loadPreferences();
+  console.log(`## Auto-ETA Status\n`);
+  console.log(`Master switch: **${prefs.auto_eta ? 'enabled' : 'disabled'}**${prefs.auto_eta ? '' : ' (enable with `/eta auto on`)'}\n`);
+
+  const accuracy = data.eta_accuracy ?? {};
+  const types = Object.keys(accuracy).sort();
+
+  if (types.length === 0) {
+    console.log('No predictions recorded yet.');
+    return;
+  }
+
+  console.log(`| Type      | Predictions | Accuracy  | Status              |`);
+  console.log(`|-----------|-------------|-----------|---------------------|`);
+
+  for (const type of types) {
+    const { hits, misses } = accuracy[type];
+    const total = hits + misses;
+    const pct = total > 0 ? Math.round((hits / total) * 100) : 0;
+    let status = 'active';
+    if (total < 10) status = '< 10 predictions';
+    else if (misses / total > 0.5) status = 'disabled (low accuracy)';
+    const accStr = total >= 10 ? `${hits}/${total} ${pct}%` : '-';
+    console.log(`| ${col(type, 9)} | ${col(String(total), 11, 'right')} | ${col(accStr, 9)} | ${col(status, 19)} |`);
+  }
+}
+
 // ── Main ──────────────────────────────────────────────────────
 
 async function main(): Promise<void> {
@@ -266,6 +296,9 @@ async function main(): Promise<void> {
     console.log(`| \`/eta export\`                | Anonymize & save to local JSON                 |`);
     console.log(`| \`/eta contribute\`            | Preview what would be shared                   |`);
     console.log(`| \`/eta contribute --confirm\`  | Upload anonymized data (opt-in)                |`);
+    console.log(`| \`/eta auto\`                  | Auto-ETA status and accuracy               |`);
+    console.log(`| \`/eta auto on\`               | Enable Auto-ETA injection                  |`);
+    console.log(`| \`/eta auto off\`              | Disable Auto-ETA injection                 |`);
     console.log(`| \`/eta help\`                  | This help                                      |`);
     console.log(`\nAll data is 100% local by default. Community features (\`compare\`, \`contribute\`) are opt-in.`);
     console.log(FEEDBACK_LINE);
@@ -313,6 +346,23 @@ async function main(): Promise<void> {
     case 'recap':
       showRecap(data.tasks);
       break;
+    case 'auto': {
+      const subArg = process.argv[3];
+      if (subArg === 'on') {
+        const prefs = loadPreferences();
+        prefs.auto_eta = true;
+        savePreferences(prefs);
+        console.log('Auto-ETA **enabled**. Estimates will appear when conditions are met (min 5 tasks of the same type, not "other", not conversational).');
+      } else if (subArg === 'off') {
+        const prefs = loadPreferences();
+        prefs.auto_eta = false;
+        savePreferences(prefs);
+        console.log('Auto-ETA **disabled**.');
+      } else {
+        showAuto(data);
+      }
+      break;
+    }
     default:
       showSession(data.tasks);
       break;

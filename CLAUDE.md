@@ -38,6 +38,12 @@ Data flow: counters accumulate in `_active.json` (tiny file, fast I/O) during th
 - `cli/export.ts` — Anonymize project tasks to local JSON
 - `cli/contribute.ts` — Preview + upload anonymized data (opt-in, requires `--confirm`)
 - `cli/compare.ts` — Fetch community baselines, compare to local stats, 6h cache
+- Auto-ETA: opt-in feature (`/eta auto on`) that injects estimated duration at response start.
+  9 activation conditions (master switch, not "other", min 5 tasks/type, not conversational,
+  compute estimate, volatility adjustment, interval sanity, per-type accuracy gate, cooldown).
+  Self-check in on-stop.ts auto-disables types below 50% accuracy over 10+ predictions.
+  Prediction stored in `_last_eta.json`, accuracy tracked in `ProjectData.eta_accuracy`.
+  Guards in `auto-eta.ts` (pure, zero I/O). Preferences in `_preferences.json`.
 
 ## Hook stdin/stdout protocol
 

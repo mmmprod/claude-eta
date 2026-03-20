@@ -1,6 +1,6 @@
 ---
 description: Show task duration stats — current session, history, or project averages
-argument-hint: [session|history|stats|inspect|compare|export|contribute|help]
+argument-hint: [session|history|stats|inspect|compare|export|contribute|auto|help]
 allowed-tools: [Bash]
 ---
 
@@ -20,6 +20,9 @@ Available commands:
 - `/eta compare` — Your stats vs community baselines (fetches from network)
 - `/eta export` — Anonymize & save to local JSON
 - `/eta contribute` — Preview what would be shared (add `--confirm` to upload)
+- `/eta auto` — Auto-ETA status (accuracy per type)
+- `/eta auto on` — Enable Auto-ETA
+- `/eta auto off` — Disable Auto-ETA
 - `/eta help` — List all commands
 
 If the script fails, explain that claude-eta might need to be rebuilt (`npm run build` in the plugin directory).
