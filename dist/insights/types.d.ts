@@ -1,0 +1,110 @@
+/**
+ * Shared types for insight modules.
+ */
+import type { TaskEntry, TaskClassification } from '../types.js';
+export type { TaskEntry, TaskClassification };
+/** A TaskEntry with a guaranteed positive duration */
+export type CompletedTask = TaskEntry & {
+    duration_seconds: number;
+};
+/** Filter tasks with valid positive duration */
+export declare function completed(tasks: TaskEntry[]): CompletedTask[];
+/** Median of a pre-sorted numeric array */
+export declare function median(sorted: number[]): number;
+/** Group items by a string key */
+export declare function groupBy<T>(items: T[], key: (item: T) => string): Map<string, T[]>;
+export interface ErrorDurationResult {
+    kind: 'error-duration';
+    medianWithErrors: number;
+    medianWithoutErrors: number;
+    overheadPct: number;
+    tasksWithErrors: number;
+    sampleSize: number;
+}
+export interface ContextSwitchResult {
+    kind: 'context-switch';
+    medianSameType: number;
+    medianDiffType: number;
+    overheadPct: number;
+    sameTypeCount: number;
+    diffTypeCount: number;
+    sampleSize: number;
+}
+export interface VolatilityCausesResult {
+    kind: 'volatility-causes';
+    classification: string;
+    factors: {
+        factor: string;
+        correlation: number;
+        direction: string;
+    }[];
+    sampleSize: number;
+}
+export interface FileOpsResult {
+    kind: 'file-ops';
+    byClassification: {
+        classification: string;
+        count: number;
+        avgReads: number;
+        avgEdits: number;
+        avgCreates: number;
+        explorationIndex: number;
+    }[];
+    sampleSize: number;
+}
+export interface ModelComparisonResult {
+    kind: 'model-comparison';
+    byModel: {
+        model: string;
+        count: number;
+        medianDuration: number;
+        medianToolCalls: number;
+    }[];
+    fastestModel: string;
+    sampleSize: number;
+}
+export interface EfficiencyResult {
+    kind: 'efficiency';
+    byClassification: {
+        classification: string;
+        count: number;
+        medianSecsPerTool: number;
+        medianToolsPerFile: number;
+    }[];
+    sampleSize: number;
+}
+export interface SessionFatigueResult {
+    kind: 'session-fatigue';
+    avgByPosition: {
+        position: number;
+        avgDuration: number;
+        count: number;
+    }[];
+    fatigueRatio: number;
+    sampleSize: number;
+}
+export interface TimeOfDayResult {
+    kind: 'time-of-day';
+    byPeriod: {
+        period: string;
+        hours: string;
+        count: number;
+        medianDuration: number;
+    }[];
+    fastestPeriod: string;
+    sampleSize: number;
+}
+export interface WeeklyTrendsResult {
+    kind: 'trends';
+    weeks: {
+        label: string;
+        count: number;
+        medianDuration: number;
+        totalDuration: number;
+    }[];
+    direction: 'improving' | 'degrading' | 'stable';
+    changeRate: number;
+    sampleSize: number;
+}
+export type InsightResult = ErrorDurationResult | ContextSwitchResult | VolatilityCausesResult | FileOpsResult | ModelComparisonResult | EfficiencyResult | SessionFatigueResult | TimeOfDayResult | WeeklyTrendsResult;
+//# sourceMappingURL=types.d.ts.map
