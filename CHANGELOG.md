@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.9.0](https://github.com/mmmprod/claude-eta/compare/claude-eta-v0.8.1...claude-eta-v0.9.0) (2026-03-20)
+
+
+### Features
+
+* **hooks:** implement SubagentStart/Stop for subagent turn tracking ([#47](https://github.com/mmmprod/claude-eta/issues/47)) ([46cd7c6](https://github.com/mmmprod/claude-eta/commit/46cd7c60798266336dd20e763d5b96bcc397a511))
+
 ## [0.8.1](https://github.com/mmmprod/claude-eta/compare/claude-eta-v0.8.0...claude-eta-v0.8.1) (2026-03-20)
 
 
