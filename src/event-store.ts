@@ -25,6 +25,7 @@ import {
   getClosingDir,
   getLocksDir,
   atomicWrite,
+  atomicWriteIfAbsent,
 } from './paths.js';
 
 /** Canonical mapping from StopReason to TurnEventType */
@@ -59,9 +60,10 @@ export function getSession(projectFp: string, sessionId: string): SessionMeta | 
 // ── Active turn lifecycle ────────────────────────────────────
 
 /** Start a new turn — creates active file and appends turn_started event */
-export function startTurn(state: ActiveTurnState): void {
+export function startTurn(state: ActiveTurnState): boolean {
   ensureProjectDirs(state.project_fp);
-  setActiveTurn(state);
+  const created = setActiveTurn(state, { createIfAbsent: true });
+  if (!created) return false;
   try {
     appendEvent(state.project_fp, state.session_id, state.agent_key, {
       seq: 0,
@@ -72,6 +74,7 @@ export function startTurn(state: ActiveTurnState): void {
   } catch {
     // Event log append failure is non-fatal — active turn is already created
   }
+  return true;
 }
 
 /** Read active turn state (returns null if no active turn) */
@@ -86,9 +89,12 @@ export function getActiveTurn(projectFp: string, sessionId: string, agentKey: st
 
 /** Write active turn state (atomic: temp file + rename).
  *  Directories must already exist (created by startTurn → ensureProjectDirs). */
-export function setActiveTurn(state: ActiveTurnState): void {
+export function setActiveTurn(state: ActiveTurnState, options: { createIfAbsent?: boolean } = {}): boolean {
   const filePath = getActiveTurnPath(state.project_fp, state.session_id, state.agent_key);
-  atomicWrite(filePath, JSON.stringify(state));
+  const payload = JSON.stringify(state);
+  if (options.createIfAbsent) return atomicWriteIfAbsent(filePath, payload);
+  atomicWrite(filePath, payload);
+  return true;
 }
 
 // ── Event logging ────────────────────────────────────────────

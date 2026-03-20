@@ -10,7 +10,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { loadProjectMeta } from './project-meta.js';
-import { ensureDir, ensureProjectDirs, getActiveTurnPath, getEventLogPath, getCompletedLogPath, getSessionMetaPath, getCompletedDir, getActiveDir, getClosingDir, getLocksDir, atomicWrite, } from './paths.js';
+import { ensureDir, ensureProjectDirs, getActiveTurnPath, getEventLogPath, getCompletedLogPath, getSessionMetaPath, getCompletedDir, getActiveDir, getClosingDir, getLocksDir, atomicWrite, atomicWriteIfAbsent, } from './paths.js';
 /** Canonical mapping from StopReason to TurnEventType */
 const STOP_REASON_TO_EVENT = {
     stop: 'turn_stopped',
@@ -41,7 +41,9 @@ export function getSession(projectFp, sessionId) {
 /** Start a new turn — creates active file and appends turn_started event */
 export function startTurn(state) {
     ensureProjectDirs(state.project_fp);
-    setActiveTurn(state);
+    const created = setActiveTurn(state, { createIfAbsent: true });
+    if (!created)
+        return false;
     try {
         appendEvent(state.project_fp, state.session_id, state.agent_key, {
             seq: 0,
@@ -53,6 +55,7 @@ export function startTurn(state) {
     catch {
         // Event log append failure is non-fatal — active turn is already created
     }
+    return true;
 }
 /** Read active turn state (returns null if no active turn) */
 export function getActiveTurn(projectFp, sessionId, agentKey) {
@@ -66,9 +69,13 @@ export function getActiveTurn(projectFp, sessionId, agentKey) {
 }
 /** Write active turn state (atomic: temp file + rename).
  *  Directories must already exist (created by startTurn → ensureProjectDirs). */
-export function setActiveTurn(state) {
+export function setActiveTurn(state, options = {}) {
     const filePath = getActiveTurnPath(state.project_fp, state.session_id, state.agent_key);
-    atomicWrite(filePath, JSON.stringify(state));
+    const payload = JSON.stringify(state);
+    if (options.createIfAbsent)
+        return atomicWriteIfAbsent(filePath, payload);
+    atomicWrite(filePath, payload);
+    return true;
 }
 // ── Event logging ────────────────────────────────────────────
 /** Append a single event to the event log (O(1) append, no read-modify-write) */

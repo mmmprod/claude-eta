@@ -38,6 +38,8 @@ export declare function getSchemaVersionPath(): string;
 export declare function ensureDir(dirPath: string): void;
 /** Atomic write: write to temp file, then rename (prevents corruption from concurrent access) */
 export declare function atomicWrite(filePath: string, data: string): void;
+/** Atomic create: writes only when the target file does not already exist. */
+export declare function atomicWriteIfAbsent(filePath: string, data: string): boolean;
 /** Ensure all project subdirectories exist */
 export declare function ensureProjectDirs(projectFp: string): void;
 //# sourceMappingURL=paths.d.ts.map

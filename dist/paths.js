@@ -93,6 +93,18 @@ export function atomicWrite(filePath, data) {
     fs.writeFileSync(tmp, data);
     fs.renameSync(tmp, filePath);
 }
+/** Atomic create: writes only when the target file does not already exist. */
+export function atomicWriteIfAbsent(filePath, data) {
+    try {
+        fs.writeFileSync(filePath, data, { flag: 'wx' });
+        return true;
+    }
+    catch (error) {
+        if (error.code === 'EEXIST')
+            return false;
+        throw error;
+    }
+}
 /** Ensure all project subdirectories exist */
 export function ensureProjectDirs(projectFp) {
     ensureDir(getActiveDir(projectFp));

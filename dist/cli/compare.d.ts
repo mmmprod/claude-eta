@@ -1,2 +1,2 @@
-export declare function showCompare(projName: string): Promise<void>;
+export declare function showCompare(cwd: string): Promise<void>;
 //# sourceMappingURL=compare.d.ts.map
