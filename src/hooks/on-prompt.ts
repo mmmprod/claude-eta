@@ -6,7 +6,6 @@
  * - Model from SessionMeta, not stdin (defect 5)
  * - Uses event-store per-(session, agent) isolation (defect 1)
  */
-import * as crypto from 'node:crypto';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { UserPromptSubmitStdin } from '../types.js';
@@ -15,6 +14,7 @@ import { getPluginDataDir } from '../paths.js';
 import { resolveProjectIdentity } from '../identity.js';
 import { getSession, getActiveTurn, startTurn, closeTurn } from '../event-store.js';
 import { loadCompletedTurnsCompat, turnsToTaskEntries } from '../compat.js';
+import { createActiveTurn } from '../turn-factory.js';
 import { loadPreferencesV2, savePreferencesV2 } from '../preferences.js';
 import { setLastEtaV2, consumeLastCompletedV2 } from '../ephemeral.js';
 import { checkDisableRequest, evaluateAutoEta } from '../auto-eta.js';
@@ -29,7 +29,6 @@ import {
   formatColdStartContext,
   formatTaskRecap,
 } from '../stats.js';
-import type { ActiveTurnState } from '../types.js';
 
 /** Output hook response with optional additionalContext */
 function respond(additionalContext?: string): void {
@@ -121,11 +120,7 @@ async function main(): Promise<void> {
   const complexity = scorePromptComplexity(prompt);
 
   // Create new turn via event-store (replaces addTask + setActiveTask)
-  const now = Date.now();
-  const turnId = crypto.randomUUID();
-  const state: ActiveTurnState = {
-    turn_id: turnId,
-    work_item_id: turnId, // For now, 1:1 with turn
+  const state = createActiveTurn({
     session_id: sessionId,
     agent_key: agentKey,
     agent_id: agentKey === 'main' ? null : agentKey,
@@ -136,28 +131,10 @@ async function main(): Promise<void> {
     classification,
     prompt_summary: promptSummary,
     prompt_complexity: complexity,
-    started_at: new Date(now).toISOString(),
-    started_at_ms: now,
-    tool_calls: 0,
-    files_read: 0,
-    files_edited: 0,
-    files_created: 0,
-    unique_files: 0,
-    bash_calls: 0,
-    bash_failures: 0,
-    grep_calls: 0,
-    glob_calls: 0,
-    errors: 0,
-    first_tool_at_ms: null,
-    first_edit_at_ms: null,
-    first_bash_at_ms: null,
-    last_event_at_ms: null,
-    last_assistant_message: null,
     model,
     source: sessionMeta?.source ?? null,
-    status: 'active',
-    path_fps: [],
-  };
+  });
+  const turnId = state.turn_id;
 
   startTurn(state);
 
