@@ -16,12 +16,14 @@ export declare function appendEvent(projectFp: string, sessionId: string, agentK
  * Idempotent close turn — guaranteed to produce at most one completed record.
  *
  * Protocol:
+ * 0. Acquire advisory lock (O_EXCL) — prevents concurrent closeTurn race
  * 1. Read active file → if missing, check closing/ for crash recovery
  * 2. Rename active → closing (atomic staging)
  * 3. Dedup check: if turn_id already in completed JSONL, delete closing and return
  * 4. Append completed record to JSONL
  * 5. Append closing event to event log
  * 6. Delete closing file
+ * 7. Release lock
  */
 export declare function closeTurn(projectFp: string, sessionId: string, agentKey: string, reason: StopReason, extras?: Partial<Pick<CompletedTurn, 'repo_loc_bucket' | 'repo_file_count_bucket'>>): CompletedTurn | null;
 /** Close all active turns for a session (used by SessionEnd) */

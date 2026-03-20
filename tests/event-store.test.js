@@ -416,8 +416,61 @@ describe('loadCompletedTurns / loadRecentCompletedTurns', () => {
     for (let i = 1; i < turns.length; i++) {
       const prev = new Date(turns[i - 1].started_at).getTime();
       const curr = new Date(turns[i].started_at).getTime();
-      assert.ok(prev <= curr, `Turn ${i - 1} (${turns[i - 1].started_at}) should be <= Turn ${i} (${turns[i].started_at})`);
+      assert.ok(
+        prev <= curr,
+        `Turn ${i - 1} (${turns[i - 1].started_at}) should be <= Turn ${i} (${turns[i].started_at})`,
+      );
     }
+  });
+
+  it('loadCompletedTurns uses deterministic tie-breakers when started_at is identical', async () => {
+    const { startTurn, closeTurn, loadCompletedTurns } = await loadModule();
+
+    const fp = 'sorttie1234567890';
+    const startedAtMs = Date.now() - 15000;
+    const startedAt = new Date(startedAtMs).toISOString();
+    const states = [
+      makeActiveTurn({
+        project_fp: fp,
+        session_id: 'sess-b',
+        agent_key: 'main',
+        turn_id: 'turn-b',
+        started_at_ms: startedAtMs,
+        started_at: startedAt,
+      }),
+      makeActiveTurn({
+        project_fp: fp,
+        session_id: 'sess-a',
+        agent_key: 'worker',
+        turn_id: 'turn-c',
+        started_at_ms: startedAtMs,
+        started_at: startedAt,
+      }),
+      makeActiveTurn({
+        project_fp: fp,
+        session_id: 'sess-a',
+        agent_key: 'main',
+        turn_id: 'turn-a',
+        started_at_ms: startedAtMs,
+        started_at: startedAt,
+      }),
+    ];
+
+    for (const state of states) {
+      startTurn(state);
+      closeTurn(fp, state.session_id, state.agent_key, 'stop');
+    }
+
+    const turns = loadCompletedTurns(fp);
+    assert.equal(turns.length, 3);
+    assert.deepEqual(
+      turns.map((turn) => [turn.session_id, turn.agent_key, turn.turn_id]),
+      [
+        ['sess-a', 'main', 'turn-a'],
+        ['sess-a', 'worker', 'turn-c'],
+        ['sess-b', 'main', 'turn-b'],
+      ],
+    );
   });
 });
 
@@ -443,7 +496,7 @@ describe('closeTurn lock file', () => {
     // Verify only one record in completed JSONL
     const completedPath = getCompletedLogPath(fp, 'sess-lock', 'main');
     const content = fs.readFileSync(completedPath, 'utf-8').trim();
-    const lines = content.split('\n').filter(l => l.trim());
+    const lines = content.split('\n').filter((l) => l.trim());
     assert.equal(lines.length, 1, 'Expected exactly one completed record');
   });
 

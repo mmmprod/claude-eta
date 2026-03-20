@@ -16,6 +16,8 @@ export declare function getCacheDir(projectFp: string): string;
 export declare function getConfigDir(): string;
 /** Closing staging dir (idempotent closeTurn): <project>/closing/ */
 export declare function getClosingDir(projectFp: string): string;
+/** Advisory lock dir (closeTurn race prevention): <project>/locks/ */
+export declare function getLocksDir(projectFp: string): string;
 /** Community data: <data>/community/ */
 export declare function getCommunityDir(): string;
 /** Legacy data directory (v1 compat): <data>/data/ */

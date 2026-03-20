@@ -196,9 +196,29 @@ const LOCK_FLAGS = fs.constants.O_WRONLY | fs.constants.O_CREAT | fs.constants.O
 function tryOpenLock(lockPath: string): number | null {
   try {
     return fs.openSync(lockPath, LOCK_FLAGS);
-  } catch {
-    return null;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'EEXIST') {
+      return null;
+    }
+    throw error;
   }
+}
+
+function compareStringKey(left: string | null | undefined, right: string | null | undefined): number {
+  return (left ?? '').localeCompare(right ?? '');
+}
+
+function compareCompletedTurns(left: CompletedTurn, right: CompletedTurn): number {
+  const startedAt = left.started_at.localeCompare(right.started_at);
+  if (startedAt !== 0) return startedAt;
+
+  const sessionId = compareStringKey(left.session_id, right.session_id);
+  if (sessionId !== 0) return sessionId;
+
+  const agentKey = compareStringKey(left.agent_key, right.agent_key);
+  if (agentKey !== 0) return agentKey;
+
+  return compareStringKey(left.turn_id, right.turn_id);
 }
 
 /**
@@ -217,7 +237,11 @@ function acquireLock(lockPath: string): number | null {
     const stat = fs.statSync(lockPath);
     if (Date.now() - stat.mtimeMs > STALE_LOCK_MS) {
       // Stale lock — remove and retry once
-      try { fs.unlinkSync(lockPath); } catch { /* race: another process cleaned it */ }
+      try {
+        fs.unlinkSync(lockPath);
+      } catch {
+        /* race: another process cleaned it */
+      }
       return tryOpenLock(lockPath);
     }
   } catch {
@@ -229,8 +253,16 @@ function acquireLock(lockPath: string): number | null {
 
 /** Release an advisory lock: close fd + unlink file */
 function releaseLock(lockFd: number, lockPath: string): void {
-  try { fs.closeSync(lockFd); } catch { /* */ }
-  try { fs.unlinkSync(lockPath); } catch { /* */ }
+  try {
+    fs.closeSync(lockFd);
+  } catch {
+    /* */
+  }
+  try {
+    fs.unlinkSync(lockPath);
+  } catch {
+    /* */
+  }
 }
 
 /**
@@ -402,8 +434,8 @@ function readAllCompletedJsonl(projectFp: string): CompletedTurn[] {
     // No completed dir yet
   }
 
-  // Sort by started_at ascending — ISO 8601 strings are lexicographically sortable
-  turns.sort((a, b) => a.started_at.localeCompare(b.started_at));
+  // Sort by started_at ascending with stable tie-breakers for deterministic output.
+  turns.sort(compareCompletedTurns);
 
   return turns;
 }
