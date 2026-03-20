@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.0](https://github.com/mmmprod/claude-eta/compare/claude-eta-v0.6.0...claude-eta-v0.7.0) (2026-03-20)
+
+
+### Features
+
+* v2 event-log architecture — fixes 7 structural defects ([#41](https://github.com/mmmprod/claude-eta/issues/41)) ([da41400](https://github.com/mmmprod/claude-eta/commit/da4140010299981d3f111648c8f075da3911822c))
+
 ## [0.6.0](https://github.com/mmmprod/claude-eta/compare/claude-eta-v0.5.0...claude-eta-v0.6.0) (2026-03-20)
 
 
