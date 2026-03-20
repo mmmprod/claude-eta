@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.1](https://github.com/mmmprod/claude-eta/compare/claude-eta-v0.8.0...claude-eta-v0.8.1) (2026-03-20)
+
+
+### Bug Fixes
+
+* persist Auto-ETA accuracy instead of discarding it ([#51](https://github.com/mmmprod/claude-eta/issues/51)) ([a6ea63c](https://github.com/mmmprod/claude-eta/commit/a6ea63cb2697b19a7c980e6cda522d272866b075))
+
 ## [0.8.0](https://github.com/mmmprod/claude-eta/compare/claude-eta-v0.7.0...claude-eta-v0.8.0) (2026-03-20)
 
 

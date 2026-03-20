@@ -1,6 +1,6 @@
 {
   "name": "claude-eta",
-  "version": "0.8.0",
+  "version": "0.8.1",
   "description": "AI-powered task duration tracker and predictor for Claude Code",
   "type": "module",
   "main": "dist/index.js",
