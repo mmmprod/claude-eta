@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.0](https://github.com/mmmprod/claude-eta/compare/claude-eta-v0.3.4...claude-eta-v0.4.0) (2026-03-20)
+
+
+### Features
+
+* /eta recap daily journal + BS detector estimates-only filter ([#35](https://github.com/mmmprod/claude-eta/issues/35)) ([9025447](https://github.com/mmmprod/claude-eta/commit/9025447f2fa73ed6ddb6994627752d5b93b2dc09))
+
 ## [0.3.4](https://github.com/mmmprod/claude-eta/compare/claude-eta-v0.3.3...claude-eta-v0.3.4) (2026-03-20)
 
 
