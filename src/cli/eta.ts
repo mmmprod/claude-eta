@@ -12,7 +12,7 @@ import { loadProject } from '../store.js';
 import { showExport } from './export.js';
 import { showContribute, executeContribute } from './contribute.js';
 import { showCompare } from './compare.js';
-import type { TaskEntry, TaskClassification } from '../types.js';
+import type { TaskClassification, TaskEntry } from '../types/index.js';
 
 const EXPORT_DIR = path.join(os.homedir(), '.claude', 'plugins', 'claude-eta', 'export');
 
@@ -176,6 +176,81 @@ function getPluginVersion(): string {
 
 const FEEDBACK_LINE = '\n---\nFeedback? Bug? https://github.com/mmmprod/claude-eta/issues';
 
+// ── Recap ────────────────────────────────────────────────────
+
+function showRecap(tasks: TaskEntry[]): void {
+  const completed = tasks.filter((t) => t.duration_seconds != null);
+  if (completed.length === 0) {
+    console.log('No completed tasks yet.');
+    return;
+  }
+
+  // Find today's tasks, falling back to the last day with activity
+  const now = new Date();
+  const todayStr = now.toISOString().slice(0, 10);
+  let dayTasks = completed.filter((t) => t.timestamp_start.startsWith(todayStr));
+
+  if (dayTasks.length === 0) {
+    // Fall back to the most recent day with activity
+    const lastTask = completed[completed.length - 1];
+    const lastDay = lastTask.timestamp_start.slice(0, 10);
+    dayTasks = completed.filter((t) => t.timestamp_start.startsWith(lastDay));
+  }
+
+  const totalSec = dayTasks.reduce((s, t) => s + (t.duration_seconds ?? 0), 0);
+  const totalTools = dayTasks.reduce((s, t) => s + t.tool_calls, 0);
+  const totalReads = dayTasks.reduce((s, t) => s + t.files_read, 0);
+  const totalEdits = dayTasks.reduce((s, t) => s + t.files_edited, 0);
+  const totalCreated = dayTasks.reduce((s, t) => s + t.files_created, 0);
+  const totalErrors = dayTasks.reduce((s, t) => s + t.errors, 0);
+
+  // Group by classification
+  const byType = new Map<TaskClassification, TaskEntry[]>();
+  for (const t of dayTasks) {
+    const list = byType.get(t.classification) ?? [];
+    list.push(t);
+    byType.set(t.classification, list);
+  }
+  const sorted = [...byType.entries()].sort((a, b) => b[1].length - a[1].length);
+
+  // Date display
+  const dayLabel =
+    dayTasks[0].timestamp_start.slice(0, 10) === todayStr ? 'Today' : dayTasks[0].timestamp_start.slice(0, 10);
+
+  console.log(`## ${dayLabel}'s Recap\n`);
+  console.log(`**${dayTasks.length} tasks** completed in **${fmtDuration(totalSec)}** of active work.\n`);
+
+  // Breakdown by type
+  console.log(`### By type\n`);
+  for (const [cls, entries] of sorted) {
+    const dur = entries.reduce((s, t) => s + (t.duration_seconds ?? 0), 0);
+    console.log(`- **${cls}**: ${entries.length} task${entries.length > 1 ? 's' : ''} (${fmtDuration(dur)})`);
+  }
+
+  // Activity stats
+  console.log(`\n### Activity\n`);
+  console.log(`| Metric         | Count |`);
+  console.log(`|----------------|-------|`);
+  console.log(`| Tool calls     | ${col(String(totalTools), 5, 'right')} |`);
+  console.log(`| Files read     | ${col(String(totalReads), 5, 'right')} |`);
+  console.log(`| Files edited   | ${col(String(totalEdits), 5, 'right')} |`);
+  console.log(`| Files created  | ${col(String(totalCreated), 5, 'right')} |`);
+  if (totalErrors > 0) {
+    console.log(`| Errors         | ${col(String(totalErrors), 5, 'right')} |`);
+  }
+
+  // Top tasks (longest durations)
+  const topTasks = [...dayTasks].sort((a, b) => (b.duration_seconds ?? 0) - (a.duration_seconds ?? 0)).slice(0, 5);
+  if (topTasks.length > 0) {
+    console.log(`\n### Longest tasks\n`);
+    for (const t of topTasks) {
+      const dur = t.duration_seconds != null ? fmtDuration(t.duration_seconds) : '?';
+      const prompt = t.prompt_summary.slice(0, 50) || '(no summary)';
+      console.log(`- **${dur}** — ${prompt} _(${t.classification})_`);
+    }
+  }
+}
+
 // ── Main ──────────────────────────────────────────────────────
 
 async function main(): Promise<void> {
@@ -198,6 +273,7 @@ async function main(): Promise<void> {
     console.log(`| \`/eta export\`                | Anonymize & save to local JSON                 |`);
     console.log(`| \`/eta contribute\`            | Preview what would be shared                   |`);
     console.log(`| \`/eta contribute --confirm\`  | Upload anonymized data (opt-in)                |`);
+    console.log(`| \`/eta recap\`                 | Daily dev journal / session summary            |`);
     console.log(`| \`/eta help\`                  | This help                                      |`);
     console.log(`\nAll data is 100% local by default. Community features (\`compare\`, \`contribute\`) are opt-in.`);
     console.log(FEEDBACK_LINE);
@@ -210,7 +286,7 @@ async function main(): Promise<void> {
       if (confirm) {
         await executeContribute(project, pluginVersion);
       } else {
-        await showContribute(project, pluginVersion);
+        showContribute(project, pluginVersion);
       }
       console.log(FEEDBACK_LINE);
       return;
@@ -241,6 +317,9 @@ async function main(): Promise<void> {
       break;
     case 'inspect':
       showInspect(data);
+      break;
+    case 'recap':
+      showRecap(data.tasks);
       break;
     default:
       showSession(data.tasks);

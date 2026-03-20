@@ -6,7 +6,7 @@
  * 3. If wildly off from project history → block stop + inject correction
  * 4. Otherwise → flush active task normally
  */
-import type { StopStdin } from '../types.js';
+import type { StopStdin } from '../types/index.js';
 import { readStdin } from '../stdin.js';
 import { loadProject, flushActiveTask, getActiveTask, setLastCompleted } from '../store.js';
 import { computeStats, fmtSec } from '../stats.js';
@@ -46,7 +46,7 @@ async function main(): Promise<void> {
     const stats = computeStats(data.tasks);
 
     if (stats) {
-      const durations = extractDurations(message, { skipPastContext: true });
+      const durations = extractDurations(message, { estimatesOnly: true });
       const bullshit = findBullshitEstimate(durations, stats.overall.p75, stats.overall.median);
 
       if (bullshit) {
