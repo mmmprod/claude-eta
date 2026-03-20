@@ -146,6 +146,62 @@ function getPluginVersion() {
     }
 }
 const FEEDBACK_LINE = '\n---\nFeedback? Bug? https://github.com/mmmprod/claude-eta/issues';
+// ── Recap ────────────────────────────────────────────────────
+function showRecap(tasks) {
+    const completed = tasks.filter((t) => t.duration_seconds != null);
+    if (completed.length === 0) {
+        console.log('No completed tasks yet.');
+        return;
+    }
+    const now = new Date();
+    const todayStr = now.toISOString().slice(0, 10);
+    let dayTasks = completed.filter((t) => t.timestamp_start.startsWith(todayStr));
+    if (dayTasks.length === 0) {
+        const lastTask = completed[completed.length - 1];
+        const lastDay = lastTask.timestamp_start.slice(0, 10);
+        dayTasks = completed.filter((t) => t.timestamp_start.startsWith(lastDay));
+    }
+    const totalSec = dayTasks.reduce((s, t) => s + (t.duration_seconds ?? 0), 0);
+    const totalTools = dayTasks.reduce((s, t) => s + t.tool_calls, 0);
+    const totalReads = dayTasks.reduce((s, t) => s + t.files_read, 0);
+    const totalEdits = dayTasks.reduce((s, t) => s + t.files_edited, 0);
+    const totalCreated = dayTasks.reduce((s, t) => s + t.files_created, 0);
+    const totalErrors = dayTasks.reduce((s, t) => s + t.errors, 0);
+    const byType = new Map();
+    for (const t of dayTasks) {
+        const list = byType.get(t.classification) ?? [];
+        list.push(t);
+        byType.set(t.classification, list);
+    }
+    const sorted = [...byType.entries()].sort((a, b) => b[1].length - a[1].length);
+    const dayLabel = dayTasks[0].timestamp_start.slice(0, 10) === todayStr ? 'Today' : dayTasks[0].timestamp_start.slice(0, 10);
+    console.log(`## ${dayLabel}'s Recap\n`);
+    console.log(`**${dayTasks.length} tasks** completed in **${fmtDuration(totalSec)}** of active work.\n`);
+    console.log(`### By type\n`);
+    for (const [cls, entries] of sorted) {
+        const dur = entries.reduce((s, t) => s + (t.duration_seconds ?? 0), 0);
+        console.log(`- **${cls}**: ${entries.length} task${entries.length > 1 ? 's' : ''} (${fmtDuration(dur)})`);
+    }
+    console.log(`\n### Activity\n`);
+    console.log(`| Metric         | Count |`);
+    console.log(`|----------------|-------|`);
+    console.log(`| Tool calls     | ${col(String(totalTools), 5, 'right')} |`);
+    console.log(`| Files read     | ${col(String(totalReads), 5, 'right')} |`);
+    console.log(`| Files edited   | ${col(String(totalEdits), 5, 'right')} |`);
+    console.log(`| Files created  | ${col(String(totalCreated), 5, 'right')} |`);
+    if (totalErrors > 0) {
+        console.log(`| Errors         | ${col(String(totalErrors), 5, 'right')} |`);
+    }
+    const topTasks = [...dayTasks].sort((a, b) => (b.duration_seconds ?? 0) - (a.duration_seconds ?? 0)).slice(0, 5);
+    if (topTasks.length > 0) {
+        console.log(`\n### Longest tasks\n`);
+        for (const t of topTasks) {
+            const dur = t.duration_seconds != null ? fmtDuration(t.duration_seconds) : '?';
+            const prompt = t.prompt_summary.slice(0, 50) || '(no summary)';
+            console.log(`- **${dur}** — ${prompt} _(${t.classification})_`);
+        }
+    }
+}
 // ── Main ──────────────────────────────────────────────────────
 async function main() {
     const mode = process.argv[2] ?? 'session';
@@ -206,6 +262,9 @@ async function main() {
             break;
         case 'inspect':
             showInspect(data);
+            break;
+        case 'recap':
+            showRecap(data.tasks);
             break;
         default:
             showSession(data.tasks);
