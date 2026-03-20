@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.0](https://github.com/mmmprod/claude-eta/compare/claude-eta-v0.7.0...claude-eta-v0.8.0) (2026-03-20)
+
+
+### Features
+
+* /eta admin-export — full admin dashboard JSON + standalone HTML viewer ([#43](https://github.com/mmmprod/claude-eta/issues/43)) ([004057f](https://github.com/mmmprod/claude-eta/commit/004057fc8904aa3c8640c885792ebc56cede2ab7))
+
 ## [0.7.0](https://github.com/mmmprod/claude-eta/compare/claude-eta-v0.6.0...claude-eta-v0.7.0) (2026-03-20)
 
 
