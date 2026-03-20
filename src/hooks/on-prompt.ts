@@ -49,11 +49,16 @@ function debugDumpStdinKeys(stdin: Record<string, unknown>): void {
     const DEBUG_EXPIRY_MS = 48 * 60 * 60 * 1000;
     const debugPath = path.join(getPluginDataDir(), 'debug-stdin-keys.jsonl');
     // Check expiry: if first entry is >48h old, delete and stop
+    // Uses first-line timestamp (not birthtimeMs which is unreliable on Linux ext4/xfs)
     try {
-      const stat = fs.statSync(debugPath);
-      if (Date.now() - stat.birthtimeMs > DEBUG_EXPIRY_MS) {
-        fs.unlinkSync(debugPath);
-        return;
+      const content = fs.readFileSync(debugPath, 'utf8');
+      const firstLine = content.split('\n')[0];
+      if (firstLine) {
+        const firstTs = Date.parse(JSON.parse(firstLine).ts);
+        if (!Number.isNaN(firstTs) && Date.now() - firstTs > DEBUG_EXPIRY_MS) {
+          fs.unlinkSync(debugPath);
+          return;
+        }
       }
     } catch {
       // File doesn't exist yet — will be created
