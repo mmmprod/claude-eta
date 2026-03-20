@@ -385,4 +385,116 @@ describe('loadCompletedTurns / loadRecentCompletedTurns', () => {
     const recent = loadRecentCompletedTurns(fp, 2);
     assert.equal(recent.length, 2);
   });
+
+  it('loadCompletedTurns returns turns sorted by started_at ascending', async () => {
+    const { startTurn, closeTurn, loadCompletedTurns } = await loadModule();
+
+    const fp = 'sortfp12345678901';
+    const baseTimes = [
+      Date.now() - 30000, // oldest
+      Date.now() - 10000, // newest
+      Date.now() - 20000, // middle
+    ];
+
+    // Create turns in non-chronological order across different session files
+    for (let i = 0; i < 3; i++) {
+      const state = makeActiveTurn({
+        project_fp: fp,
+        session_id: `sess-sort-${i}`,
+        agent_key: 'main',
+        started_at_ms: baseTimes[i],
+        started_at: new Date(baseTimes[i]).toISOString(),
+      });
+      startTurn(state);
+      closeTurn(fp, `sess-sort-${i}`, 'main', 'stop');
+    }
+
+    const turns = loadCompletedTurns(fp);
+    assert.equal(turns.length, 3);
+
+    // Verify ascending order by started_at
+    for (let i = 1; i < turns.length; i++) {
+      const prev = new Date(turns[i - 1].started_at).getTime();
+      const curr = new Date(turns[i].started_at).getTime();
+      assert.ok(prev <= curr, `Turn ${i - 1} (${turns[i - 1].started_at}) should be <= Turn ${i} (${turns[i].started_at})`);
+    }
+  });
+});
+
+// ── closeTurn lock file ──────────────────────────────────────
+
+describe('closeTurn lock file', () => {
+  it('prevents duplicate appends when closeTurn is called twice on the same turn', async () => {
+    const { startTurn, closeTurn } = await loadModule();
+    const { getCompletedLogPath } = await import('../dist/paths.js');
+
+    const fp = 'lockfp12345678901';
+    const state = makeActiveTurn({ project_fp: fp, session_id: 'sess-lock', agent_key: 'main' });
+    startTurn(state);
+
+    // First close should succeed
+    const first = closeTurn(fp, 'sess-lock', 'main', 'stop');
+    assert.ok(first);
+
+    // Second close should return null (turn already closed, no active file)
+    const second = closeTurn(fp, 'sess-lock', 'main', 'stop');
+    assert.equal(second, null);
+
+    // Verify only one record in completed JSONL
+    const completedPath = getCompletedLogPath(fp, 'sess-lock', 'main');
+    const content = fs.readFileSync(completedPath, 'utf-8').trim();
+    const lines = content.split('\n').filter(l => l.trim());
+    assert.equal(lines.length, 1, 'Expected exactly one completed record');
+  });
+
+  it('recovers stale lock files older than 60s', async () => {
+    const { startTurn, closeTurn } = await loadModule();
+    const { getLocksDir } = await import('../dist/paths.js');
+
+    const fp = 'stalefp1234567890';
+    const state = makeActiveTurn({ project_fp: fp, session_id: 'sess-stale', agent_key: 'main' });
+    startTurn(state);
+
+    // Create a stale lock file manually (mtime in the past)
+    const locksDir = getLocksDir(fp);
+    fs.mkdirSync(locksDir, { recursive: true });
+    const lockPath = path.join(locksDir, 'sess-stale__main.lock');
+    fs.writeFileSync(lockPath, '');
+    // Set mtime to 90 seconds ago (beyond the 60s stale threshold)
+    const staleTime = new Date(Date.now() - 90_000);
+    fs.utimesSync(lockPath, staleTime, staleTime);
+
+    // closeTurn should recover the stale lock and succeed
+    const result = closeTurn(fp, 'sess-stale', 'main', 'stop');
+    assert.ok(result, 'closeTurn should succeed after recovering stale lock');
+    assert.equal(result.stop_reason, 'stop');
+
+    // Lock file should be cleaned up
+    assert.equal(fs.existsSync(lockPath), false, 'Lock file should be removed after close');
+  });
+
+  it('bails when lock is held by another process (fresh lock)', async () => {
+    const { startTurn, closeTurn } = await loadModule();
+    const { getLocksDir } = await import('../dist/paths.js');
+
+    const fp = 'heldlkfp123456789';
+    const state = makeActiveTurn({ project_fp: fp, session_id: 'sess-held', agent_key: 'main' });
+    startTurn(state);
+
+    // Create a fresh lock file (not stale)
+    const locksDir = getLocksDir(fp);
+    fs.mkdirSync(locksDir, { recursive: true });
+    const lockPath = path.join(locksDir, 'sess-held__main.lock');
+    // Use O_EXCL to create it like acquireLock does
+    const fd = fs.openSync(lockPath, fs.constants.O_WRONLY | fs.constants.O_CREAT | fs.constants.O_EXCL);
+
+    try {
+      // closeTurn should bail because lock is held
+      const result = closeTurn(fp, 'sess-held', 'main', 'stop');
+      assert.equal(result, null, 'closeTurn should return null when lock is held');
+    } finally {
+      fs.closeSync(fd);
+      fs.unlinkSync(lockPath);
+    }
+  });
 });
