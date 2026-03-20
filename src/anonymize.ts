@@ -6,7 +6,7 @@ import * as crypto from 'node:crypto';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
-import { getCommunityDir, ensureDir } from './paths.js';
+import { getCommunityDir, ensureDir, atomicWrite } from './paths.js';
 import { hashWithLocalSalt } from './identity.js';
 
 const OLD_CONTRIBUTOR_ID_PATH = path.join(os.homedir(), '.claude', 'plugins', 'claude-eta', '.contributor_id');
@@ -28,14 +28,14 @@ function getContributorId(): string {
   try {
     const id = fs.readFileSync(OLD_CONTRIBUTOR_ID_PATH, 'utf-8').trim();
     ensureDir(path.dirname(newPath));
-    fs.writeFileSync(newPath, id, 'utf-8');
+    atomicWrite(newPath, id);
     return id;
   } catch { /* not found at old path either */ }
 
   // Generate new
   const id = crypto.randomUUID();
   ensureDir(path.dirname(newPath));
-  fs.writeFileSync(newPath, id, 'utf-8');
+  atomicWrite(newPath, id);
   return id;
 }
 
