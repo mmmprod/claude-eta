@@ -78,6 +78,14 @@ describe('extractDurations', () => {
     assert.equal(d.length, 1, '"was" should not trigger past-context filter');
   });
 
+  it('does not cross sentence boundaries with skipPastContext', () => {
+    const opts = { skipPastContext: true };
+    // "completed" is in a prior sentence — should NOT filter the estimate in the next sentence
+    const d = extractDurations('I completed the review. Now this will take about 3 hours.', opts);
+    assert.equal(d.length, 1, 'past-context in prior sentence should not filter current sentence');
+    assert.equal(d[0].seconds, 10800);
+  });
+
   it('still extracts all durations without skipPastContext', () => {
     const d = extractDurations('the session lasted 24 minutes');
     assert.equal(d.length, 1);

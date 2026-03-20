@@ -1,6 +1,8 @@
 /**
  * Integration test — validates AnonymizedRecord format against the real Supabase schema.
- * Inserts a test record and verifies 201. Uses a sentinel contributor_hash for cleanup.
+ * Inserts a test record and verifies 201.
+ * Test records use contributor_hash '0000...' and plugin_version '0.0.0-ci-test'
+ * so the Edge Function can filter them from baselines aggregation.
  *
  * Skipped when SKIP_INTEGRATION=1 (default in unit test runs).
  * Runs in CI via a dedicated job.

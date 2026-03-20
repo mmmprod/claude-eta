@@ -63,6 +63,11 @@ describe('classifyPrompt', () => {
     assert.equal(classifyPrompt('audit the security code'), 'review');
   });
 
+  it('does not classify bare "check" as review (F-12)', () => {
+    assert.equal(classifyPrompt('check the deployment'), 'other');
+    assert.equal(classifyPrompt('check if this works'), 'other');
+  });
+
   it('falls back to other', () => {
     assert.equal(classifyPrompt('hello'), 'other');
     assert.equal(classifyPrompt('what time is it'), 'other');

@@ -15,7 +15,7 @@ const PATTERNS = [
         'config',
         /\b(config(ure)?|setup|install(ing|ed|s)?|deps?|dependenc(y|ies)|eslint|prettier|tsconfig|package\.json|ci|cd|pipeline|docker|env)\b/i,
     ],
-    ['review', /\b(review(ing|ed|s)?|pr|pull.?request|audit(ing|ed)?|check(ing)?|inspect(ing)?)\b/i],
+    ['review', /\b(review(ing|ed|s)?|pr|pull.?request|audit(ing|ed)?|inspect(ing)?)\b/i],
     [
         'feature',
         /\b(add(ing|ed|s)?|creat(e[ds]?|ing)|implement(ing|ed|s)?|build(ing|s)?|new|feature|component|page|endpoint|api|hook|integrat(e[ds]?|ing))\b/i,
