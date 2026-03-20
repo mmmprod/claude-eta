@@ -6,19 +6,47 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
-import { loadProject } from '../store.js';
+import { loadCompletedTurnsCompat, turnsToTaskEntries } from '../compat.js';
+import { resolveProjectIdentity } from '../identity.js';
+import { loadProjectMeta } from '../project-meta.js';
+import { getCommunityDir } from '../paths.js';
 import { anonymizeTask } from './export.js';
 import { insertVelocityRecords } from '../supabase.js';
-const STATE_PATH = path.join(os.homedir(), '.claude', 'plugins', 'claude-eta', 'data', '_contribute_state.json');
+const LEGACY_STATE_PATH = path.join(os.homedir(), '.claude', 'plugins', 'claude-eta', 'data', '_contribute_state.json');
+const STATE_PATH = path.join(getCommunityDir(), '_contribute_state.json');
+function parseState(raw) {
+    const contributedTaskIds = Array.isArray(raw.contributed_task_ids)
+        ? raw.contributed_task_ids.filter((id) => typeof id === 'string')
+        : [];
+    return {
+        last_contributed_at: typeof raw.last_contributed_at === 'string' ? raw.last_contributed_at : '',
+        last_contributed_count: typeof raw.last_contributed_count === 'number' && Number.isFinite(raw.last_contributed_count)
+            ? raw.last_contributed_count
+            : 0,
+        contributed_task_ids: contributedTaskIds,
+    };
+}
 function loadState() {
+    // Try new path first
     try {
         const raw = JSON.parse(fs.readFileSync(STATE_PATH, 'utf-8'));
-        // Backward compat: old state files lack contributed_task_ids
-        return {
-            last_contributed_at: raw.last_contributed_at ?? '',
-            last_contributed_count: raw.last_contributed_count ?? 0,
-            contributed_task_ids: raw.contributed_task_ids ?? [],
-        };
+        return parseState(raw);
+    }
+    catch {
+        // New path doesn't exist — try legacy path and auto-migrate
+    }
+    try {
+        const raw = JSON.parse(fs.readFileSync(LEGACY_STATE_PATH, 'utf-8'));
+        const state = parseState(raw);
+        // Silent migration: write to new location
+        try {
+            fs.mkdirSync(path.dirname(STATE_PATH), { recursive: true });
+            fs.writeFileSync(STATE_PATH, JSON.stringify(state, null, 2), 'utf-8');
+        }
+        catch {
+            // Migration write failed — not critical, will retry next time
+        }
+        return state;
     }
     catch {
         return null;
@@ -38,19 +66,23 @@ function saveState(count, newTaskIds) {
         last_contributed_count: count,
         contributed_task_ids: cappedIds,
     };
+    fs.mkdirSync(path.dirname(STATE_PATH), { recursive: true });
     fs.writeFileSync(STATE_PATH, JSON.stringify(state, null, 2), 'utf-8');
 }
-function getNewRecords(projName, pluginVersion) {
+function getNewRecords(cwd, pluginVersion) {
     const state = loadState();
     const excludeIds = new Set(state?.contributed_task_ids ?? []);
-    const data = loadProject(projName);
-    const meta = { file_count: data.file_count, loc_bucket: data.loc_bucket };
+    const { fp } = resolveProjectIdentity(cwd);
+    const turns = loadCompletedTurnsCompat(cwd);
+    const tasks = turnsToTaskEntries(turns);
+    const meta = loadProjectMeta(fp);
+    const projectMeta = { file_count: meta?.file_count ?? undefined, loc_bucket: meta?.loc_bucket ?? undefined };
     const records = [];
     const taskIds = [];
-    for (const task of data.tasks) {
+    for (const task of tasks) {
         if (excludeIds.has(task.task_id))
             continue;
-        const record = anonymizeTask(task, projName, pluginVersion, meta);
+        const record = anonymizeTask(task, fp, pluginVersion, projectMeta);
         if (record) {
             records.push(record);
             taskIds.push(task.task_id);
@@ -58,8 +90,8 @@ function getNewRecords(projName, pluginVersion) {
     }
     return { records, taskIds };
 }
-export async function showContribute(projName, pluginVersion) {
-    const { records } = getNewRecords(projName, pluginVersion);
+export async function showContribute(cwd, pluginVersion) {
+    const { records } = getNewRecords(cwd, pluginVersion);
     if (records.length === 0) {
         console.log('No new tasks to contribute (all previously contributed or no completed tasks).');
         return;
@@ -81,8 +113,8 @@ export async function showContribute(projName, pluginVersion) {
     console.log('- Prompt text, file paths, project name, code, conversation content');
     console.log('\n**To confirm**, run this command again with `--confirm`:\n' + '`/eta contribute --confirm`');
 }
-export async function executeContribute(projName, pluginVersion) {
-    const { records, taskIds } = getNewRecords(projName, pluginVersion);
+export async function executeContribute(cwd, pluginVersion) {
+    const { records, taskIds } = getNewRecords(cwd, pluginVersion);
     if (records.length === 0) {
         console.log('No new tasks to contribute (all previously contributed or no completed tasks).');
         return;
