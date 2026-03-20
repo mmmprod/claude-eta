@@ -11,7 +11,8 @@
     "test:integration": "npm run build && node --test tests/supabase-integration.test.js",
     "lint": "tsc --noEmit",
     "format": "prettier --write 'src/**/*.ts' 'tests/**/*.js'",
-    "format:check": "prettier --check 'src/**/*.ts' 'tests/**/*.js'"
+    "format:check": "prettier --check 'src/**/*.ts' 'tests/**/*.js'",
+    "admin": "node admin/serve.mjs"
   },
   "keywords": [
     "claude-code",

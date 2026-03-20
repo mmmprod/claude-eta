@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>claude-eta // admin</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Space+Grotesk:wght@300;400;500;600;700&display=swap');
+
+:root {
+  --bg: #0a0a0c;
+  --surface: #111114;
+  --surface-2: #18181c;
+  --surface-3: #222228;
+  --border: #2a2a32;
+  --border-active: #3a3a48;
+  --text: #e8e8ef;
+  --text-dim: #8888a0;
+  --text-muted: #55556a;
+  --accent: #6ee7b7;
+  --accent-dim: #2a6e52;
+  --warn: #fbbf24;
+  --error: #f87171;
+  --info: #60a5fa;
+  --mono: 'JetBrains Mono', monospace;
+  --sans: 'Space Grotesk', system-ui, sans-serif;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 13px;
+  line-height: 1.6;
+  min-height: 100vh;
+}
+
+#drop-zone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  gap: 24px;
+  padding: 40px;
+  transition: background 0.2s;
+}
+#drop-zone.dragover { background: #0d1a14; }
+#drop-zone h1 { font-family: var(--sans); font-size: 32px; font-weight: 700; letter-spacing: -1px; }
+#drop-zone h1 span { color: var(--accent); }
+
+.drop-area {
+  width: 480px; max-width: 90vw; height: 200px;
+  border: 2px dashed var(--border); border-radius: 16px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 12px; cursor: pointer; transition: border-color 0.2s, background 0.2s;
+}
+.drop-area:hover, .dragover .drop-area { border-color: var(--accent); background: rgba(110,231,183,0.03); }
+.drop-area p { color: var(--text-dim); font-size: 14px; }
+.drop-area code { color: var(--accent); font-size: 12px; background: var(--surface-2); padding: 4px 10px; border-radius: 6px; }
+.drop-area input { display: none; }
+
+#dashboard { display: none; padding: 24px; max-width: 1400px; margin: 0 auto; }
+.dash-header { display: flex; align-items: baseline; justify-content: space-between; padding: 16px 0 24px; border-bottom: 1px solid var(--border); margin-bottom: 32px; }
+.dash-header h1 { font-family: var(--sans); font-size: 24px; font-weight: 700; letter-spacing: -0.5px; }
+.dash-header h1 span { color: var(--accent); }
+.dash-meta { display: flex; gap: 24px; color: var(--text-dim); font-size: 12px; }
+.dash-meta strong { color: var(--text); font-weight: 500; }
+.reload-btn { background: var(--surface-2); border: 1px solid var(--border); color: var(--text-dim); padding: 6px 14px; border-radius: 8px; cursor: pointer; font-family: var(--mono); font-size: 12px; transition: all 0.15s; }
+.reload-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+.grid { display: grid; gap: 24px; margin-bottom: 32px; }
+.grid-2 { grid-template-columns: repeat(2, 1fr); }
+.grid-3 { grid-template-columns: repeat(3, 1fr); }
+.grid-4 { grid-template-columns: repeat(4, 1fr); }
+@media (max-width: 900px) { .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; } }
+
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
+.card-header { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--text-dim); font-weight: 600; }
+.card-header .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
+.card-header .dot.warn { background: var(--warn); }
+.card-header .dot.error { background: var(--error); }
+
+.stat { text-align: center; padding: 16px 8px; }
+.stat-value { font-family: var(--sans); font-size: 36px; font-weight: 700; letter-spacing: -2px; line-height: 1; }
+.stat-value.accent { color: var(--accent); }
+.stat-value.warn { color: var(--warn); }
+.stat-value.error { color: var(--error); }
+.stat-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-top: 8px; }
+
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 12px; }
+th { text-align: left; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted); padding: 8px 12px; border-bottom: 1px solid var(--border); font-weight: 600; }
+td { padding: 8px 12px; border-bottom: 1px solid var(--border); color: var(--text-dim); }
+tr:last-child td { border-bottom: none; }
+td.mono { font-family: var(--mono); }
+
+.badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+.badge-ok { background: rgba(110,231,183,0.12); color: var(--accent); }
+.badge-warn { background: rgba(251,191,36,0.12); color: var(--warn); }
+.badge-error { background: rgba(248,113,113,0.12); color: var(--error); }
+.badge-info { background: rgba(96,165,250,0.12); color: var(--info); }
+
+.section-title { font-family: var(--sans); font-size: 18px; font-weight: 600; letter-spacing: -0.3px; margin-bottom: 16px; padding-top: 8px; display: flex; align-items: center; gap: 10px; }
+.section-num { font-size: 12px; color: var(--accent); font-family: var(--mono); font-weight: 700; }
+.chart-container { position: relative; height: 200px; width: 100%; }
+.chart-container.small { height: 120px; }
+</style>
+</head>
+<body>
+
+<div id="drop-zone">
+  <h1>claude-eta <span>//</span> admin</h1>
+  <div class="drop-area" id="drop-area">
+    <p>Drop <strong>admin-export.json</strong> here</p>
+    <code>/eta admin-export</code>
+    <input type="file" id="file-input" accept=".json">
+  </div>
+</div>
+
+<div id="dashboard">
+  <div class="dash-header">
+    <div>
+      <h1>claude-eta <span>//</span> admin</h1>
+      <div class="dash-meta">
+        <span>v<strong id="d-version"></strong></span>
+        <span>generated <strong id="d-generated"></strong></span>
+      </div>
+    </div>
+    <button class="reload-btn" onclick="location.reload()">Load another JSON</button>
+  </div>
+  <div id="dash-content"></div>
+</div>
+
+<script>
+/* Data source: locally-generated JSON from /eta admin-export.
+   All user-derived strings are escaped via esc() before insertion. */
+
+const dropZone = document.getElementById('drop-zone');
+const dropArea = document.getElementById('drop-area');
+const fileInput = document.getElementById('file-input');
+
+dropArea.addEventListener('click', () => fileInput.click());
+fileInput.addEventListener('change', (e) => { if (e.target.files[0]) loadFile(e.target.files[0]); });
+document.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('dragover'); });
+document.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+document.addEventListener('drop', (e) => { e.preventDefault(); dropZone.classList.remove('dragover'); if (e.dataTransfer.files[0]) loadFile(e.dataTransfer.files[0]); });
+
+function loadFile(file) {
+  const reader = new FileReader();
+  reader.onload = (e) => { try { render(JSON.parse(e.target.result)); } catch (err) { alert('Invalid JSON: ' + err.message); } };
+  reader.readAsText(file);
+}
+
+function fmtDur(s) { if (!s) return '0s'; if (s < 60) return Math.round(s) + 's'; const m = Math.floor(s/60), sec = Math.round(s%60); if (m < 60) return sec ? m+'m '+sec+'s' : m+'m'; const h = Math.floor(m/60), rm = m%60; return rm ? h+'h '+rm+'m' : h+'h'; }
+function fmtDate(iso) { if (!iso) return 'n/a'; return new Date(iso).toLocaleString('en-GB', {month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}); }
+function esc(s) { const d = document.createElement('div'); d.textContent = String(s); return d.innerHTML; }
+function badge(text, type) { return '<span class="badge badge-' + type + '">' + esc(text) + '</span>'; }
+
+Chart.defaults.color = '#8888a0';
+Chart.defaults.borderColor = '#2a2a32';
+Chart.defaults.font.family = "'JetBrains Mono', monospace";
+Chart.defaults.font.size = 11;
+const CC = ['#6ee7b7','#60a5fa','#fbbf24','#f87171','#a78bfa','#fb923c','#67e8f9','#f472b6'];
+
+function render(data) {
+  dropZone.style.display = 'none';
+  document.getElementById('dashboard').style.display = 'block';
+  document.getElementById('d-version').textContent = data.plugin_version;
+  document.getElementById('d-generated').textContent = fmtDate(data.generated_at);
+  const root = document.getElementById('dash-content');
+  root.replaceChildren(); // clear safely
+  renderHealth(root, data.health);
+  renderEtaAccuracy(root, data.eta_accuracy);
+  renderDataQuality(root, data.data_quality);
+  renderSupabase(root, data.supabase);
+  renderInsights(root, data.insights);
+  renderSubagents(root, data.subagents);
+}
+
+function createEl(html) { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content; }
+
+// ── Section 1: Health ────────────────────────────────────────
+function renderHealth(root, h) {
+  const fc = h.stop_failure_rate_pct > 10 ? 'error' : h.stop_failure_rate_pct > 5 ? 'warn' : 'accent';
+  const projRows = h.last_event_by_project.map(p =>
+    '<tr><td>' + esc(p.display_name) + '</td><td class="mono">' + fmtDate(p.last_event_at) + '</td><td>' + (p.stale ? badge('stale','error') : badge('active','ok')) + '</td></tr>'
+  ).join('');
+  root.appendChild(createEl(
+    '<div class="section-title"><span class="section-num">01</span> Health</div>' +
+    '<div class="grid grid-4">' +
+      '<div class="card stat"><div class="stat-value accent">' + h.total_turns_alltime + '</div><div class="stat-label">Total Turns</div></div>' +
+      '<div class="card stat"><div class="stat-value">' + h.uptime_days + '</div><div class="stat-label">Uptime (days)</div></div>' +
+      '<div class="card stat"><div class="stat-value ' + (h.active_turns_count > 0 ? 'warn' : '') + '">' + h.active_turns_count + '</div><div class="stat-label">Active Turns</div></div>' +
+      '<div class="card stat"><div class="stat-value ' + fc + '">' + h.stop_failure_rate_pct + '%</div><div class="stat-label">Stop Failure Rate</div></div>' +
+    '</div>' +
+    '<div class="grid grid-2">' +
+      '<div class="card"><div class="card-header"><span class="dot"></span> Stop Reasons</div><canvas id="chart-stop-reasons" height="120"></canvas></div>' +
+      '<div class="card"><div class="card-header"><span class="dot ' + (h.last_event_by_project.some(p => p.stale) ? 'warn' : '') + '"></span> Projects</div><div class="table-wrap"><table><tr><th>Project</th><th>Last Event</th><th>Status</th></tr>' + projRows + '</table></div></div>' +
+    '</div>'
+  ));
+  const reasons = Object.entries(h.stop_reasons);
+  if (reasons.length > 0) {
+    new Chart(document.getElementById('chart-stop-reasons'), { type:'doughnut', data:{labels:reasons.map(([k])=>k), datasets:[{data:reasons.map(([,v])=>v), backgroundColor:CC, borderWidth:0}]}, options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'right',labels:{padding:12,usePointStyle:true,pointStyle:'circle'}}}, cutout:'60%'} });
+  }
+}
+
+// ── Section 2: ETA Accuracy ──────────────────────────────────
+function renderEtaAccuracy(root, acc) {
+  const hasData = acc.global && acc.global.length > 0;
+  if (!hasData) {
+    root.appendChild(createEl('<div class="section-title"><span class="section-num">02</span> ETA Accuracy</div><div class="card" style="margin-bottom:32px"><p style="color:var(--text-muted);padding:12px">No ETA predictions recorded yet.</p></div>'));
+    return;
+  }
+  const rows = acc.by_project_type.map(r =>
+    '<tr><td>' + esc(r.project) + '</td><td class="mono">' + esc(r.classification) + '</td><td style="color:var(--accent)">' + r.hits + '</td><td' + (r.misses > r.hits ? ' style="color:var(--error)"' : '') + '>' + r.misses + '</td><td>' + (r.rate_pct >= 50 ? badge(r.rate_pct+'%','ok') : badge(r.rate_pct+'%','error')) + '</td></tr>'
+  ).join('');
+  const disabledNote = acc.auto_disabled_types.length > 0 ? '<div style="margin-top:12px;font-size:11px;color:var(--error)">Auto-disabled: ' + esc(acc.auto_disabled_types.join(', ')) + '</div>' : '';
+  root.appendChild(createEl(
+    '<div class="section-title"><span class="section-num">02</span> ETA Accuracy</div>' +
+    '<div class="grid grid-2">' +
+      '<div class="card"><div class="card-header"><span class="dot"></span> Global Accuracy by Type</div><canvas id="chart-eta-global" height="200"></canvas></div>' +
+      '<div class="card"><div class="card-header"><span class="dot ' + (acc.auto_disabled_types.length > 0 ? 'error' : '') + '"></span> Per Project</div><div class="table-wrap"><table><tr><th>Project</th><th>Type</th><th>Hits</th><th>Misses</th><th>Rate</th></tr>' + rows + '</table></div>' + disabledNote + '</div>' +
+    '</div>'
+  ));
+  new Chart(document.getElementById('chart-eta-global'), { type:'bar', data:{labels:acc.global.map(g=>g.classification), datasets:[{label:'Hits',data:acc.global.map(g=>g.hits),backgroundColor:'#6ee7b7'},{label:'Misses',data:acc.global.map(g=>g.misses),backgroundColor:'#f87171'}]}, options:{responsive:true,maintainAspectRatio:false,scales:{x:{stacked:true},y:{stacked:true,beginAtZero:true}},plugins:{legend:{labels:{usePointStyle:true,pointStyle:'circle'}}}} });
+}
+
+// ── Section 3: Data Quality ──────────────────────────────────
+function renderDataQuality(root, dq) {
+  const covRows = dq.type_coverage.map(c => '<tr><td class="mono">'+esc(c.classification)+'</td><td>'+c.count+'</td><td>'+(c.auto_eta_eligible?badge('yes','ok'):badge('no','warn'))+'</td><td>'+(c.robust?badge('yes','ok'):badge('<10','info'))+'</td></tr>').join('');
+  const projRows = dq.by_project.map(p => '<tr><td>'+esc(p.project)+'</td><td style="color:var(--accent)">'+p.total+'</td><td>'+p.this_week+'</td></tr>').join('');
+  const ratioRows = dq.time_ratios.map(r => '<tr><td>'+esc(r.project)+'</td><td class="mono">'+fmtDur(r.avg_wall_seconds)+'</td><td class="mono" style="color:var(--accent)">'+fmtDur(r.avg_active_seconds)+'</td><td class="mono">'+fmtDur(r.avg_wait_seconds)+'</td><td>'+(r.wait_ratio_pct>30?'<span style="color:var(--warn)">'+r.wait_ratio_pct+'%</span>':r.wait_ratio_pct+'%')+'</td></tr>').join('');
+
+  root.appendChild(createEl(
+    '<div class="section-title"><span class="section-num">03</span> Data Quality</div>' +
+    '<div class="grid grid-3">' +
+      '<div class="card"><div class="card-header"><span class="dot"></span> Classification Distribution</div><canvas id="chart-cls-dist" height="200"></canvas></div>' +
+      '<div class="card"><div class="card-header"><span class="dot"></span> Weekly Volume</div><canvas id="chart-weekly" height="200"></canvas></div>' +
+      '<div class="card"><div class="card-header"><span class="dot"></span> Type Coverage</div><div class="table-wrap"><table><tr><th>Type</th><th>Count</th><th>Auto-ETA</th><th>Robust</th></tr>'+covRows+'</table></div></div>' +
+    '</div>' +
+    '<div class="grid grid-2">' +
+      '<div class="card"><div class="card-header"><span class="dot"></span> Turns by Project</div><div class="table-wrap"><table><tr><th>Project</th><th>Total</th><th>This Week</th></tr>'+projRows+'</table></div></div>' +
+      '<div class="card"><div class="card-header"><span class="dot"></span> Time Ratios</div><div class="table-wrap"><table><tr><th>Project</th><th>Wall</th><th>Active</th><th>Wait</th><th>Wait %</th></tr>'+ratioRows+'</table></div></div>' +
+    '</div>'
+  ));
+
+  if (dq.classification_distribution.length > 0) {
+    new Chart(document.getElementById('chart-cls-dist'), { type:'doughnut', data:{labels:dq.classification_distribution.map(d=>d.classification+' ('+d.pct+'%)'), datasets:[{data:dq.classification_distribution.map(d=>d.count),backgroundColor:CC,borderWidth:0}]}, options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{padding:8,usePointStyle:true,pointStyle:'circle',font:{size:10}}}},cutout:'55%'} });
+  }
+  if (dq.weekly_volume && dq.weekly_volume.length > 0) {
+    new Chart(document.getElementById('chart-weekly'), { type:'line', data:{labels:dq.weekly_volume.map(w=>w.week), datasets:[{data:dq.weekly_volume.map(w=>w.count),borderColor:'#6ee7b7',backgroundColor:'rgba(110,231,183,0.08)',fill:true,tension:0.3,pointRadius:3,pointBackgroundColor:'#6ee7b7'}]}, options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}}} });
+  }
+}
+
+// ── Section 4: Supabase ──────────────────────────────────────
+function renderSupabase(root, sb) {
+  const typeBadges = sb.types_with_baselines ? sb.types_with_baselines.map(t => badge(t,'ok')).join(' ') : '';
+  root.appendChild(createEl(
+    '<div class="section-title"><span class="section-num">04</span> Supabase Layer</div>' +
+    '<div class="grid grid-4">' +
+      '<div class="card stat"><div class="stat-value '+(sb.available?'accent':'error')+'">'+(sb.available?'ON':'OFF')+'</div><div class="stat-label">Connection</div></div>' +
+      '<div class="card stat"><div class="stat-value">'+(sb.baselines_count??'—')+'</div><div class="stat-label">Baselines</div></div>' +
+      '<div class="card stat"><div class="stat-value">'+(sb.total_community_samples??'—')+'</div><div class="stat-label">Community Samples</div></div>' +
+      '<div class="card stat"><div class="stat-value" style="font-size:14px">'+(sb.last_baseline_refresh?fmtDate(sb.last_baseline_refresh):'—')+'</div><div class="stat-label">Last Refresh</div></div>' +
+    '</div>' +
+    (typeBadges ? '<div class="card" style="margin-bottom:32px"><div class="card-header"><span class="dot"></span> Types with Baselines</div><div style="display:flex;gap:8px;flex-wrap:wrap">'+typeBadges+'</div></div>' : '')
+  ));
+}
+
+// ── Section 5: Insights ──────────────────────────────────────
+function renderInsights(root, insights) {
+  if (!insights || insights.length === 0) {
+    root.appendChild(createEl('<div class="section-title"><span class="section-num">05</span> Insights</div><div class="card" style="margin-bottom:32px"><p style="color:var(--text-muted);padding:12px">Not enough data for insights (need 5+ completed tasks).</p></div>'));
+    return;
+  }
+  const kindLabels = {'error-duration':'Error Overhead','context-switch':'Context Switch Cost','volatility-causes':'Volatility Causes','file-ops':'File Operations','model-comparison':'Model Comparison','efficiency':'Efficiency','session-fatigue':'Session Fatigue','time-of-day':'Time of Day','trends':'Weekly Trends'};
+  let cards = '';
+  for (const ins of insights) {
+    let body = '';
+    switch (ins.kind) {
+      case 'error-duration': body='<p>With errors: <strong style="color:var(--error)">'+fmtDur(ins.medianWithErrors)+'</strong></p><p>Without: <strong style="color:var(--accent)">'+fmtDur(ins.medianWithoutErrors)+'</strong></p><p>Overhead: <strong>'+ins.overheadPct+'%</strong></p>'; break;
+      case 'context-switch': body='<p>Same type: <strong style="color:var(--accent)">'+fmtDur(ins.medianSameType)+'</strong></p><p>Switch: <strong>'+fmtDur(ins.medianDiffType)+'</strong></p><p>Cost: <strong>'+ins.overheadPct+'%</strong></p>'; break;
+      case 'session-fatigue': body='<p>Fatigue ratio: <strong style="color:'+(ins.fatigueRatio>1.5?'var(--warn)':'var(--accent)')+'">'+ins.fatigueRatio.toFixed(2)+'x</strong></p>'+ins.avgByPosition.map(p=>'<p>#'+p.position+': '+fmtDur(Math.round(p.avgDuration))+' ('+p.count+')</p>').join(''); break;
+      case 'time-of-day': body='<p>Fastest: <strong style="color:var(--accent)">'+esc(ins.fastestPeriod)+'</strong></p>'+ins.byPeriod.map(p=>'<p>'+esc(p.period)+': '+fmtDur(p.medianDuration)+' ('+p.count+')</p>').join(''); break;
+      case 'trends': body='<p>Direction: '+(ins.direction==='improving'?badge('improving','ok'):ins.direction==='degrading'?badge('degrading','error'):badge('stable','info'))+'</p><p>Change: <strong>'+(ins.changeRate>0?'+':'')+ins.changeRate+'%</strong></p>'; break;
+      case 'model-comparison': body='<p>Fastest: <strong style="color:var(--accent)">'+esc(ins.fastestModel)+'</strong></p>'+ins.byModel.map(m=>'<p>'+esc(m.model)+': '+fmtDur(m.medianDuration)+' ('+m.count+')</p>').join(''); break;
+      default: body='<p style="color:var(--text-muted)">Sample size: '+ins.sampleSize+'</p>';
+    }
+    cards += '<div class="card"><div class="card-header"><span class="dot"></span> '+(kindLabels[ins.kind]||esc(ins.kind))+'</div><div style="font-size:12px;line-height:1.8">'+body+'</div></div>';
+  }
+  root.appendChild(createEl('<div class="section-title"><span class="section-num">05</span> Insights <span style="font-size:12px;color:var(--text-muted);font-family:var(--mono)">'+insights.length+'/9</span></div><div class="grid grid-3">'+cards+'</div>'));
+}
+
+// ── Section 6: Subagents ─────────────────────────────────────
+function renderSubagents(root, sub) {
+  const rows = sub.by_agent_type.map(a => '<tr><td class="mono">'+esc(a.agent_type)+'</td><td style="color:var(--accent)">'+a.count+'</td><td class="mono">'+fmtDur(a.median_seconds)+'</td></tr>').join('');
+  root.appendChild(createEl(
+    '<div class="section-title"><span class="section-num">06</span> Subagents</div>' +
+    '<div class="grid grid-4">' +
+      '<div class="card stat"><div class="stat-value">'+sub.main_turns+'</div><div class="stat-label">Main Turns</div></div>' +
+      '<div class="card stat"><div class="stat-value accent">'+sub.subagent_turns+'</div><div class="stat-label">Subagent Turns</div></div>' +
+      '<div class="card stat"><div class="stat-value">'+sub.ratio+'</div><div class="stat-label">Sub/Main Ratio</div></div>' +
+      '<div class="card stat"><div class="stat-value">'+fmtDur(sub.median_subagent_seconds)+'</div><div class="stat-label">Median Sub Duration</div></div>' +
+    '</div>' +
+    (sub.by_agent_type.length > 0 ? '<div class="card" style="margin-bottom:32px"><div class="card-header"><span class="dot"></span> By Agent Type</div><div class="table-wrap"><table><tr><th>Agent Type</th><th>Count</th><th>Median Duration</th></tr>'+rows+'</table></div></div>' : '')
+  ));
+}
+</script>
+</body>
+</html>

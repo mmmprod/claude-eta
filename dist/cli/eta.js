@@ -14,6 +14,7 @@ import { loadCompletedTurnsCompat, turnsToTaskEntries } from '../compat.js';
 import { showExport } from './export.js';
 import { showContribute, executeContribute } from './contribute.js';
 import { showCompare } from './compare.js';
+import { showAdminExport } from './admin-export.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const EXPORT_DIR = path.join(os.homedir(), '.claude', 'plugins', 'claude-eta', 'export');
@@ -258,6 +259,8 @@ async function main() {
         console.log(`| \`/eta auto on\`               | Enable Auto-ETA injection                  |`);
         console.log(`| \`/eta auto off\`              | Disable Auto-ETA injection                 |`);
         console.log(`| \`/eta insights\`              | Deep patterns in your task data             |`);
+        console.log(`| \`/eta recap\`                 | Today's activity summary                    |`);
+        console.log(`| \`/eta admin-export\`          | Full admin dashboard JSON export            |`);
         console.log(`| \`/eta help\`                  | This help                                      |`);
         console.log(`\nAll data is 100% local by default. Community features (\`compare\`, \`contribute\`) are opt-in.`);
         console.log(FEEDBACK_LINE);
@@ -280,6 +283,10 @@ async function main() {
             return;
         case 'export':
             showExport(project, pluginVersion);
+            console.log(FEEDBACK_LINE);
+            return;
+        case 'admin-export':
+            await showAdminExport(pluginVersion);
             console.log(FEEDBACK_LINE);
             return;
         case 'auto': {
