@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.4](https://github.com/mmmprod/claude-eta/compare/claude-eta-v0.3.3...claude-eta-v0.3.4) (2026-03-20)
+
+
+### Bug Fixes
+
+* adversarial review fixes — binary blacklist, dedup IDs, sentence boundary, remove "check" ([#32](https://github.com/mmmprod/claude-eta/issues/32)) ([bde0feb](https://github.com/mmmprod/claude-eta/commit/bde0feb589f5a4ca9de4f16c7f4156bae777373c))
+
 ## [0.3.3](https://github.com/mmmprod/claude-eta/compare/claude-eta-v0.3.2...claude-eta-v0.3.3) (2026-03-20)
 
 
