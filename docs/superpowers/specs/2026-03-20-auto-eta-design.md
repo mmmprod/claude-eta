@@ -93,7 +93,7 @@ Puisque `loadProject` garantit `eta_accuracy` non-undefined, le paramètre `etaA
 | `loadPreferences()` | `_preferences.json` | try/catch, défauts `{ auto_eta: false, prompts_since_last_eta: 0 }` |
 | `savePreferences(prefs)` | `_preferences.json` | écriture directe |
 | `setLastEta(prediction)` | `_last_eta.json` | écriture directe |
-| `consumeLastEta(maxAgeMs?)` | `_last_eta.json` | lire + supprimer + guard fraîcheur (même pattern que `consumeLastCompleted`, défaut 30min) |
+| `consumeLastEta()` | `_last_eta.json` | lire + supprimer (pas de maxAgeMs — le guard `task_id` mismatch dans le self-check suffit à filtrer les fichiers stale ; un maxAge tuerait le self-check sur les tâches longues >30min) |
 
 ### Fichiers de données
 
@@ -117,7 +117,11 @@ export const ACCURACY_MIN_RATE = 0.5;
 
 export const CONVERSATIONAL_PATTERNS = /^(merci|thanks|ok|oui|yes|non|no|continue|go|sure|d'accord|parfait|cool|nice|got it|understood|tell me about|what is a |how does .{0,10} work)/i;
 
-export const DISABLE_PATTERNS = /\b(stop|disable|remove|hide|arrête|désactive|enlève)\b.{0,20}\bauto.?eta\b/i;
+export const DISABLE_PATTERNS = /^.{0,50}\b(stop|disable|remove|hide|arrête|désactive|enlève)\b.{0,20}\bauto.?eta\b/i;
+
+// checkDisableRequest also rejects if the prompt contains coding terms
+// (implement|refactor|code|module|function|file) — prevents false positives
+// when a dev is working on the auto-eta code itself.
 ```
 
 ## Decision flow dans `evaluateAutoEta`
@@ -125,13 +129,19 @@ export const DISABLE_PATTERNS = /\b(stop|disable|remove|hide|arrête|désactive|
 Ordre exact :
 
 1. **Master switch** : `prefs.auto_eta === true`
-2. **Min type tasks** : `clsStats = stats.byClassification.find(classification)`, `clsStats.count >= MIN_TYPE_TASKS`
-3. **Volatility adjustment** : si `clsStats.volatility === 'high'` alors mult = 1.5, conf = 60% ; sinon mult = 1, conf = 80% (pas d'exclusion, ajustement)
-4. **Not "other"** : `classification !== 'other'`
-5. **Not conversational** : `prompt.length >= 20` ET `!CONVERSATIONAL_PATTERNS.test(prompt)`
-6. **Interval sanity** : `high > low * MAX_INTERVAL_RATIO` alors skip (low est garanti >= 1 par `estimateTask`)
-7. **Per-type accuracy** : `etaAccuracy[classification]` a 10+ prédictions ET misses/total > 0.5 alors skip
-8. **Cooldown** : premier prompt du task (taskId change) OU `prompts_since >= COOLDOWN_INTERVAL`
+2. **Not "other"** : `classification !== 'other'`
+3. **Min type tasks** : `clsStats = stats.byClassification.find(classification)`, `clsStats.count >= MIN_TYPE_TASKS`
+4. **Not conversational** : `prompt.length >= 20` ET `!CONVERSATIONAL_PATTERNS.test(prompt)`
+5. **Compute estimate** : `estimate = estimateTask(stats, classification, scorePromptComplexity(prompt))`. Importe `estimateTask` et `scorePromptComplexity` depuis `stats.ts`. La fonction reste pure (pas d'I/O).
+6. **Volatility adjustment** : si `clsStats.volatility === 'high'` alors :
+   - `estimate.low = Math.max(1, Math.round(estimate.low / HIGH_VOL_INTERVAL_MULT))`
+   - `estimate.high = Math.round(estimate.high * HIGH_VOL_INTERVAL_MULT)`
+   - `confidence = HIGH_VOL_CONFIDENCE (60%)`
+   - sinon : `confidence = NORMAL_CONFIDENCE (80%)`
+   - Élargissement symétrique post-estimateTask, post-complexity-shift.
+7. **Interval sanity** : `estimate.high > estimate.low * MAX_INTERVAL_RATIO` alors skip (low garanti >= 1)
+8. **Per-type accuracy** : `etaAccuracy[classification]` a 10+ prédictions ET misses/total > 0.5 alors skip
+9. **Cooldown** : premier prompt du task (taskId change) OU `prompts_since >= COOLDOWN_INTERVAL`
 
 Précondition (vérifiée par le hook) : `stats !== null`. Le hook ne call pas `evaluateAutoEta` si stats est null. Le paramètre `stats: ProjectStats` est non-nullable.
 
@@ -164,6 +174,8 @@ Nouveau — Auto-ETA (après étape 6) :
 
 `stats` utilisé pour counts/intervalles est calculé à l'étape 4, AVANT ajout de la tâche en cours. `data.eta_accuracy` est le seul champ accédé depuis projectData.
 
+Note : le hook garantit `prompt` est une string via `stdin.prompt ?? ''`. `evaluateAutoEta` et `checkDisableRequest` peuvent assumer string non-undefined.
+
 ## Self-check dans `on-stop.ts`
 
 Dans `flushAndRecord()`, APRÈS le flush + setLastCompleted :
@@ -188,9 +200,16 @@ Pré-filter dans `extractDurations()` :
 ```typescript
 const filteredText = text
   .split('\n')
-  .filter(line => !line.includes('\u23F1') && !line.includes('[claude-eta'))
+  .filter(line =>
+    !line.includes('\u23F1') &&
+    !line.includes('[claude-eta') &&
+    !line.includes('Estimated:') &&
+    !line.includes('Estimé:')
+  )
   .join('\n');
 ```
+
+Le guard matche le symbole Unicode (⏱ U+23F1), le préfixe plugin, ET le texte d'estimation en EN/FR. Robuste si le symbole change accidentellement.
 
 Puis exec le regex sur filteredText au lieu de text.
 
@@ -238,52 +257,52 @@ Do not elaborate on it, do not caveat it, do not discuss it unless the user asks
 
 ### `tests/auto-eta.test.js` (31 tests)
 
-**checkDisableRequest (5 tests)**
+**checkDisableRequest (6 tests)**
 
 1. "stop auto-eta" retourne true
 2. "désactive l'auto eta" retourne true
 3. "explain what eta means" retourne false
 4. "what is the eta for this" retourne false
-5. "remove the auto-eta module from the codebase" retourne true (coding task, mais matche le pattern — faux positif accepté car rare et bénin, l'user peut /eta auto on)
+5. "remove the auto-eta module from the codebase" retourne false (coding term "module" rejette le match)
+6. "stop auto-eta please" retourne true (dans les 50 premiers chars, pas de coding term)
 
 **evaluateAutoEta conditions (10 tests)**
 
-6. Master switch off : auto_eta false retourne skip
+7. Master switch off : auto_eta false retourne skip
 7. Min type tasks : < 5 tasks du type retourne skip
-8. Min type tasks : >= 5 tasks ne skip pas (positive)
-9. Volatility : high volatility retourne inject (pas skip, juste ajustement)
-10. Not other : classification "other" retourne skip
-11. Not conversational : prompt < 20 chars retourne skip
-12. Not conversational : prompt "merci beaucoup" retourne skip
-13. Interval sanity : high > 5 fois low retourne skip
-14. Per-type accuracy : >50% miss sur 10+ retourne skip
-15. Toutes conditions passent retourne inject, contient marqueur auto-eta
+9. Min type tasks : >= 5 tasks ne skip pas (positive)
+10. Volatility : high volatility retourne inject (pas skip, juste ajustement)
+11. Not other : classification "other" retourne skip
+12. Not conversational : prompt < 20 chars retourne skip
+13. Not conversational : prompt "merci beaucoup" retourne skip
+14. Interval sanity : high > 5 fois low retourne skip
+15. Per-type accuracy : >50% miss sur 10+ retourne skip
+16. Toutes conditions passent retourne inject, contient marqueur auto-eta
 
 **High volatility values (1 test)**
 
-16. Volatility "high" retourne confidence 60%, intervalle x1.5 (vérifie les valeurs numériques)
+17. Volatility "high" retourne confidence 60%, intervalle x1.5 (vérifie les valeurs numériques)
 
 **Cooldown (4 tests)**
 
-17. Premier prompt (new task) retourne inject
-18. 2ème prompt même tâche retourne cooldown
-19. 5ème prompt (prompts_since = 4) retourne inject
-20. Tâche change retourne reset puis inject
+18. Premier prompt (new task) retourne inject
+19. 2ème prompt même tâche retourne cooldown
+20. 5ème prompt (prompts_since = 4) retourne inject
+21. Tâche change retourne reset puis inject
 
 **Self-check accuracy (5 tests)**
 
-21. Durée dans l'intervalle retourne hits++ pour le type
-22. Durée hors intervalle retourne misses++ pour le type
-23. 6 miss sur 10 retourne type auto-désactivé (evaluateAutoEta skip)
-24. 5 miss sur 10 retourne reste actif (seuil >50% strict)
-25. Fichier _last_eta.json absent retourne self-check skip silencieusement
+22. Durée dans l'intervalle retourne hits++ pour le type
+23. Durée hors intervalle retourne misses++ pour le type
+24. 6 miss sur 10 retourne type auto-désactivé (evaluateAutoEta skip)
+25. 5 miss sur 10 retourne reste actif (seuil >50% strict)
+26. Fichier _last_eta.json absent retourne self-check skip silencieusement
 
-**Store preferences (4 tests)**
+**Store preferences (3 tests)**
 
-26. load/save roundtrip
-27. Fichier manquant retourne défauts { auto_eta: false, prompts_since_last_eta: 0 }
-28. consumeLastEta retourne read + delete
-29. consumeLastEta stale file (> maxAgeMs) retourne null, fichier supprimé
+27. load/save roundtrip
+28. Fichier manquant retourne défauts { auto_eta: false, prompts_since_last_eta: 0 }
+29. consumeLastEta retourne read + delete
 
 **Format injection (1 test)**
 
@@ -292,6 +311,8 @@ Do not elaborate on it, do not caveat it, do not discuss it unless the user asks
 **loadProject normalization (1 test)**
 
 31. ProjectData sans eta_accuracy retourne {} après loadProject
+
+**Note : Integration test (on-prompt → _last_eta.json → on-stop → accuracy update) à ajouter post-ship. Non bloquant pour v1.**
 
 ### `tests/detector.test.js` (2 tests ajoutés)
 
