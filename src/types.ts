@@ -35,6 +35,7 @@ export interface ProjectData {
   tasks: TaskEntry[];
   file_count?: number;
   loc_bucket?: string;
+  eta_accuracy?: Record<string, { hits: number; misses: number }>;
 }
 
 /** Active task tracker (stored in _active.json) */
@@ -54,6 +55,22 @@ export type LastCompleted = Pick<
   TaskEntry,
   'classification' | 'tool_calls' | 'files_read' | 'files_edited' | 'files_created'
 > & { duration_seconds: number };
+
+/** User preferences for Auto-ETA (stored in _preferences.json) */
+export interface UserPreferences {
+  auto_eta: boolean;
+  prompts_since_last_eta: number;
+  last_eta_task_id?: string;
+}
+
+/** Prediction snapshot for self-check (stored in _last_eta.json) */
+export interface LastEtaPrediction {
+  low: number;
+  high: number;
+  classification: string;
+  task_id: string;
+  timestamp: string;
+}
 
 // ── Hook stdin types (per Claude Code docs) ──────────────────────
 

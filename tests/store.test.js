@@ -12,6 +12,10 @@ import {
   getActiveTask,
   clearActiveTask,
   incrementActive,
+  savePreferences,
+  loadPreferences,
+  setLastEta,
+  consumeLastEta,
 } from '../dist/store.js';
 
 const DATA_DIR = path.join(os.homedir(), '.claude', 'plugins', 'claude-eta', 'data');
@@ -151,5 +155,41 @@ describe('store', () => {
       incrementActive({ tool_calls: 1 }); // should not throw
       assert.equal(getActiveTask(), null);
     });
+  });
+});
+
+describe('preferences', () => {
+  it('load/save roundtrip', () => {
+    const prefs = { auto_eta: true, prompts_since_last_eta: 3, last_eta_task_id: 'abc' };
+    savePreferences(prefs);
+    const loaded = loadPreferences();
+    assert.deepEqual(loaded, prefs);
+  });
+
+  it('returns defaults when file missing', () => {
+    // loadPreferences handles missing file via try/catch
+    // This test relies on the fact that the file was cleaned up or doesn't exist
+    // The important thing is it doesn't throw
+    const loaded = loadPreferences();
+    assert.equal(typeof loaded.auto_eta, 'boolean');
+    assert.equal(typeof loaded.prompts_since_last_eta, 'number');
+  });
+
+  it('consumeLastEta reads and deletes', () => {
+    const pred = { low: 10, high: 60, classification: 'bugfix', task_id: 'x', timestamp: new Date().toISOString() };
+    setLastEta(pred);
+    const result = consumeLastEta();
+    assert.deepEqual(result, pred);
+    assert.equal(consumeLastEta(), null); // file deleted
+  });
+});
+
+describe('loadProject eta_accuracy normalization', () => {
+  it('normalizes missing eta_accuracy to empty object', () => {
+    // Use a unique project name to avoid conflicts
+    const project = 'test-eta-norm-' + Date.now();
+    const data = loadProject(project);
+    // Fresh project should have eta_accuracy initialized
+    assert.deepEqual(data.eta_accuracy, {});
   });
 });

@@ -35,10 +35,11 @@ export function loadProject(project) {
         const content = fs.readFileSync(filePath, 'utf-8');
         const data = JSON.parse(content);
         data.tasks = data.tasks.map(normalizeTask);
+        data.eta_accuracy = data.eta_accuracy ?? {};
         return data;
     }
     catch {
-        return { project, created: new Date().toISOString(), tasks: [] };
+        return { project, created: new Date().toISOString(), tasks: [], eta_accuracy: {} };
     }
 }
 export function saveProject(data) {
@@ -154,6 +155,48 @@ export function consumeLastCompleted(maxAgeMs = 30 * 60 * 1000) {
         fs.unlinkSync(p);
         if (Date.now() - mtime > maxAgeMs)
             return null;
+        return data;
+    }
+    catch {
+        return null;
+    }
+}
+// ── Preferences (_preferences.json) ──────────────────────────
+function getPreferencesPath() {
+    return path.join(DATA_DIR, '_preferences.json');
+}
+export function loadPreferences() {
+    try {
+        const content = fs.readFileSync(getPreferencesPath(), 'utf-8');
+        const prefs = JSON.parse(content);
+        return {
+            auto_eta: prefs.auto_eta ?? false,
+            prompts_since_last_eta: prefs.prompts_since_last_eta ?? 0,
+            last_eta_task_id: prefs.last_eta_task_id,
+        };
+    }
+    catch {
+        return { auto_eta: false, prompts_since_last_eta: 0 };
+    }
+}
+export function savePreferences(prefs) {
+    ensureDataDir();
+    fs.writeFileSync(getPreferencesPath(), JSON.stringify(prefs, null, 2), 'utf-8');
+}
+// ── Last ETA prediction (_last_eta.json) ─────────────────────
+function getLastEtaPath() {
+    return path.join(DATA_DIR, '_last_eta.json');
+}
+export function setLastEta(prediction) {
+    ensureDataDir();
+    fs.writeFileSync(getLastEtaPath(), JSON.stringify(prediction), 'utf-8');
+}
+/** Read and delete in one shot. No maxAge — task_id mismatch guards stale files. */
+export function consumeLastEta() {
+    const p = getLastEtaPath();
+    try {
+        const data = JSON.parse(fs.readFileSync(p, 'utf-8'));
+        fs.unlinkSync(p);
         return data;
     }
     catch {
