@@ -2,7 +2,7 @@
  * Auto-ETA decision module — pure functions, zero I/O.
  * Mirrors detector.ts pattern: called by on-prompt.ts hook.
  */
-import type { UserPreferences, LastEtaPrediction } from './types.js';
+import type { UserPreferences, LastEtaPrediction, TaskClassification } from './types.js';
 import type { ProjectStats } from './stats.js';
 export declare const MIN_TYPE_TASKS = 5;
 export declare const HIGH_VOL_INTERVAL_MULT = 1.5;
@@ -33,7 +33,7 @@ export declare function evaluateAutoEta(params: {
         hits: number;
         misses: number;
     }>;
-    classification: string;
+    classification: TaskClassification;
     prompt: string;
     taskId: string;
 }): AutoEtaDecision;

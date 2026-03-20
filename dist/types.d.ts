@@ -54,7 +54,7 @@ export interface UserPreferences {
 export interface LastEtaPrediction {
     low: number;
     high: number;
-    classification: string;
+    classification: TaskClassification;
     task_id: string;
     timestamp: string;
 }

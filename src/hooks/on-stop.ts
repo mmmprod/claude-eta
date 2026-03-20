@@ -16,16 +16,18 @@ function blockWithCorrection(reason: string): void {
   process.stdout.write(JSON.stringify({ decision: 'block', reason }));
 }
 
-/** Flush the active task and record a recap for the next prompt to pick up */
-function flushAndRecord(): void {
+/** Flush the active task and record a recap for the next prompt to pick up.
+ *  Returns the updated ProjectData (caller can reuse for self-check). */
+function flushAndRecord(): import('../types.js').ProjectData | null {
   const data = flushActiveTask();
-  if (!data) return;
+  if (!data) return null;
 
   const lastTask = data.tasks[data.tasks.length - 1];
   if (lastTask?.duration_seconds != null) {
     const { classification, duration_seconds, tool_calls, files_read, files_edited, files_created } = lastTask;
     setLastCompleted({ classification, duration_seconds, tool_calls, files_read, files_edited, files_created });
   }
+  return data;
 }
 
 async function main(): Promise<void> {
@@ -75,18 +77,13 @@ async function main(): Promise<void> {
   }
 
   // No bad estimate detected — flush normally
-  const activeBeforeFlush = getActiveTask();
-  flushAndRecord();
+  const flushedData = flushAndRecord();
 
-  // Self-check Auto-ETA accuracy
-  if (stdin?.stop_hook_active) {
-    // BS detector fired — duration includes correction time, skip scoring
-    consumeLastEta(); // cleanup only
-  } else if (activeBeforeFlush) {
+  // Self-check Auto-ETA accuracy (reuse flushed data, avoid redundant loadProject)
+  if (flushedData && active) {
     const lastEta = consumeLastEta();
     if (lastEta) {
-      const projectData = loadProject(activeBeforeFlush.project);
-      const lastTask = projectData.tasks[projectData.tasks.length - 1];
+      const lastTask = flushedData.tasks[flushedData.tasks.length - 1];
       if (
         lastTask?.task_id === lastEta.task_id &&
         lastTask.duration_seconds != null
@@ -94,11 +91,12 @@ async function main(): Promise<void> {
         const hit =
           lastTask.duration_seconds >= lastEta.low &&
           lastTask.duration_seconds <= lastEta.high;
-        projectData.eta_accuracy ??= {};
-        projectData.eta_accuracy[lastEta.classification] ??= { hits: 0, misses: 0 };
-        if (hit) projectData.eta_accuracy[lastEta.classification].hits++;
-        else projectData.eta_accuracy[lastEta.classification].misses++;
-        saveProject(projectData);
+        const accuracy = flushedData.eta_accuracy ?? {};
+        accuracy[lastEta.classification] ??= { hits: 0, misses: 0 };
+        if (hit) accuracy[lastEta.classification].hits++;
+        else accuracy[lastEta.classification].misses++;
+        flushedData.eta_accuracy = accuracy;
+        saveProject(flushedData);
       }
     }
   }

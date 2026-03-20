@@ -348,16 +348,13 @@ async function main(): Promise<void> {
       break;
     case 'auto': {
       const subArg = process.argv[3];
-      if (subArg === 'on') {
+      if (subArg === 'on' || subArg === 'off') {
         const prefs = loadPreferences();
-        prefs.auto_eta = true;
+        prefs.auto_eta = subArg === 'on';
         savePreferences(prefs);
-        console.log('Auto-ETA **enabled**. Estimates will appear when conditions are met (min 5 tasks of the same type, not "other", not conversational).');
-      } else if (subArg === 'off') {
-        const prefs = loadPreferences();
-        prefs.auto_eta = false;
-        savePreferences(prefs);
-        console.log('Auto-ETA **disabled**.');
+        console.log(subArg === 'on'
+          ? 'Auto-ETA **enabled**. Estimates will appear when conditions are met (min 5 tasks of the same type, not "other", not conversational).'
+          : 'Auto-ETA **disabled**.');
       } else {
         showAuto(data);
       }
