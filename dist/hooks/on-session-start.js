@@ -5,12 +5,10 @@
  */
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { readStdin } from '../stdin.js';
 import { loadProject, saveProject } from '../store.js';
 import { computeStats, formatStatsContext, CALIBRATION_THRESHOLD } from '../stats.js';
 import { locBucket } from '../anonymize.js';
-import { ensureEtaCommandAlias } from '../command-alias.js';
 const IGNORE_DIRS = new Set([
     'node_modules',
     '.git',
@@ -25,9 +23,6 @@ const IGNORE_DIRS = new Set([
     '.output',
 ]);
 const MAX_FILES = 50_000;
-function pluginRootFromImportMeta(importMetaUrl) {
-    return path.resolve(path.dirname(fileURLToPath(importMetaUrl)), '../..');
-}
 /** Count source files and total bytes for LOC estimation */
 function countSourceFiles(dir) {
     let fileCount = 0;
@@ -66,7 +61,6 @@ function countSourceFiles(dir) {
 }
 async function main() {
     const stdin = await readStdin();
-    ensureEtaCommandAlias(pluginRootFromImportMeta(import.meta.url));
     const cwd = stdin?.cwd;
     if (!cwd)
         return;
@@ -98,7 +92,7 @@ async function main() {
     // One-time hint about community features (shown between tasks 5-7)
     if (completed >= CALIBRATION_THRESHOLD && completed <= CALIBRATION_THRESHOLD + 2) {
         context +=
-            '\nTip: run `/eta compare` to see how your pace compares to the community, or `/claude-eta:eta compare` if the shortcut is not loaded yet.';
+            '\nTip: run `/eta compare` to see how your pace compares to the community, or `/eta help` for all commands.';
     }
     process.stdout.write(context);
 }
