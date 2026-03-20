@@ -8,7 +8,7 @@ import { median, groupBy } from './types.js';
 
 const MAX_TREND_WEEKS = 12;
 
-function isoWeekLabel(iso: string): string {
+export function isoWeekLabel(iso: string): string {
   const d = new Date(iso);
   const dayOfYear = Math.floor((d.getTime() - new Date(d.getFullYear(), 0, 1).getTime()) / 86400000) + 1;
   const weekDay = d.getDay() || 7; // Mon=1 ... Sun=7
