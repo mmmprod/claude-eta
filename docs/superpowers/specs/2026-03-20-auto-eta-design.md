@@ -133,12 +133,15 @@ Ordre exact :
 3. **Min type tasks** : `clsStats = stats.byClassification.find(classification)`, `clsStats.count >= MIN_TYPE_TASKS`
 4. **Not conversational** : `prompt.length >= 20` ET `!CONVERSATIONAL_PATTERNS.test(prompt)`
 5. **Compute estimate** : `estimate = estimateTask(stats, classification, scorePromptComplexity(prompt))`. Importe `estimateTask` et `scorePromptComplexity` depuis `stats.ts`. La fonction reste pure (pas d'I/O).
-6. **Volatility adjustment** : si `clsStats.volatility === 'high'` alors :
-   - `estimate.low = Math.max(1, Math.round(estimate.low / HIGH_VOL_INTERVAL_MULT))`
-   - `estimate.high = Math.round(estimate.high * HIGH_VOL_INTERVAL_MULT)`
-   - `confidence = HIGH_VOL_CONFIDENCE (60%)`
-   - sinon : `confidence = NORMAL_CONFIDENCE (80%)`
-   - Élargissement symétrique post-estimateTask, post-complexity-shift.
+6. **Volatility adjustment** : ne pas muter `estimate`, créer un nouvel objet :
+   ```typescript
+   const adjusted = clsStats.volatility === 'high'
+     ? { ...estimate, low: Math.max(1, Math.round(estimate.low / HIGH_VOL_INTERVAL_MULT)),
+         high: Math.round(estimate.high * HIGH_VOL_INTERVAL_MULT) }
+     : estimate;
+   const confidence = clsStats.volatility === 'high' ? HIGH_VOL_CONFIDENCE : NORMAL_CONFIDENCE;
+   ```
+   Élargissement symétrique post-estimateTask, post-complexity-shift. Pas de mutation (cohérent avec `stats.ts`).
 7. **Interval sanity** : `estimate.high > estimate.low * MAX_INTERVAL_RATIO` alors skip (low garanti >= 1)
 8. **Per-type accuracy** : `etaAccuracy[classification]` a 10+ prédictions ET misses/total > 0.5 alors skip
 9. **Cooldown** : premier prompt du task (taskId change) OU `prompts_since >= COOLDOWN_INTERVAL`
@@ -178,16 +181,34 @@ Note : le hook garantit `prompt` est une string via `stdin.prompt ?? ''`. `evalu
 
 ## Self-check dans `on-stop.ts`
 
-Dans `flushAndRecord()`, APRÈS le flush + setLastCompleted :
+Le self-check vit dans `main()`, PAS dans `flushAndRecord()`. Il s'exécute après `flushAndRecord()` avec accès au `stdin` pour le guard BS detector.
 
-1. consumeLastEta() retourne lastEta ou null
+```
+// dans main(), après flushAndRecord()
+if (stdin?.stop_hook_active) {
+  // BS detector a bloqué le premier Stop. La durée inclut le temps de correction.
+  // Ne pas scorer l'accuracy — le miss serait injuste.
+  // Cleanup le fichier quand même.
+  consumeLastEta();
+  return;
+}
+
+// Self-check normal
+const data = loadProject(active.project);  // re-load post-flush
+const lastEta = consumeLastEta();
+// ... étapes 2-10 ci-dessous
+```
+
+Étapes du self-check (quand `stop_hook_active` est false) :
+
+1. `consumeLastEta()` retourne lastEta ou null
 2. Si lastEta est null alors skip
-3. Si data est null alors skip
+3. Re-load projectData post-flush (pour avoir duration_seconds)
 4. lastTask = data.tasks[dernier]
 5. Si lastTask.task_id !== lastEta.task_id alors skip (mismatch)
 6. Si lastTask.duration_seconds est null alors skip
 7. hit = duration >= lastEta.low ET duration <= lastEta.high
-8. data.eta_accuracy[lastEta.classification] avec init par défaut { hits: 0, misses: 0 }
+8. data.eta_accuracy[lastEta.classification] ??= { hits: 0, misses: 0 }
 9. Incrémenter hits ou misses
 10. saveProject(data)
 
@@ -200,16 +221,11 @@ Pré-filter dans `extractDurations()` :
 ```typescript
 const filteredText = text
   .split('\n')
-  .filter(line =>
-    !line.includes('\u23F1') &&
-    !line.includes('[claude-eta') &&
-    !line.includes('Estimated:') &&
-    !line.includes('Estimé:')
-  )
+  .filter(line => !line.includes('\u23F1') && !line.includes('[claude-eta'))
   .join('\n');
 ```
 
-Le guard matche le symbole Unicode (⏱ U+23F1), le préfixe plugin, ET le texte d'estimation en EN/FR. Robuste si le symbole change accidentellement.
+Deux marqueurs invariants : le symbole Unicode ⏱ (U+23F1) et le préfixe plugin `[claude-eta`. Pas de match sur `Estimated:`/`Estimé:` — l'injection dit "adapt to the user's language" donc le texte varie. Les deux marqueurs sont toujours présents et suffisent.
 
 Puis exec le regex sur filteredText au lieu de text.
 
@@ -269,7 +285,7 @@ Do not elaborate on it, do not caveat it, do not discuss it unless the user asks
 **evaluateAutoEta conditions (10 tests)**
 
 7. Master switch off : auto_eta false retourne skip
-7. Min type tasks : < 5 tasks du type retourne skip
+8. Min type tasks : < 5 tasks du type retourne skip
 9. Min type tasks : >= 5 tasks ne skip pas (positive)
 10. Volatility : high volatility retourne inject (pas skip, juste ajustement)
 11. Not other : classification "other" retourne skip
