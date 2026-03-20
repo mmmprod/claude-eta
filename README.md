@@ -34,6 +34,12 @@ claude plugin install claude-eta
 
 No account. No API key. No config. Just start working.
 
+### Update
+
+```bash
+claude plugin update claude-eta@claude-eta
+```
+
 ## How it works
 
 1. You type a prompt
@@ -96,6 +102,47 @@ Community features (`compare`, `contribute`) are opt-in. [Details below.](#commu
 **Sent:** task type, duration, tool/file counts, normalized model name, project hash, contributor hash, plugin version, error count. Run `/eta export` to see the exact payload.
 
 **Never sent:** prompts, file paths, project names, code.
+
+## Maintainer infra
+
+This section is only needed if you run the shared community baseline backend.
+
+### GitHub Actions secrets
+
+The workflow [`refresh-baselines.yml`](./.github/workflows/refresh-baselines.yml) requires these repository secrets:
+
+| Secret | Purpose |
+|---|---|
+| `SUPABASE_FUNCTION_URL` | Supabase Edge Functions base URL, for example `https://<project-ref>.supabase.co/functions/v1` |
+| `SUPABASE_ANON_KEY` | Supabase anon key used as the JWT bearer token when calling the Edge Function |
+| `REFRESH_SECRET` | Shared secret sent in the `x-refresh-secret` header |
+
+### Edge Function environment
+
+The Edge Function [`supabase/functions/refresh-baselines/index.ts`](./supabase/functions/refresh-baselines/index.ts) also needs these runtime variables in Supabase:
+
+| Secret | Purpose |
+|---|---|
+| `REFRESH_SECRET` | Must match the GitHub Actions `REFRESH_SECRET` value |
+| `SUPABASE_SERVICE_ROLE_KEY` | Used by the function to run the `refresh_baselines()` RPC |
+| `SUPABASE_URL` | Provided automatically by Supabase in the function runtime |
+
+### Manual verification
+
+After deploying the SQL schema and the `refresh-baselines` Edge Function:
+
+1. Run the `Refresh community baselines` workflow manually with `workflow_dispatch`.
+2. Confirm the GitHub Actions job succeeds.
+3. Query the public cache endpoint and check that rows exist and `computed_at` moved forward:
+
+```bash
+curl 'https://<project-ref>.supabase.co/rest/v1/baselines_cache?select=task_type,project_loc_bucket,model,sample_count,computed_at&order=computed_at.desc'
+```
+
+If the workflow succeeds but `baselines_cache` is still empty, that usually means there are not enough recent rows in `velocity_records` yet. The current SQL only materializes:
+
+- task-level baselines with at least 10 records in the last 90 days
+- task + project size baselines with at least 5 records in the last 90 days
 
 ## Troubleshooting
 
