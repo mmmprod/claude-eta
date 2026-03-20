@@ -5,11 +5,10 @@
  * without requiring all modules to migrate simultaneously.
  */
 import * as fs from 'node:fs';
-import * as path from 'node:path';
 import { loadCompletedTurns } from './event-store.js';
 import { resolveProjectIdentity } from './identity.js';
 import { needsMigration, legacySlug } from './migrate.js';
-import { getLegacyDataDir } from './paths.js';
+import { findLegacyFile } from './paths.js';
 import { taskEntryToCompletedTurn } from './convert.js';
 // Re-export for external callers
 export { taskEntryToCompletedTurn } from './convert.js';
@@ -40,9 +39,12 @@ function convertLegacyInMemory(slug, projectFp, displayName) {
         .filter((t) => t.duration_seconds != null && t.duration_seconds > 0)
         .map((t) => taskEntryToCompletedTurn(t, projectFp, displayName));
 }
-/** Read legacy project JSON directly from CLAUDE_PLUGIN_DATA/data/ */
+/** Read legacy project JSON from whichever legacy directory contains it */
 function loadLegacyProject(slug) {
-    const filePath = path.join(getLegacyDataDir(), `${slug}.json`);
+    const filePath = findLegacyFile(`${slug}.json`);
+    if (!filePath) {
+        return { project: slug, created: new Date().toISOString(), tasks: [] };
+    }
     try {
         const content = fs.readFileSync(filePath, 'utf-8');
         return JSON.parse(content);

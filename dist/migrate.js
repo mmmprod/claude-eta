@@ -6,19 +6,15 @@
  */
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { getLegacyDataDir, getProjectDir, getCompletedDir, ensureDir, ensureProjectDirs, getProjectMetaPath, } from './paths.js';
+import { findLegacyFile, getProjectDir, getCompletedDir, ensureDir, ensureProjectDirs, getProjectMetaPath, } from './paths.js';
 import { taskEntryToCompletedTurn } from './convert.js';
 const MIGRATION_MARKER = 'migrated-from-legacy.json';
 /** Check if a legacy project file exists and hasn't been migrated yet */
 export function needsMigration(projectFp, legacySlug) {
-    const legacyPath = path.join(getLegacyDataDir(), `${legacySlug}.json`);
+    const legacyPath = findLegacyFile(`${legacySlug}.json`);
+    if (!legacyPath)
+        return false; // No legacy file anywhere
     const markerPath = path.join(getProjectDir(projectFp), MIGRATION_MARKER);
-    try {
-        fs.accessSync(legacyPath, fs.constants.R_OK);
-    }
-    catch {
-        return false; // No legacy file
-    }
     try {
         fs.accessSync(markerPath, fs.constants.R_OK);
         return false; // Already migrated
@@ -33,7 +29,9 @@ export function migrateLegacyProject(projectFp, legacySlug, displayName, cwdReal
     if (!needsMigration(projectFp, legacySlug)) {
         return { migratedCount: 0 };
     }
-    const legacyPath = path.join(getLegacyDataDir(), `${legacySlug}.json`);
+    const legacyPath = findLegacyFile(`${legacySlug}.json`);
+    if (!legacyPath)
+        return { migratedCount: 0 };
     let data;
     try {
         const content = fs.readFileSync(legacyPath, 'utf-8');

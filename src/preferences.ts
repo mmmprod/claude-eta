@@ -6,7 +6,7 @@
  */
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { getConfigDir, getPluginDataDir, ensureDir, atomicWrite } from './paths.js';
+import { getConfigDir, ensureDir, atomicWrite, findLegacyFile } from './paths.js';
 
 export interface UserPreferencesV2 {
   auto_eta: boolean;
@@ -28,8 +28,9 @@ function getPrefsPath(): string {
 
 /** Try to read v1 preferences for one-shot migration */
 function tryMigrateFromV1(): UserPreferencesV2 | null {
+  const v1Path = findLegacyFile('_preferences.json');
+  if (!v1Path) return null;
   try {
-    const v1Path = path.join(getPluginDataDir(), 'data', '_preferences.json');
     const content = fs.readFileSync(v1Path, 'utf-8');
     const v1 = JSON.parse(content) as {
       auto_eta?: boolean;

@@ -8,7 +8,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { TaskEntry, ProjectData } from './types.js';
 import {
-  getLegacyDataDir,
+  findLegacyFile,
   getProjectDir,
   getCompletedDir,
   ensureDir,
@@ -21,14 +21,10 @@ const MIGRATION_MARKER = 'migrated-from-legacy.json';
 
 /** Check if a legacy project file exists and hasn't been migrated yet */
 export function needsMigration(projectFp: string, legacySlug: string): boolean {
-  const legacyPath = path.join(getLegacyDataDir(), `${legacySlug}.json`);
-  const markerPath = path.join(getProjectDir(projectFp), MIGRATION_MARKER);
+  const legacyPath = findLegacyFile(`${legacySlug}.json`);
+  if (!legacyPath) return false; // No legacy file anywhere
 
-  try {
-    fs.accessSync(legacyPath, fs.constants.R_OK);
-  } catch {
-    return false; // No legacy file
-  }
+  const markerPath = path.join(getProjectDir(projectFp), MIGRATION_MARKER);
 
   try {
     fs.accessSync(markerPath, fs.constants.R_OK);
@@ -50,7 +46,8 @@ export function migrateLegacyProject(
     return { migratedCount: 0 };
   }
 
-  const legacyPath = path.join(getLegacyDataDir(), `${legacySlug}.json`);
+  const legacyPath = findLegacyFile(`${legacySlug}.json`);
+  if (!legacyPath) return { migratedCount: 0 };
 
   let data: ProjectData;
   try {
