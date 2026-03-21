@@ -77,8 +77,44 @@ export function decidePromptTransition(prompt, classification, existingActive) {
     // Classification match: same type of work → likely same work item
     if (classification === existingActive.classification)
         return 'same_work_item';
+    // Similarity fallback when regex doesn't match
+    const score = computeSimilarityScore(prompt, classification, existingActive.classification, existingActive.prompt_summary ?? '');
+    if (score >= 0.5)
+        return 'same_work_item';
     // Different classification → new work item
     return 'new_work_item';
+}
+// ── Similarity scoring ────────────────────────────────────────
+const ADDITIVE_MARKERS = /\b(also|aussi|ensuite|and also|ajoute aussi|même fix|same fix|for this fix|pour ce fix|sur le même)\b/i;
+/** Extract content words (>3 chars, lowercased) as a Set for Jaccard comparison */
+function contentWords(text) {
+    return new Set(text
+        .toLowerCase()
+        .split(/\W+/)
+        .filter((w) => w.length > 3));
+}
+/** Compute similarity between a new prompt and an existing turn (0 to 1).
+ *  Used as a fallback when regex patterns don't match in decidePromptTransition. */
+export function computeSimilarityScore(prompt, promptClassification, existingClassification, existingPromptSummary) {
+    let score = 0;
+    // Same classification: +0.3
+    if (promptClassification === existingClassification)
+        score += 0.3;
+    // Word overlap (Jaccard on content words >3 chars, lowercased): up to +0.4
+    const wordsA = contentWords(prompt);
+    const wordsB = contentWords(existingPromptSummary);
+    if (wordsA.size > 0 && wordsB.size > 0) {
+        let intersection = 0;
+        for (const w of wordsA)
+            if (wordsB.has(w))
+                intersection++;
+        const union = new Set([...wordsA, ...wordsB]).size;
+        score += (intersection / union) * 0.4;
+    }
+    // Additive markers: +0.3
+    if (ADDITIVE_MARKERS.test(prompt))
+        score += 0.3;
+    return Math.min(score, 1.0);
 }
 export function summarizePrompt(prompt, maxLength = 80) {
     const firstLine = prompt.split('\n')[0].trim();

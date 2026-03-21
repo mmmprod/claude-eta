@@ -1,8 +1,7 @@
 import { estimateTask, scorePromptComplexity, fmtSec } from './stats.js';
 export const MIN_TYPE_TASKS = 5;
 export const HIGH_VOL_INTERVAL_MULT = 1.5;
-export const HIGH_VOL_CONFIDENCE = 60;
-export const NORMAL_CONFIDENCE = 80;
+export const HIGH_VOL_CONFIDENCE_PENALTY = 15;
 export const MAX_INTERVAL_RATIO = 5;
 export const COOLDOWN_INTERVAL = 5;
 export const ACCURACY_MIN_PREDICTIONS = 10;
@@ -19,7 +18,7 @@ export function checkDisableRequest(prompt) {
 }
 /** Evaluate whether to inject an auto-ETA. Pure function — no I/O. */
 export function evaluateAutoEta(params) {
-    const { prefs, stats, etaAccuracy, classification, prompt, taskId } = params;
+    const { prefs, stats, etaAccuracy, classification, prompt, taskId, model } = params;
     // 1. Master switch
     if (!prefs.auto_eta)
         return { action: 'skip' };
@@ -33,9 +32,9 @@ export function evaluateAutoEta(params) {
     // 4. Not conversational
     if (prompt.length < 20 || CONVERSATIONAL_PATTERNS.test(prompt))
         return { action: 'skip' };
-    // 5. Compute estimate
+    // 5. Compute estimate (pass model for model-specific calibration)
     const complexity = scorePromptComplexity(prompt);
-    const estimate = estimateTask(stats, classification, complexity);
+    const estimate = estimateTask(stats, classification, complexity, { model });
     // 6. Volatility adjustment (no mutation — create new object)
     const adjusted = clsStats.volatility === 'high'
         ? {
@@ -44,7 +43,10 @@ export function evaluateAutoEta(params) {
             high: Math.round(estimate.high * HIGH_VOL_INTERVAL_MULT),
         }
         : estimate;
-    const confidence = clsStats.volatility === 'high' ? HIGH_VOL_CONFIDENCE : NORMAL_CONFIDENCE;
+    // Derive confidence from the estimator's calibration level (already mapped from CalibrationLevel)
+    const confidence = clsStats.volatility === 'high'
+        ? Math.max(10, estimate.confidence - HIGH_VOL_CONFIDENCE_PENALTY)
+        : estimate.confidence;
     // 7. Interval sanity
     if (adjusted.high > adjusted.low * MAX_INTERVAL_RATIO)
         return { action: 'skip' };

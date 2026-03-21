@@ -29,6 +29,9 @@ function makeStats(cls, count, volatility = 'medium') {
     totalCompleted: count + 10,
     overall: { median: 60, p25: 50, p75: 80, p80: 86 },
     byClassification: [{ classification: cls, count, median: 60, p25: 50, p75: 80, p80: 86, volatility }],
+    byClassificationModel: [],
+    byClassificationPhase: [],
+    byClassificationModelPhase: [],
   };
 }
 
@@ -40,6 +43,7 @@ function baseParams(overrides = {}) {
     classification: 'bugfix',
     prompt: 'fix the authentication bug in login handler',
     taskId: 'new-task',
+    model: 'claude-sonnet-4-6',
     ...overrides,
   };
 }
@@ -109,6 +113,9 @@ describe('evaluateAutoEta conditions', () => {
           byClassification: [
             { classification: 'bugfix', count: 50, median: 30, p25: 1, p75: 3000, p80: 3600, volatility: 'high' },
           ],
+          byClassificationModel: [],
+          byClassificationPhase: [],
+          byClassificationModelPhase: [],
         },
       }),
     );
@@ -272,5 +279,59 @@ describe('self-check accuracy', () => {
 
   it('skips silently when no _last_eta.json', () => {
     assert.equal(consumeLastEta(), null);
+  });
+});
+
+// -- Model passthrough (tests 28-29) --
+
+describe('model passthrough', () => {
+  it('passes model to estimator and injects', () => {
+    const r = evaluateAutoEta(baseParams({ model: 'claude-sonnet-4-6' }));
+    assert.equal(r.action, 'inject');
+    assert.ok(r.injection.includes('%'));
+  });
+
+  it('works without model (null)', () => {
+    const r = evaluateAutoEta(baseParams({ model: null }));
+    assert.equal(r.action, 'inject');
+    assert.ok(r.injection.includes('%'));
+  });
+});
+
+// -- Calibration-based confidence (tests 30-32) --
+
+describe('calibration-based confidence', () => {
+  it('uses project-level confidence for normal volatility', () => {
+    const r = evaluateAutoEta(baseParams());
+    assert.equal(r.action, 'inject');
+    // With enough data (10 bugfix tasks), estimator returns 'project' calibration → 75%
+    assert.ok(r.injection.includes('75%'), `expected 75% in injection but got: ${r.injection}`);
+  });
+
+  it('reduces confidence for high volatility', () => {
+    const r = evaluateAutoEta(baseParams({ stats: makeStats('bugfix', 10, 'high') }));
+    assert.equal(r.action, 'inject');
+    // Project calibration (75) - HIGH_VOL_CONFIDENCE_PENALTY (15) = 60%
+    assert.ok(r.injection.includes('60%'), `expected 60% in injection but got: ${r.injection}`);
+  });
+
+  it('cold calibration returns low confidence', () => {
+    // With very few global tasks + no classification data → warming calibration (50%)
+    // byClassification still needs MIN_TYPE_TASKS to pass gate
+    const stats = {
+      totalCompleted: 6,
+      overall: { median: 60, p25: 50, p75: 80, p80: 86 },
+      byClassification: [{ classification: 'bugfix', count: 6, median: 60, p25: 50, p75: 80, p80: 86, volatility: 'medium' }],
+      byClassificationModel: [],
+      byClassificationPhase: [],
+      byClassificationModelPhase: [],
+    };
+    const r = evaluateAutoEta(baseParams({ stats }));
+    assert.equal(r.action, 'inject');
+    // With 6 tasks, classification has data → calibration is 'project' → 75%
+    const match = r.injection.match(/(\d+)%/);
+    assert.ok(match, 'injection should contain a percentage');
+    const pct = parseInt(match[1], 10);
+    assert.ok(pct > 0 && pct <= 80, `expected confidence between 1 and 80, got ${pct}`);
   });
 });

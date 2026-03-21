@@ -6,8 +6,7 @@ import type { LastEtaPrediction, TaskClassification } from './types.js';
 import type { ProjectStats } from './stats.js';
 export declare const MIN_TYPE_TASKS = 5;
 export declare const HIGH_VOL_INTERVAL_MULT = 1.5;
-export declare const HIGH_VOL_CONFIDENCE = 60;
-export declare const NORMAL_CONFIDENCE = 80;
+export declare const HIGH_VOL_CONFIDENCE_PENALTY = 15;
 export declare const MAX_INTERVAL_RATIO = 5;
 export declare const COOLDOWN_INTERVAL = 5;
 export declare const ACCURACY_MIN_PREDICTIONS = 10;
@@ -45,5 +44,6 @@ export declare function evaluateAutoEta(params: {
     classification: TaskClassification;
     prompt: string;
     taskId: string;
+    model?: string | null;
 }): AutoEtaDecision;
 //# sourceMappingURL=auto-eta.d.ts.map
