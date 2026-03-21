@@ -191,10 +191,7 @@ describe('decidePromptTransition', () => {
 
   it('unrelated prompts with same classification become new_work_item', () => {
     const existing = makeActiveTurn({ classification: 'bugfix', prompt_summary: 'fix auth validation' });
-    assert.equal(
-      decidePromptTransition('debug the payment webhook crash', 'bugfix', existing),
-      'new_work_item',
-    );
+    assert.equal(decidePromptTransition('debug the payment webhook crash', 'bugfix', existing), 'new_work_item');
   });
 
   it('follow-up bugfix prompt stays same work item', () => {

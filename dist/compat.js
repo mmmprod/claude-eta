@@ -100,13 +100,7 @@ function aggregateFirstObservedOffset(turns, key) {
     return null;
 }
 /** Stop reasons that indicate the work item reached a terminal state. */
-const TERMINAL_STOP_REASONS = new Set([
-    'stop',
-    'stop_failure',
-    'session_end',
-    'subagent_stop',
-    'migrated',
-]);
+const TERMINAL_STOP_REASONS = new Set(['stop', 'stop_failure', 'session_end', 'subagent_stop', 'migrated']);
 /** Aggregate main-runner turns into logical work items for analytics and ETA. */
 export function turnsToAnalyticsTasks(turns) {
     const grouped = new Map();

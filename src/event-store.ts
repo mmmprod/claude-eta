@@ -596,9 +596,13 @@ export function findActiveMainTurn(projectFp: string): ActiveTurnState | null {
           latest = state;
           latestMs = state.started_at_ms;
         }
-      } catch { /* skip corrupt files */ }
+      } catch {
+        /* skip corrupt files */
+      }
     }
-  } catch { /* active dir may not exist */ }
+  } catch {
+    /* active dir may not exist */
+  }
   return latest;
 }
 

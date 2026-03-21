@@ -92,7 +92,7 @@ async function main() {
     if (existing) {
         if (transition === 'same_work_item') {
             workItemId = existing.work_item_id;
-            const priorTurns = turns.filter(t => t.session_id === sessionId && t.work_item_id === existing.work_item_id);
+            const priorTurns = turns.filter((t) => t.session_id === sessionId && t.work_item_id === existing.work_item_id);
             const priorSeconds = priorTurns.reduce((sum, t) => sum + t.wall_seconds, 0);
             const closingElapsed = Math.round((Date.now() - existing.started_at_ms) / 1000);
             cumulativeSeconds = priorSeconds + closingElapsed;

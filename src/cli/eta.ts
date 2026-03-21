@@ -98,7 +98,9 @@ function showSession(cwd: string, tasks: AnalyticsTask[]): void {
     const parts = [`Phase: ${phase}`, `Elapsed: ${fmtDuration(elapsed)}`];
 
     if (activeTurn.live_remaining_p50 !== null && activeTurn.live_remaining_p80 !== null) {
-      parts.push(`Remaining: ~${fmtDuration(activeTurn.live_remaining_p50)}-${fmtDuration(activeTurn.live_remaining_p80)}`);
+      parts.push(
+        `Remaining: ~${fmtDuration(activeTurn.live_remaining_p50)}-${fmtDuration(activeTurn.live_remaining_p80)}`,
+      );
     } else if (activeTurn.cached_eta) {
       const remainP50 = Math.max(0, activeTurn.cached_eta.p50_wall - elapsed);
       const remainP80 = Math.max(0, activeTurn.cached_eta.p80_wall - elapsed);

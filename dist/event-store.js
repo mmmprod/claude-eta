@@ -519,10 +519,14 @@ export function findActiveMainTurn(projectFp) {
                     latestMs = state.started_at_ms;
                 }
             }
-            catch { /* skip corrupt files */ }
+            catch {
+                /* skip corrupt files */
+            }
         }
     }
-    catch { /* active dir may not exist */ }
+    catch {
+        /* active dir may not exist */
+    }
     return latest;
 }
 /** Read all JSONL files from the completed directory, sorted by started_at ascending */
