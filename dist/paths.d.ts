@@ -25,7 +25,7 @@ export declare function getV1HardcodedDataDir(): string;
 /**
  * Search for a legacy file across both candidate directories.
  * Returns the first path where the file exists, or null if not found.
- * Uses try/catch fs.accessSync (no TOCTOU existsSync).
+ * Uses try/catch fs.accessSync to check readability (avoids existsSync).
  */
 export declare function findLegacyFile(filename: string): string | null;
 /** Active turn file for a specific (session, agent) pair */

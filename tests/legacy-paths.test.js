@@ -12,17 +12,31 @@ import * as os from 'node:os';
 
 let PLUGIN_DATA_DIR; // simulates production CLAUDE_PLUGIN_DATA (different from v1 path)
 let V1_HARDCODED_DIR; // simulates the v1 hardcoded data path
+let previousPluginDataDir;
+let previousV1DataDir;
 
 beforeEach(() => {
   PLUGIN_DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'eta-legpaths-plugin-'));
   V1_HARDCODED_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'eta-legpaths-v1-'));
+  previousPluginDataDir = process.env.CLAUDE_PLUGIN_DATA;
+  previousV1DataDir = process.env.CLAUDE_ETA_V1_DATA_DIR;
   process.env.CLAUDE_PLUGIN_DATA = PLUGIN_DATA_DIR;
+  process.env.CLAUDE_ETA_V1_DATA_DIR = V1_HARDCODED_DIR;
 });
 
 afterEach(() => {
   fs.rmSync(PLUGIN_DATA_DIR, { recursive: true, force: true });
   fs.rmSync(V1_HARDCODED_DIR, { recursive: true, force: true });
-  delete process.env.CLAUDE_PLUGIN_DATA;
+  if (previousPluginDataDir === undefined) {
+    delete process.env.CLAUDE_PLUGIN_DATA;
+  } else {
+    process.env.CLAUDE_PLUGIN_DATA = previousPluginDataDir;
+  }
+  if (previousV1DataDir === undefined) {
+    delete process.env.CLAUDE_ETA_V1_DATA_DIR;
+  } else {
+    process.env.CLAUDE_ETA_V1_DATA_DIR = previousV1DataDir;
+  }
 });
 
 function makeLegacyTask(overrides = {}) {
@@ -45,8 +59,7 @@ function makeLegacyTask(overrides = {}) {
   };
 }
 
-function writeLegacyProjectAt(dir, slug, tasks) {
-  const dataDir = path.join(dir, 'data');
+function writeLegacyProjectAt(dataDir, slug, tasks) {
   fs.mkdirSync(dataDir, { recursive: true });
   const data = {
     project: slug,
@@ -73,7 +86,7 @@ describe('findLegacyFile', () => {
     const { findLegacyFile } = await loadModules();
 
     // Write legacy data under CLAUDE_PLUGIN_DATA/data/
-    writeLegacyProjectAt(PLUGIN_DATA_DIR, 'my-project', [makeLegacyTask()]);
+    writeLegacyProjectAt(path.join(PLUGIN_DATA_DIR, 'data'), 'my-project', [makeLegacyTask()]);
 
     const result = findLegacyFile('my-project.json');
     assert.ok(result !== null, 'should find the file');
@@ -90,7 +103,7 @@ describe('findLegacyFile', () => {
     const { findLegacyFile, getV1HardcodedDataDir } = await loadModules();
 
     // Write to both locations
-    writeLegacyProjectAt(PLUGIN_DATA_DIR, 'dup-project', [makeLegacyTask()]);
+    writeLegacyProjectAt(path.join(PLUGIN_DATA_DIR, 'data'), 'dup-project', [makeLegacyTask()]);
     const v1Dir = getV1HardcodedDataDir();
     fs.mkdirSync(v1Dir, { recursive: true });
     fs.writeFileSync(path.join(v1Dir, 'dup-project.json'), '{"project":"dup","created":"x","tasks":[]}');
@@ -100,16 +113,30 @@ describe('findLegacyFile', () => {
     // Should prefer CLAUDE_PLUGIN_DATA/data/
     assert.ok(result.startsWith(PLUGIN_DATA_DIR), 'should prefer CLAUDE_PLUGIN_DATA path');
 
-    // Cleanup the v1 hardcoded dir we created
-    try { fs.rmSync(v1Dir, { recursive: true, force: true }); } catch { /* ignore */ }
+  });
+
+  it('rejects path traversal filenames', async () => {
+    const { findLegacyFile } = await loadModules();
+
+    writeLegacyProjectAt(path.join(PLUGIN_DATA_DIR, 'data'), 'safe-project', [makeLegacyTask()]);
+
+    assert.equal(findLegacyFile('../safe-project.json'), null);
+    assert.equal(findLegacyFile('..\\safe-project.json'), null);
   });
 });
 
 // ── getV1HardcodedDataDir ────────────────────────────────────
 
 describe('getV1HardcodedDataDir', () => {
-  it('returns ~/.claude/plugins/claude-eta/data', async () => {
+  it('returns override path when configured', async () => {
     const { getV1HardcodedDataDir } = await loadModules();
+    assert.equal(getV1HardcodedDataDir(), V1_HARDCODED_DIR);
+  });
+
+  it('falls back to ~/.claude/plugins/claude-eta/data without override', async () => {
+    const { getV1HardcodedDataDir } = await loadModules();
+
+    delete process.env.CLAUDE_ETA_V1_DATA_DIR;
     const expected = path.join(os.homedir(), '.claude', 'plugins', 'claude-eta', 'data');
     assert.equal(getV1HardcodedDataDir(), expected);
   });
@@ -127,7 +154,7 @@ describe('needsMigration with v1 hardcoded path', () => {
   it('detects legacy data in CLAUDE_PLUGIN_DATA/data/', async () => {
     const { needsMigration } = await loadModules();
 
-    writeLegacyProjectAt(PLUGIN_DATA_DIR, 'proj-in-plugin', [makeLegacyTask()]);
+    writeLegacyProjectAt(path.join(PLUGIN_DATA_DIR, 'data'), 'proj-in-plugin', [makeLegacyTask()]);
     assert.equal(needsMigration('fp_plugin_dir_1', 'proj-in-plugin'), true);
   });
 
