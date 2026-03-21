@@ -18,7 +18,7 @@ export async function insertVelocityRecords(records) {
     try {
         const res = await fetch(`${SUPABASE_URL}/rest/v1/velocity_records`, {
             method: 'POST',
-            headers: { ...headers(), Prefer: 'return=minimal,resolution=ignore-duplicates' },
+            headers: { ...headers(), Prefer: 'return=minimal' },
             body: JSON.stringify(records),
             signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
         });
