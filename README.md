@@ -35,7 +35,7 @@ No account. No API key. No config. Just start working.
 ### Update
 
 ```bash
-claude plugin update claude-eta@claude-eta
+claude plugin marketplace update claude-eta && claude plugin update claude-eta@claude-eta
 ```
 
 ## How it works
