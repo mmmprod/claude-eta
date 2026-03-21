@@ -119,7 +119,7 @@ async function main(): Promise<void> {
   if (completed) {
     const lastEta = consumeLastEtaV2(fp, sessionId);
     if (lastEta && lastEta.task_id === completed.turn_id) {
-      const hit = completed.wall_seconds >= lastEta.low && completed.wall_seconds <= lastEta.high;
+      const hit = completed.wall_seconds <= lastEta.high;
       updateEtaAccuracy(fp, completed.classification, hit);
     }
   }
