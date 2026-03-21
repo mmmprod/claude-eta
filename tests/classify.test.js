@@ -226,7 +226,12 @@ describe('decidePromptTransition', () => {
 
 describe('computeSimilarityScore', () => {
   it('scores same classification + additive marker high', () => {
-    const score = computeSimilarityScore('gère aussi les erreurs réseau dans compare', 'bugfix', 'bugfix', 'fix auth bug');
+    const score = computeSimilarityScore(
+      'gère aussi les erreurs réseau dans compare',
+      'bugfix',
+      'bugfix',
+      'fix auth bug',
+    );
     assert.ok(score >= 0.5, `expected >= 0.5 but got ${score}`);
   });
 

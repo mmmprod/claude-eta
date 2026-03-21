@@ -321,7 +321,9 @@ describe('calibration-based confidence', () => {
     const stats = {
       totalCompleted: 6,
       overall: { median: 60, p25: 50, p75: 80, p80: 86 },
-      byClassification: [{ classification: 'bugfix', count: 6, median: 60, p25: 50, p75: 80, p80: 86, volatility: 'medium' }],
+      byClassification: [
+        { classification: 'bugfix', count: 6, median: 60, p25: 50, p75: 80, p80: 86, volatility: 'medium' },
+      ],
       byClassificationModel: [],
       byClassificationPhase: [],
       byClassificationModelPhase: [],
