@@ -216,4 +216,26 @@ describe('migrateLegacyProject finds v1 data in hardcoded path', () => {
       try { fs.rmSync(v1Dir, { recursive: true, force: true }); } catch { /* ignore */ }
     }
   });
+
+  it('skips null and zero-duration tasks from the v1 hardcoded path', async () => {
+    const { migrateLegacyProject, getV1HardcodedDataDir } = await loadModules();
+
+    const v1Dir = getV1HardcodedDataDir();
+    fs.mkdirSync(v1Dir, { recursive: true });
+    const tasks = [
+      makeLegacyTask({ task_id: 'positive-duration', duration_seconds: 60 }),
+      makeLegacyTask({ task_id: 'null-duration', duration_seconds: null }),
+      makeLegacyTask({ task_id: 'zero-duration', duration_seconds: 0 }),
+    ];
+    const data = {
+      project: 'edge-case-proj',
+      created: new Date().toISOString(),
+      tasks,
+      eta_accuracy: {},
+    };
+    fs.writeFileSync(path.join(v1Dir, 'edge-case-proj.json'), JSON.stringify(data));
+
+    const result = migrateLegacyProject('fp_edge_case', 'edge-case-proj', 'edge-case-proj', '/tmp/test');
+    assert.equal(result.migratedCount, 1);
+  });
 });
