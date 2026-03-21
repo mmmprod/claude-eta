@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.14.0](https://github.com/mmmprod/claude-eta/compare/claude-eta-v0.13.0...claude-eta-v0.14.0) (2026-03-21)
+
+
+### Features
+
+* **eta:** harden tracker calibration and admin tooling ([#64](https://github.com/mmmprod/claude-eta/issues/64)) ([58bde0d](https://github.com/mmmprod/claude-eta/commit/58bde0d1b145071dc3c95721cc195eb235c26b5c))
+
 ## [0.13.0](https://github.com/mmmprod/claude-eta/compare/claude-eta-v0.12.0...claude-eta-v0.13.0) (2026-03-21)
 
 
