@@ -3,6 +3,7 @@ import { getActiveTurn, setActiveTurn, appendEvent } from '../event-store.js';
 import { resolveProjectIdentity } from '../identity.js';
 import { buildErrorFingerprint } from '../loop-detector.js';
 import { applyPhaseTransition } from '../features.js';
+import { refineEtaOnTransition } from './refine-eta.js';
 async function main() {
     const stdin = await readStdin();
     if (!stdin)
@@ -36,7 +37,10 @@ async function main() {
     if (toolName === 'Bash' && stdin.error && stdin.error.length > 0 && state.error_fingerprints.length < 50) {
         state.error_fingerprints.push(buildErrorFingerprint(stdin.error));
     }
-    applyPhaseTransition(state, now);
+    const transitioned = applyPhaseTransition(state, now);
+    if (transitioned) {
+        refineEtaOnTransition(state, cwd, transitioned, now);
+    }
     setActiveTurn(state);
     try {
         appendEvent(fp, sessionId, agentKey, {

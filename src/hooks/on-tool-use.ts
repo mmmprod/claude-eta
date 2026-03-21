@@ -3,6 +3,9 @@
  *
  * HOT PATH — fires on every tool call. Must stay fast.
  * Reads/writes active/<session_id>__<agent_key>.json (same atomic pattern as v1).
+ *
+ * Phase transitions (2-3 per turn max) trigger a richer ETA recalculation
+ * using estimateWithTrace, storing the result in refined_eta for on-prompt.
  */
 import type { PostToolUseStdin } from '../types.js';
 import { readStdin } from '../stdin.js';
@@ -11,6 +14,7 @@ import { resolveProjectIdentity } from '../identity.js';
 import { hashWithLocalSalt } from '../identity.js';
 import { buildErrorFingerprint } from '../loop-detector.js';
 import { applyPhaseTransition } from '../features.js';
+import { refineEtaOnTransition } from './refine-eta.js';
 
 async function main(): Promise<void> {
   const stdin = await readStdin<PostToolUseStdin>();
@@ -98,7 +102,13 @@ async function main(): Promise<void> {
     }
   }
 
-  applyPhaseTransition(state, now);
+  // Phase transition: applyPhaseTransition updates live_* with lightweight multipliers
+  // and returns the new phase if a transition occurred.
+  // On transitions (2-3 per turn), refineEtaOnTransition runs the richer estimateWithTrace.
+  const transitioned = applyPhaseTransition(state, now);
+  if (transitioned) {
+    refineEtaOnTransition(state, cwd, transitioned, now);
+  }
 
   // ── Persist ────────────────────────────────────────────────
   setActiveTurn(state);
