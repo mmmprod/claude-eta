@@ -112,7 +112,6 @@ describe('findLegacyFile', () => {
     assert.ok(result !== null);
     // Should prefer CLAUDE_PLUGIN_DATA/data/
     assert.ok(result.startsWith(PLUGIN_DATA_DIR), 'should prefer CLAUDE_PLUGIN_DATA path');
-
   });
 
   it('rejects path traversal filenames', async () => {
@@ -174,7 +173,11 @@ describe('needsMigration with v1 hardcoded path', () => {
     try {
       assert.equal(needsMigration('fp_v1_hardcoded', 'proj-in-v1'), true);
     } finally {
-      try { fs.rmSync(v1Dir, { recursive: true, force: true }); } catch { /* ignore */ }
+      try {
+        fs.rmSync(v1Dir, { recursive: true, force: true });
+      } catch {
+        /* ignore */
+      }
     }
   });
 
@@ -213,7 +216,11 @@ describe('migrateLegacyProject finds v1 data in hardcoded path', () => {
       assert.equal(turns.length, 2);
       assert.equal(turns[0].stop_reason, 'migrated');
     } finally {
-      try { fs.rmSync(v1Dir, { recursive: true, force: true }); } catch { /* ignore */ }
+      try {
+        fs.rmSync(v1Dir, { recursive: true, force: true });
+      } catch {
+        /* ignore */
+      }
     }
   });
 
