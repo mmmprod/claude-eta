@@ -106,18 +106,18 @@ describe('perModelComparison', () => {
 
   it('identifies fastest model', () => {
     const tasks = [
-      ...Array.from({ length: 6 }, () => makeTask({ model: 'fast-model', duration_seconds: 30 })),
-      ...Array.from({ length: 6 }, () => makeTask({ model: 'slow-model', duration_seconds: 300 })),
+      ...Array.from({ length: 6 }, () => makeTask({ model: 'claude-haiku-4-5', duration_seconds: 30 })),
+      ...Array.from({ length: 6 }, () => makeTask({ model: 'claude-opus-4', duration_seconds: 300 })),
     ];
     const result = perModelComparison(tasks);
     assert.ok(result);
-    assert.equal(result.fastestModel, 'fast-model');
+    assert.equal(result.fastestModel, 'claude-haiku-4-5');
   });
 
   it('skips tasks with empty model', () => {
     const tasks = [
-      ...Array.from({ length: 6 }, () => makeTask({ model: 'model-a', duration_seconds: 50 })),
-      ...Array.from({ length: 6 }, () => makeTask({ model: 'model-b', duration_seconds: 100 })),
+      ...Array.from({ length: 6 }, () => makeTask({ model: 'claude-sonnet-4-5', duration_seconds: 50 })),
+      ...Array.from({ length: 6 }, () => makeTask({ model: 'claude-opus-4', duration_seconds: 100 })),
       makeTask({ model: '', duration_seconds: 200 }),
     ];
     const result = perModelComparison(tasks);

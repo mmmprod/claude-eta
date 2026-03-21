@@ -1,9 +1,5 @@
 import { median, groupBy } from './types.js';
-// ── Helpers ──────────────────────────────────────────────────
-/** Strip date suffix from model IDs: claude-sonnet-4-20250514 -> claude-sonnet-4 */
-function normalizeModel(model) {
-    return model.replace(/-\d{8}$/, '');
-}
+import { normalizeModel } from '../anonymize.js';
 // ── Insights ─────────────────────────────────────────────────
 /** Insight 2: File operation ratios by classification */
 export function fileOperationRatios(tasks) {
@@ -42,7 +38,7 @@ export function fileOperationRatios(tasks) {
 }
 /** Insight 3: Compare performance across models */
 export function perModelComparison(tasks) {
-    const valid = tasks.filter((t) => t.model && t.model.length > 0);
+    const valid = tasks.filter((t) => t.model && t.model.length > 0 && normalizeModel(t.model) !== null);
     if (valid.length < 10)
         return null;
     const groups = groupBy(valid, (t) => normalizeModel(t.model));

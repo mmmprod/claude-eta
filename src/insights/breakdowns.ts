@@ -3,13 +3,7 @@
  */
 import type { CompletedTask, FileOpsResult, ModelComparisonResult, EfficiencyResult } from './types.js';
 import { median, groupBy } from './types.js';
-
-// ── Helpers ──────────────────────────────────────────────────
-
-/** Strip date suffix from model IDs: claude-sonnet-4-20250514 -> claude-sonnet-4 */
-function normalizeModel(model: string): string {
-  return model.replace(/-\d{8}$/, '');
-}
+import { normalizeModel } from '../anonymize.js';
 
 // ── Insights ─────────────────────────────────────────────────
 
@@ -56,10 +50,10 @@ export function fileOperationRatios(tasks: CompletedTask[]): FileOpsResult | nul
 
 /** Insight 3: Compare performance across models */
 export function perModelComparison(tasks: CompletedTask[]): ModelComparisonResult | null {
-  const valid = tasks.filter((t) => t.model && t.model.length > 0);
+  const valid = tasks.filter((t) => t.model && t.model.length > 0 && normalizeModel(t.model) !== null);
   if (valid.length < 10) return null;
 
-  const groups = groupBy(valid, (t) => normalizeModel(t.model));
+  const groups = groupBy(valid, (t) => normalizeModel(t.model)!);
 
   const byModel: ModelComparisonResult['byModel'] = [];
 
