@@ -54,6 +54,7 @@ export function computeStats(tasks) {
         median: percentile(durations, 50),
         p25: percentile(durations, 25),
         p75: percentile(durations, 75),
+        p80: percentile(durations, 80),
     };
     // Group by classification
     const groups = new Map();
@@ -72,12 +73,14 @@ export function computeStats(tasks) {
         const med = percentile(sorted, 50);
         const p25 = percentile(sorted, 25);
         const p75 = percentile(sorted, 75);
+        const p80 = percentile(sorted, 80);
         byClassification.push({
             classification: cls,
             count: entries.length,
             median: med,
             p25,
             p75,
+            p80,
             volatility: volatility(med, p75 - p25),
         });
     }
@@ -103,6 +106,7 @@ export function computeStats(tasks) {
         const med = percentile(sorted, 50);
         const p25 = percentile(sorted, 25);
         const p75 = percentile(sorted, 75);
+        const p80 = percentile(sorted, 80);
         const [classification, model] = key.split(':', 2);
         byClassificationModel.push({
             classification,
@@ -111,6 +115,7 @@ export function computeStats(tasks) {
             median: med,
             p25,
             p75,
+            p80,
             volatility: volatility(med, p75 - p25),
         });
     }
@@ -155,6 +160,7 @@ export function computeStats(tasks) {
         const med = percentile(sorted, 50);
         const p25 = percentile(sorted, 25);
         const p75 = percentile(sorted, 75);
+        const p80 = percentile(sorted, 80);
         const [phase, classification] = key.split('|', 2);
         byClassificationPhase.push({
             phase,
@@ -163,6 +169,7 @@ export function computeStats(tasks) {
             median: med,
             p25,
             p75,
+            p80,
             volatility: volatility(med, p75 - p25),
         });
     }
@@ -181,6 +188,7 @@ export function computeStats(tasks) {
         const med = percentile(sorted, 50);
         const p25 = percentile(sorted, 25);
         const p75 = percentile(sorted, 75);
+        const p80 = percentile(sorted, 80);
         const [phase, classification, model] = key.split('|', 3);
         byClassificationModelPhase.push({
             phase,
@@ -190,6 +198,7 @@ export function computeStats(tasks) {
             median: med,
             p25,
             p75,
+            p80,
             volatility: volatility(med, p75 - p25),
         });
     }

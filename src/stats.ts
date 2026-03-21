@@ -12,6 +12,7 @@ interface ClassificationStats {
   median: number;
   p25: number;
   p75: number;
+  p80: number;
   volatility: 'low' | 'medium' | 'high';
 }
 
@@ -31,7 +32,7 @@ interface ClassificationModelPhaseStats extends ClassificationPhaseStats {
 
 export interface ProjectStats {
   totalCompleted: number;
-  overall: { median: number; p25: number; p75: number };
+  overall: { median: number; p25: number; p75: number; p80: number };
   byClassification: ClassificationStats[];
   byClassificationModel: ClassificationModelStats[];
   byClassificationPhase: ClassificationPhaseStats[];
@@ -105,6 +106,7 @@ export function computeStats(tasks: AnalyticsTask[]): ProjectStats | null {
     median: percentile(durations, 50),
     p25: percentile(durations, 25),
     p75: percentile(durations, 75),
+    p80: percentile(durations, 80),
   };
 
   // Group by classification
@@ -123,12 +125,14 @@ export function computeStats(tasks: AnalyticsTask[]): ProjectStats | null {
     const med = percentile(sorted, 50);
     const p25 = percentile(sorted, 25);
     const p75 = percentile(sorted, 75);
+    const p80 = percentile(sorted, 80);
     byClassification.push({
       classification: cls,
       count: entries.length,
       median: med,
       p25,
       p75,
+      p80,
       volatility: volatility(med, p75 - p25),
     });
   }
@@ -154,6 +158,7 @@ export function computeStats(tasks: AnalyticsTask[]): ProjectStats | null {
     const med = percentile(sorted, 50);
     const p25 = percentile(sorted, 25);
     const p75 = percentile(sorted, 75);
+    const p80 = percentile(sorted, 80);
     const [classification, model] = key.split(':', 2) as [TaskClassification, string];
     byClassificationModel.push({
       classification,
@@ -162,6 +167,7 @@ export function computeStats(tasks: AnalyticsTask[]): ProjectStats | null {
       median: med,
       p25,
       p75,
+      p80,
       volatility: volatility(med, p75 - p25),
     });
   }
@@ -206,6 +212,7 @@ export function computeStats(tasks: AnalyticsTask[]): ProjectStats | null {
     const med = percentile(sorted, 50);
     const p25 = percentile(sorted, 25);
     const p75 = percentile(sorted, 75);
+    const p80 = percentile(sorted, 80);
     const [phase, classification] = key.split('|', 2) as [PhaseCalibrationPoint, TaskClassification];
     byClassificationPhase.push({
       phase,
@@ -214,6 +221,7 @@ export function computeStats(tasks: AnalyticsTask[]): ProjectStats | null {
       median: med,
       p25,
       p75,
+      p80,
       volatility: volatility(med, p75 - p25),
     });
   }
@@ -231,6 +239,7 @@ export function computeStats(tasks: AnalyticsTask[]): ProjectStats | null {
     const med = percentile(sorted, 50);
     const p25 = percentile(sorted, 25);
     const p75 = percentile(sorted, 75);
+    const p80 = percentile(sorted, 80);
     const [phase, classification, model] = key.split('|', 3) as [PhaseCalibrationPoint, TaskClassification, string];
     byClassificationModelPhase.push({
       phase,
@@ -240,6 +249,7 @@ export function computeStats(tasks: AnalyticsTask[]): ProjectStats | null {
       median: med,
       p25,
       p75,
+      p80,
       volatility: volatility(med, p75 - p25),
     });
   }
