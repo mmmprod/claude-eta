@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.0](https://github.com/mmmprod/claude-eta/compare/claude-eta-v0.9.2...claude-eta-v0.10.0) (2026-03-21)
+
+
+### Features
+
+* **classify:** multilingual prompt classification (FR) + standalone admin dashboard ([#57](https://github.com/mmmprod/claude-eta/issues/57)) ([543e955](https://github.com/mmmprod/claude-eta/commit/543e9552e72e6f6f4d0f10792e2d667dee767698))
+
 ## [0.9.2](https://github.com/mmmprod/claude-eta/compare/claude-eta-v0.9.1...claude-eta-v0.9.2) (2026-03-21)
 
 
