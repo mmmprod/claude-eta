@@ -579,6 +579,28 @@ export function loadRecentCompletedTurns(projectFp: string, limit: number): Comp
 
 // ── Internals ────────────────────────────────────────────────
 
+/** Scan for the most recent active main-runner turn for a project */
+export function findActiveMainTurn(projectFp: string): ActiveTurnState | null {
+  const activeDir = getActiveDir(projectFp);
+  let latest: ActiveTurnState | null = null;
+  let latestMs = 0;
+  try {
+    const files = fs.readdirSync(activeDir);
+    for (const file of files) {
+      if (!file.endsWith('.json')) continue;
+      try {
+        const raw = fs.readFileSync(path.join(activeDir, file), 'utf-8');
+        const state = normalizeActiveTurnState(JSON.parse(raw) as ActiveTurnState);
+        if (state.runner_kind === 'main' && state.status === 'active' && state.started_at_ms > latestMs) {
+          latest = state;
+          latestMs = state.started_at_ms;
+        }
+      } catch { /* skip corrupt files */ }
+    }
+  } catch { /* active dir may not exist */ }
+  return latest;
+}
+
 /** Read all JSONL files from the completed directory, sorted by started_at ascending */
 function readAllCompletedJsonl(projectFp: string): CompletedTurn[] {
   const dir = getCompletedDir(projectFp);

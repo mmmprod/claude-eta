@@ -14,6 +14,7 @@ import { loadPreferencesV2, savePreferencesV2 } from '../preferences.js';
 import { loadProjectMeta } from '../project-meta.js';
 import { resolveProjectIdentity } from '../identity.js';
 import { loadCompletedTurnsCompat, turnsToAnalyticsTasks, turnsToTaskEntries } from '../compat.js';
+import { findActiveMainTurn } from '../event-store.js';
 import { evaluateTasks, formatEvaluationReport } from '../eval.js';
 import { showExport } from './export.js';
 import { showContribute, executeContribute } from './contribute.js';
@@ -53,11 +54,10 @@ function col(s, len, align = 'left') {
     return align === 'left' ? truncated.padEnd(len) : truncated.padStart(len);
 }
 // ── Modes ─────────────────────────────────────────────────────
-function showSession(tasks) {
+function showSession(cwd, tasks) {
     const lastSessionId = tasks[tasks.length - 1].session_id;
     const sessionTasks = tasks.filter((t) => t.session_id === lastSessionId);
     const completed = sessionTasks.filter((t) => t.duration_seconds !== null);
-    const active = sessionTasks.find((t) => t.duration_seconds === null);
     const totalSec = completed.reduce((sum, t) => sum + (t.duration_seconds ?? 0), 0);
     const avgSec = completed.length > 0 ? Math.round(totalSec / completed.length) : 0;
     console.log(`## Session Stats (${completed.length} tasks completed)\n`);
@@ -70,8 +70,22 @@ function showSession(tasks) {
     console.log(`| Files read          | ${col(String(completed.reduce((s, t) => s + t.files_read, 0)), 19)} |`);
     console.log(`| Files edited        | ${col(String(completed.reduce((s, t) => s + t.files_edited, 0)), 19)} |`);
     console.log(`| Errors              | ${col(String(completed.reduce((s, t) => s + t.errors, 0)), 19)} |`);
-    if (active) {
-        console.log(`\n**Active task**: "${active.prompt_summary}" (${active.classification})`);
+    const { fp } = resolveProjectIdentity(cwd);
+    const activeTurn = findActiveMainTurn(fp);
+    if (activeTurn) {
+        const elapsed = Math.round((Date.now() - activeTurn.started_at_ms) / 1000);
+        const phase = activeTurn.live_phase ?? 'explore';
+        console.log(`\n**Active task**: "${activeTurn.prompt_summary}" (${activeTurn.classification})`);
+        const parts = [`Phase: ${phase}`, `Elapsed: ${fmtDuration(elapsed)}`];
+        if (activeTurn.live_remaining_p50 !== null && activeTurn.live_remaining_p80 !== null) {
+            parts.push(`Remaining: ~${fmtDuration(activeTurn.live_remaining_p50)}-${fmtDuration(activeTurn.live_remaining_p80)}`);
+        }
+        else if (activeTurn.cached_eta) {
+            const remainP50 = Math.max(0, activeTurn.cached_eta.p50_wall - elapsed);
+            const remainP80 = Math.max(0, activeTurn.cached_eta.p80_wall - elapsed);
+            parts.push(`Remaining: ~${fmtDuration(remainP50)}-${fmtDuration(remainP80)}`);
+        }
+        console.log(parts.join(' | '));
     }
 }
 function showHistory(tasks) {
@@ -430,7 +444,7 @@ async function main() {
             console.log(formatEvaluationReport(evaluateTasks(tasks)));
             break;
         default:
-            showSession(tasks);
+            showSession(cwd, tasks);
             break;
     }
     console.log(FEEDBACK_LINE);
