@@ -170,7 +170,7 @@ export function evaluateTasks(tasks: AnalyticsTask[]): EvalReport {
       );
     }
 
-    if (task.first_edit_offset_seconds != null && task.first_edit_offset_seconds > 0 && task.first_edit_offset_seconds < actualDuration) {
+    if (task.first_edit_offset_seconds != null && task.first_edit_offset_seconds >= 0 && task.first_edit_offset_seconds < actualDuration) {
       const remaining = actualDuration - task.first_edit_offset_seconds;
       const refined = estimateWithTrace(initial, task.first_edit_offset_seconds, 'edit', {
         stats,
@@ -196,7 +196,7 @@ export function evaluateTasks(tasks: AnalyticsTask[]): EvalReport {
       }
     }
 
-    if (task.first_bash_offset_seconds != null && task.first_bash_offset_seconds > 0 && task.first_bash_offset_seconds < actualDuration) {
+    if (task.first_bash_offset_seconds != null && task.first_bash_offset_seconds >= 0 && task.first_bash_offset_seconds < actualDuration) {
       const remaining = actualDuration - task.first_bash_offset_seconds;
       const refined = estimateWithTrace(initial, task.first_bash_offset_seconds, 'validate', {
         stats,

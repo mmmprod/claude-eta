@@ -24,3 +24,24 @@
 - [x] Re-run full build/lint/test/perf cycle after the final slices.
 - [x] Run Supabase integration against the live schema.
 - [x] Satisfy the committed-`dist/` packaging guard for release-ready CI.
+
+## Final Review
+
+- [x] Run a targeted final review on commit `150ffeb` with focus on:
+  - ETA evaluation semantics
+  - phase-aware estimator behavior
+  - hook perf gate correctness
+  - CI gating coverage
+- [x] Record findings and residual risks after the review pass.
+
+### Findings
+
+- `P1` CI umbrella job `required-ci` does not depend on `supabase-integration`, so a red schema/integration job can still merge if branch protection only requires the umbrella check.
+- `P2` `/eta eval` drops valid `first_edit` and `first_bash` observations when the phase offset is exactly `0`, which biases calibration samples toward slower-starting tasks.
+- `P2` `scripts/bench-hooks.mjs` reports a `p95` computed with a floor index on 10 samples, which underestimates the advertised percentile and weakens the perf gate.
+
+### Follow-up Fixes
+
+- [x] Add `supabase-integration` to the `required-ci` umbrella gate.
+- [x] Count `0s` phase offsets as valid observations in `/eta eval`.
+- [x] Switch hook bench `p95` to a nearest-rank calculation and raise CI samples to `20`.

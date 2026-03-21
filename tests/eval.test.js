@@ -60,4 +60,18 @@ describe('evaluateTasks', () => {
     assert.match(output, /Walk-forward replay/);
     assert.match(output, /By Classification/);
   });
+
+  it('counts zero-second phase offsets as valid stage observations', () => {
+    const tasks = Array.from({ length: 10 }, (_, index) => makeTask(index + 1, { duration_seconds: 120 + index * 30 }));
+    tasks[9] = makeTask(10, {
+      duration_seconds: 390,
+      first_edit_offset_seconds: 0,
+      first_bash_offset_seconds: 0,
+    });
+
+    const report = evaluateTasks(tasks);
+
+    assert.equal(report.overall.first_edit.sample_count, 5);
+    assert.equal(report.overall.first_bash.sample_count, 5);
+  });
 });
