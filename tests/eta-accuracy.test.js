@@ -178,8 +178,8 @@ describe('accuracy gate fires with persisted data', () => {
       prefs: { auto_eta: true, prompts_since_last_eta: 0, last_eta_task_id: 'old' },
       stats: {
         totalCompleted: 20,
-        overall: { median: 60, p25: 50, p75: 80 },
-        byClassification: [{ classification: 'bugfix', count: 10, median: 60, p25: 50, p75: 80, volatility: 'medium' }],
+        overall: { median: 60, p25: 50, p75: 80, p80: 86 },
+        byClassification: [{ classification: 'bugfix', count: 10, median: 60, p25: 50, p75: 80, p80: 86, volatility: 'medium' }],
       },
       etaAccuracy,
       classification: 'bugfix',
@@ -214,8 +214,8 @@ describe('accuracy gate fires with persisted data', () => {
       prefs: { auto_eta: true, prompts_since_last_eta: 0, last_eta_task_id: 'old' },
       stats: {
         totalCompleted: 20,
-        overall: { median: 60, p25: 50, p75: 80 },
-        byClassification: [{ classification: 'bugfix', count: 10, median: 60, p25: 50, p75: 80, volatility: 'medium' }],
+        overall: { median: 60, p25: 50, p75: 80, p80: 86 },
+        byClassification: [{ classification: 'bugfix', count: 10, median: 60, p25: 50, p75: 80, p80: 86, volatility: 'medium' }],
       },
       etaAccuracy,
       classification: 'bugfix',

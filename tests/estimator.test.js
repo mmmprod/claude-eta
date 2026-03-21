@@ -6,9 +6,9 @@ import { extractFeatures, detectPhase } from '../dist/features.js';
 function makeStats(clsName, clsCount, volatility = 'medium', overrides = {}) {
   return {
     totalCompleted: 30,
-    overall: { median: 300, p25: 120, p75: 600 },
+    overall: { median: 300, p25: 120, p75: 600, p80: 660 },
     byClassification: [
-      { classification: clsName, count: clsCount, median: 200, p25: 100, p75: 400, volatility, ...overrides },
+      { classification: clsName, count: clsCount, median: 200, p25: 100, p75: 400, p80: 440, volatility, ...overrides },
     ],
     byClassificationModel: [],
     byClassificationPhase: [],
@@ -28,7 +28,7 @@ describe('estimateInitial', () => {
   });
 
   it('returns warming calibration with few global tasks', () => {
-    const stats = { totalCompleted: 3, overall: { median: 100, p25: 50, p75: 200 }, byClassification: [] };
+    const stats = { totalCompleted: 3, overall: { median: 100, p25: 50, p75: 200, p80: 220 }, byClassification: [] };
     const est = estimateInitial(stats, 'bugfix', 3);
     assert.equal(est.calibration, 'warming');
   });
@@ -76,6 +76,7 @@ describe('estimateInitial', () => {
           median: 140,
           p25: 90,
           p75: 220,
+          p80: 242,
           volatility: 'medium',
         },
       ],
@@ -96,6 +97,7 @@ describe('estimateInitial', () => {
           median: 140,
           p25: 90,
           p75: 220,
+          p80: 242,
           volatility: 'medium',
         },
       ],
@@ -142,6 +144,7 @@ describe('estimateWithTrace', () => {
           median: 70,
           p25: 60,
           p75: 90,
+          p80: 94,
           volatility: 'medium',
         },
       ],
@@ -154,6 +157,7 @@ describe('estimateWithTrace', () => {
           median: 55,
           p25: 45,
           p75: 75,
+          p80: 79,
           volatility: 'medium',
         },
       ],

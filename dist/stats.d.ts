@@ -9,6 +9,7 @@ interface ClassificationStats {
     median: number;
     p25: number;
     p75: number;
+    p80: number;
     volatility: 'low' | 'medium' | 'high';
 }
 interface ClassificationModelStats extends ClassificationStats {
@@ -27,6 +28,7 @@ export interface ProjectStats {
         median: number;
         p25: number;
         p75: number;
+        p80: number;
     };
     byClassification: ClassificationStats[];
     byClassificationModel: ClassificationModelStats[];

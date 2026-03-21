@@ -31,11 +31,11 @@ export function estimateInitial(stats, classification, complexity, context) {
     // Global local stats
     const nGlobal = stats.totalCompleted;
     const globalP50 = stats.overall.median;
-    const globalP75 = stats.overall.p75;
+    const globalP80 = stats.overall.p80;
     // Blend global with default
     const wGlobal = nGlobal / (nGlobal + W_GLOBAL);
     const blendedGlobalP50 = wGlobal * globalP50 + (1 - wGlobal) * defaultP50;
-    const blendedGlobalP80 = wGlobal * globalP75 + (1 - wGlobal) * defaultP80;
+    const blendedGlobalP80 = wGlobal * globalP80 + (1 - wGlobal) * defaultP80;
     // Classification-specific stats
     const clsStats = stats.byClassification.find((s) => s.classification === classification);
     const normalizedModel = context?.model ? normalizeModel(context.model) : null;
@@ -51,11 +51,11 @@ export function estimateInitial(stats, classification, complexity, context) {
     const nCls = clsStats.count;
     const wCls = nCls / (nCls + W_CLS);
     const p50 = wCls * clsStats.median + (1 - wCls) * blendedGlobalP50;
-    const p80 = wCls * clsStats.p75 + (1 - wCls) * blendedGlobalP80;
+    const p80 = wCls * clsStats.p80 + (1 - wCls) * blendedGlobalP80;
     if (clsModelStats && clsModelStats.count >= 2) {
         const nModel = clsModelStats.count;
         const wModel = nModel / (nModel + W_MODEL);
-        return makeEstimate(wModel * clsModelStats.median + (1 - wModel) * p50, wModel * clsModelStats.p75 + (1 - wModel) * p80, `${nModel} similar ${classification} tasks on ${normalizedModel}`, 'project', complexity);
+        return makeEstimate(wModel * clsModelStats.median + (1 - wModel) * p50, wModel * clsModelStats.p80 + (1 - wModel) * p80, `${nModel} similar ${classification} tasks on ${normalizedModel}`, 'project', complexity);
     }
     return makeEstimate(p50, p80, `${nCls} similar ${classification} tasks`, 'project', complexity);
 }
@@ -86,18 +86,18 @@ export function estimateWithTrace(initial, elapsedSeconds, phase, context) {
             : undefined;
         if (phaseStats && phaseStats.count >= 2) {
             let learnedP50 = phaseStats.median;
-            let learnedP80 = phaseStats.p75;
+            let learnedP80 = phaseStats.p80;
             let detail = `${phaseStats.count} ${classification} ${phaseBucket} traces`;
             let trustedCount = phaseStats.count;
             if (phaseModelStats && phaseModelStats.count >= 2) {
                 if (phaseModelStats.count >= CALIBRATION_THRESHOLD) {
                     learnedP50 = phaseModelStats.median;
-                    learnedP80 = phaseModelStats.p75;
+                    learnedP80 = phaseModelStats.p80;
                 }
                 else {
                     const wModel = phaseModelStats.count / (phaseModelStats.count + W_PHASE_MODEL);
                     learnedP50 = Math.round(wModel * phaseModelStats.median + (1 - wModel) * learnedP50);
-                    learnedP80 = Math.round(wModel * phaseModelStats.p75 + (1 - wModel) * learnedP80);
+                    learnedP80 = Math.round(wModel * phaseModelStats.p80 + (1 - wModel) * learnedP80);
                 }
                 detail = `${phaseModelStats.count} ${classification} ${phaseBucket} traces on ${normalizedModel}`;
                 trustedCount = phaseModelStats.count;
