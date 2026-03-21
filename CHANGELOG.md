@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.13.0](https://github.com/mmmprod/claude-eta/compare/claude-eta-v0.12.0...claude-eta-v0.13.0) (2026-03-21)
+
+
+### Features
+
+* **loop-detector:** repair loop detection + community consent improvements ([#62](https://github.com/mmmprod/claude-eta/issues/62)) ([4a507e6](https://github.com/mmmprod/claude-eta/commit/4a507e6d7bcf623675b4a880b9644e8a1db062b5))
+
 ## [0.12.0](https://github.com/mmmprod/claude-eta/compare/claude-eta-v0.11.0...claude-eta-v0.12.0) (2026-03-21)
 
 
