@@ -312,3 +312,60 @@ describe('recomputeRemaining', () => {
     assert.ok(result.remaining_p80 >= result.remaining_p50 + 1);
   });
 });
+
+// ── cumulative work item ETA adjustment ──────────────────────
+
+describe('cumulative work item ETA adjustment', () => {
+  it('subtracts cumulative seconds from initial ETA', () => {
+    const initial = estimateInitial(makeStats('bugfix', 10), 'bugfix', 3);
+    const cumulativeSeconds = 60;
+
+    const adjusted = {
+      p50_wall: Math.max(0, initial.p50_wall - cumulativeSeconds),
+      p80_wall: Math.max(1, initial.p80_wall - cumulativeSeconds),
+    };
+
+    assert.ok(adjusted.p50_wall < initial.p50_wall);
+    assert.ok(adjusted.p80_wall < initial.p80_wall);
+    assert.equal(adjusted.p50_wall, initial.p50_wall - 60);
+    assert.equal(adjusted.p80_wall, initial.p80_wall - 60);
+  });
+
+  it('p50 floors at 0 when cumulative exceeds initial', () => {
+    const initial = estimateInitial(makeStats('bugfix', 10), 'bugfix', 3);
+    const cumulativeSeconds = initial.p50_wall + 100;
+
+    const adjusted = {
+      p50_wall: Math.max(0, initial.p50_wall - cumulativeSeconds),
+      p80_wall: Math.max(1, initial.p80_wall - cumulativeSeconds),
+    };
+
+    assert.equal(adjusted.p50_wall, 0);
+  });
+
+  it('p80 floors at 1 when cumulative exceeds initial', () => {
+    const initial = estimateInitial(makeStats('bugfix', 10), 'bugfix', 3);
+    const cumulativeSeconds = initial.p80_wall + 100;
+
+    const adjusted = {
+      p50_wall: Math.max(0, initial.p50_wall - cumulativeSeconds),
+      p80_wall: Math.max(1, initial.p80_wall - cumulativeSeconds),
+    };
+
+    assert.equal(adjusted.p80_wall, 1);
+  });
+
+  it('zero cumulative seconds leaves ETA unchanged', () => {
+    const initial = estimateInitial(makeStats('bugfix', 10), 'bugfix', 3);
+    const cumulativeSeconds = 0;
+
+    // With 0 cumulative, no adjustment should happen
+    const adjusted = {
+      p50_wall: Math.max(0, initial.p50_wall - cumulativeSeconds),
+      p80_wall: Math.max(1, initial.p80_wall - cumulativeSeconds),
+    };
+
+    assert.equal(adjusted.p50_wall, initial.p50_wall);
+    assert.equal(adjusted.p80_wall, initial.p80_wall);
+  });
+});

@@ -62,5 +62,6 @@ export function createActiveTurn(params: CreateTurnParams): ActiveTurnState {
     live_remaining_p50: null,
     live_remaining_p80: null,
     live_phase: null,
+    cumulative_work_item_seconds: 0,
   };
 }

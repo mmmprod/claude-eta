@@ -55,6 +55,7 @@ function normalizeActiveTurnState(raw: ActiveTurnState): ActiveTurnState {
             typeof value.preview === 'string',
         )
       : [],
+    cumulative_work_item_seconds: raw.cumulative_work_item_seconds ?? 0,
   };
 }
 
