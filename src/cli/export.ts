@@ -48,7 +48,7 @@ export function anonymizeTask(
     files_edited: task.files_edited,
     files_created: task.files_created,
     errors: task.errors,
-    model: normalizeModel(task.model),
+    model: task.model && task.model !== 'unknown' ? normalizeModel(task.model) : null,
     project_hash: projectHash(projIdentifier),
     project_file_count: projectMeta?.file_count ?? null,
     project_loc_bucket: projectMeta?.loc_bucket ?? null,

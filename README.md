@@ -8,6 +8,9 @@
   <a href="https://claude.com"><img src="https://img.shields.io/badge/Claude_Code-plugin-D97757?style=flat-square&logo=claude&logoColor=white" alt="Claude Code Plugin" /></a>
   <img src="https://img.shields.io/badge/data-100%25_local-222?style=flat-square&logo=shield&logoColor=white" alt="100% Local" />
   <a href="https://github.com/mmmprod/claude-eta/stargazers"><img src="https://img.shields.io/github/stars/mmmprod/claude-eta?style=flat-square&color=yellow" alt="Stars" /></a>
+  <br/>
+  <img src="https://img.shields.io/endpoint?url=https%3A%2F%2Fwviehmnmvvekiuxtxmmd.supabase.co%2Ffunctions%2Fv1%2Fbadge%3Ftype%3Drecords&style=flat-square" alt="Community Data" />
+  <img src="https://img.shields.io/endpoint?url=https%3A%2F%2Fwviehmnmvvekiuxtxmmd.supabase.co%2Ffunctions%2Fv1%2Fbadge%3Ftype%3Dscore&style=flat-square" alt="ETA Precision" />
 </p>
 
 <h3 align="center">Claude guesses. claude-eta measures.</h3>
