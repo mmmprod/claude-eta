@@ -12,6 +12,7 @@
  */
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { getPluginDataDir, getActiveDir, getSessionsDir, getLegacyDataDir } from '../paths.js';
 import { loadCompletedTurns } from '../event-store.js';
 import { turnsToTaskEntries } from '../compat.js';
@@ -399,8 +400,25 @@ export async function showAdminExport(pluginVersion: string): Promise<void> {
   const sizeKb = (fs.statSync(outputPath).size / 1024).toFixed(1);
   const projCount = data.health.last_event_by_project.length;
 
+  // Generate standalone HTML with embedded data
+  let htmlPath: string | null = null;
+  try {
+    const moduleDir = path.dirname(fileURLToPath(import.meta.url));
+    const templatePath = path.resolve(moduleDir, '..', '..', 'admin', 'dashboard.html');
+    const template = fs.readFileSync(templatePath, 'utf-8');
+    const injection = `<script>window.__ADMIN_DATA__ = ${JSON.stringify(data)};</script>`;
+    const standalone = template.replace('<!-- __ADMIN_DATA_INJECTION__ -->', injection);
+    htmlPath = path.join(exportDir, 'admin-export.html');
+    fs.writeFileSync(htmlPath, standalone);
+  } catch {
+    // Template not found — skip standalone generation
+  }
+
   console.log(`## Admin Export\n`);
   console.log(`Exported to: \`${outputPath}\`\n`);
+  if (htmlPath) {
+    console.log(`Dashboard: \`${htmlPath}\` — open in browser, no file picker needed.\n`);
+  }
   console.log(`| Metric | Value |`);
   console.log(`|--------|-------|`);
   console.log(`| File size | ${sizeKb} KB |`);
@@ -415,5 +433,7 @@ export async function showAdminExport(pluginVersion: string): Promise<void> {
   console.log(
     `| Subagent ratio | ${data.subagents.ratio} (${data.subagents.subagent_turns} sub / ${data.subagents.main_turns} main) |`,
   );
-  console.log(`\nDrop this JSON into your admin dashboard HTML to visualize.`);
+  if (!htmlPath) {
+    console.log(`\nDrop this JSON into your admin dashboard HTML to visualize.`);
+  }
 }

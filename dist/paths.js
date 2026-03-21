@@ -8,10 +8,40 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
 import * as crypto from 'node:crypto';
-const FALLBACK_DATA_DIR = path.join(os.homedir(), '.claude', 'plugins', 'claude-eta');
-/** Root data directory — uses CLAUDE_PLUGIN_DATA if available, else dev fallback */
+const DEV_FALLBACK_DIR = path.join(os.homedir(), '.claude', 'plugins', 'claude-eta');
+/** Cached auto-detect result — only for the expensive readdirSync path */
+let _cachedAutoDetect = null;
+/**
+ * Root data directory — uses CLAUDE_PLUGIN_DATA if available,
+ * else auto-detects the runtime data dir under ~/.claude/plugins/data/,
+ * else falls back to ~/.claude/plugins/claude-eta for local dev.
+ * Auto-detect result is memoized for process lifetime.
+ */
 export function getPluginDataDir() {
-    return process.env.CLAUDE_PLUGIN_DATA || FALLBACK_DATA_DIR;
+    // Env var is authoritative — always check first (instant, no I/O)
+    if (process.env.CLAUDE_PLUGIN_DATA)
+        return process.env.CLAUDE_PLUGIN_DATA;
+    // Return cached auto-detect result if available
+    if (_cachedAutoDetect !== null)
+        return _cachedAutoDetect;
+    // Auto-detect runtime data dir (CLI invocations lack CLAUDE_PLUGIN_DATA)
+    const runtimeDataRoot = path.join(os.homedir(), '.claude', 'plugins', 'data');
+    try {
+        const entries = fs.readdirSync(runtimeDataRoot);
+        const match = entries.find((e) => e.startsWith('claude-eta'));
+        if (match) {
+            const candidate = path.join(runtimeDataRoot, match);
+            if (fs.statSync(candidate).isDirectory()) {
+                _cachedAutoDetect = candidate;
+                return _cachedAutoDetect;
+            }
+        }
+    }
+    catch {
+        // runtimeDataRoot doesn't exist — fall through
+    }
+    _cachedAutoDetect = DEV_FALLBACK_DIR;
+    return _cachedAutoDetect;
 }
 /** Project-specific directory: <data>/projects/<project_fp>/ */
 export function getProjectDir(projectFp) {
@@ -59,7 +89,7 @@ export function getLegacyDataDir() {
 }
 /** Hardcoded v1 data directory — the exact path v1 store.ts always wrote to */
 export function getV1HardcodedDataDir() {
-    return process.env.CLAUDE_ETA_V1_DATA_DIR || path.join(FALLBACK_DATA_DIR, 'data');
+    return process.env.CLAUDE_ETA_V1_DATA_DIR || path.join(DEV_FALLBACK_DIR, 'data');
 }
 function isPlainLegacyFilename(filename) {
     return (filename.length > 0 &&
