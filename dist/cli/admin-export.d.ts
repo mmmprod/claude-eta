@@ -91,6 +91,7 @@ export declare function buildAdminExport(pluginVersion: string): Promise<{
         total_community_samples: number;
         error?: undefined;
     };
+    predictor_eval: import("../eval.js").EvalReport;
     insights: InsightResult[];
     subagents: {
         main_turns: number;

@@ -2,13 +2,14 @@
  * /eta admin-export — Full admin dashboard data as a single JSON.
  * Output: <plugin_data>/export/admin-export.json
  *
- * 6 sections:
+ * 7 sections:
  * 1. Health: uptime, active turns, last events, stop_reason distribution
  * 2. ETA Accuracy: hits/misses by project×type, auto-disabled types
  * 3. Data Quality: turns by project/week, classification distribution, coverage, time ratios
  * 4. Supabase: baselines availability, last refresh
- * 5. Insights: 9 deep analyses (reuse existing)
- * 6. Subagents: main vs subagent breakdown
+ * 5. Predictor Eval: walk-forward calibration metrics for prompt/edit/bash stages
+ * 6. Insights: 9 deep analyses (reuse existing)
+ * 7. Subagents: main vs subagent breakdown
  */
 import * as fs from 'node:fs';
 import * as path from 'node:path';
@@ -16,6 +17,7 @@ import { fileURLToPath } from 'node:url';
 import { getPluginDataDir, getActiveDir, getSessionsDir } from '../paths.js';
 import { loadCompletedTurns } from '../event-store.js';
 import { turnsToAnalyticsTasks } from '../compat.js';
+import { evaluateTasks } from '../eval.js';
 import { computeAllInsights } from '../insights/index.js';
 import { median, groupBy } from '../insights/types.js';
 import { isoWeekLabel } from '../insights/temporal.js';
@@ -375,6 +377,7 @@ export async function buildAdminExport(pluginVersion: string) {
     eta_accuracy: buildEtaAccuracy(projects),
     data_quality: buildDataQuality(projects, allTurns),
     supabase,
+    predictor_eval: evaluateTasks(allTasks),
     insights: computeAllInsights(allTasks) as InsightResult[],
     subagents: buildSubagents(allTurns),
   };
@@ -419,6 +422,7 @@ export async function showAdminExport(pluginVersion: string): Promise<void> {
   console.log(
     `| Uptime | ${data.health.uptime_days} days (since ${data.health.uptime_since?.slice(0, 10) ?? 'n/a'}) |`,
   );
+  console.log(`| Predictor eval tasks | ${data.predictor_eval.total_tasks} |`);
   console.log(`| Insights computed | ${data.insights.length}/9 |`);
   console.log(`| Supabase | ${data.supabase.available ? 'connected' : 'offline'} |`);
   console.log(

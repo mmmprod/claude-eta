@@ -45,3 +45,11 @@
 - [x] Add `supabase-integration` to the `required-ci` umbrella gate.
 - [x] Count `0s` phase offsets as valid observations in `/eta eval`.
 - [x] Switch hook bench `p95` to a nearest-rank calculation and raise CI samples to `20`.
+
+## GUI Follow-up
+
+- Scope note: `admin/dashboard.html` remains an internal operator GUI only. It is not the future end-user product surface.
+- [x] Surface predictor evaluation inside `/eta admin-export`.
+- [x] Add a dedicated predictor calibration section to `admin/dashboard.html`.
+- [x] Align the admin GUI time-ratio table with the renamed proxy timing fields.
+- [x] Hide maintainer-only surfaces from normal `/eta help` and gate them behind `CLAUDE_ETA_INTERNAL=1`.

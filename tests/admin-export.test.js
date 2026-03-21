@@ -4,6 +4,8 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
 
+let turnSeq = 0;
+
 // Point plugin data dir to a temp dir for isolation
 const TEST_ROOT = path.join(os.tmpdir(), `admin-export-test-${Date.now()}`);
 process.env.CLAUDE_PLUGIN_DATA = TEST_ROOT;
@@ -33,9 +35,10 @@ function writeSessionMeta(projectFp, sessionId, meta) {
 }
 
 function makeTurn(overrides = {}) {
+  turnSeq += 1;
   return {
-    turn_id: `turn-${Math.random().toString(36).slice(2)}`,
-    work_item_id: 'wi-1',
+    turn_id: `turn-${turnSeq}`,
+    work_item_id: `wi-${turnSeq}`,
     session_id: 'sess-1',
     agent_key: 'main',
     agent_id: null,
@@ -282,6 +285,7 @@ describe('admin-export', () => {
     assert.ok(result.eta_accuracy);
     assert.ok(result.data_quality);
     assert.ok(result.supabase);
+    assert.ok(result.predictor_eval);
     assert.ok(Array.isArray(result.insights));
     assert.ok(result.subagents);
   });
@@ -401,6 +405,14 @@ describe('admin-export', () => {
   describe('supabase', () => {
     it('has available flag', () => {
       assert.ok(typeof result.supabase.available === 'boolean');
+    });
+  });
+
+  describe('predictor_eval', () => {
+    it('includes walk-forward evaluation data in the admin export', () => {
+      assert.equal(result.predictor_eval.total_tasks, 6);
+      assert.ok(result.predictor_eval.overall);
+      assert.ok(result.predictor_eval.overall.prompt.sample_count >= 1);
     });
   });
 

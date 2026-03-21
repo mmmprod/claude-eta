@@ -56,7 +56,7 @@ Data flow: counters accumulate in `active/<session_id>__<agent_key>.json` (tiny 
 - `supabase.ts` — Zero-dep HTTP client for PostgREST API
 - `auto-eta.ts` — Auto-ETA decision engine (9 activation conditions, pure, zero I/O)
 - `insights/` — 9 deep analyses (correlations, breakdowns, temporal patterns)
-- `cli/admin-export.ts` — Full admin dashboard JSON export (6 sections: health, eta_accuracy, data_quality, supabase, insights, subagents). Scans all projects, async Supabase fetch with fallback.
+- `cli/admin-export.ts` — Maintainer-only admin dashboard JSON export (7 sections: health, eta_accuracy, data_quality, supabase, predictor_eval, insights, subagents). Scans all projects, async Supabase fetch with fallback.
 
 ## Hook stdin/stdout protocol
 
@@ -103,7 +103,7 @@ ${CLAUDE_PLUGIN_DATA}/                    # or ~/.claude/plugins/claude-eta/ (de
 │   └── _preferences.json
 ├── export/
 │   ├── velocity-YYYY-MM.json
-│   └── admin-export.json              # Full admin dashboard dump (6 sections)
+│   └── admin-export.json              # Maintainer dashboard dump (7 sections)
 └── cache/
     └── baselines.json                    # Community baselines (6h TTL)
 ```
@@ -132,9 +132,11 @@ tests/
 ├── repo-metrics.test.js          # 7 tests — file walk, caching, buckets
 ├── auto-eta.test.js              # ~20 tests — activation conditions, cooldown
 ├── insights-*.test.js            # 48 tests — 9 deep analysis functions
-├── admin-export.test.js          # 19 tests — admin dashboard JSON export (6 sections)
+├── admin-export.test.js          # admin dashboard JSON export (7 sections)
 └── plugin-package.test.js        # 3 tests — manifest alignment, dist shipping
 ```
+
+Maintainer-only CLI surfaces stay hidden from normal `/eta help`. Enable them locally with `CLAUDE_ETA_INTERNAL=1` to use `/eta eval` and `/eta admin-export`.
 
 ## Install the plugin locally (for development)
 

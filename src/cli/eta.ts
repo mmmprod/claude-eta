@@ -30,6 +30,11 @@ import type { AnalyticsTask, CompletedTurn, TaskEntry, TaskClassification } from
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const EXPORT_DIR = path.join(getPluginDataDir(), 'export');
+const INTERNAL_ONLY_MODES = new Set(['eval', 'admin-export']);
+
+function internalToolsEnabled(): boolean {
+  return /^(1|true|yes)$/i.test(process.env.CLAUDE_ETA_INTERNAL ?? '');
+}
 
 // ── Formatting helpers ────────────────────────────────────────
 
@@ -353,6 +358,12 @@ async function main(): Promise<void> {
   const confirm = process.argv.includes('--confirm');
   const pluginVersion = getPluginVersion();
   const prefs = loadPreferencesV2();
+  const internalMode = internalToolsEnabled();
+
+  if (INTERNAL_ONLY_MODES.has(mode) && !internalMode) {
+    console.log('Unknown command. Run `/eta help` for the public command list.');
+    return;
+  }
 
   // Help
   if (mode === 'help') {
@@ -374,10 +385,15 @@ async function main(): Promise<void> {
     console.log(`| \`/eta auto on\`               | Enable Auto-ETA injection                  |`);
     console.log(`| \`/eta auto off\`              | Disable Auto-ETA injection                 |`);
     console.log(`| \`/eta insights\`              | Deep patterns in your task data             |`);
-    console.log(`| \`/eta eval\`                  | Walk-forward ETA calibration report         |`);
     console.log(`| \`/eta recap\`                 | Today's activity summary                    |`);
-    console.log(`| \`/eta admin-export\`          | Full admin dashboard JSON export            |`);
     console.log(`| \`/eta help\`                  | This help                                      |`);
+    if (internalMode) {
+      console.log(`\nMaintainer-only tools (enabled via \`CLAUDE_ETA_INTERNAL=1\`):\n`);
+      console.log(`| Command                      | Description                                    |`);
+      console.log(`|------------------------------|------------------------------------------------|`);
+      console.log(`| \`/eta eval\`                  | Walk-forward ETA calibration report         |`);
+      console.log(`| \`/eta admin-export\`          | Internal admin dashboard JSON/HTML export   |`);
+    }
     console.log(`\nCommunity sharing: **${getCommunityHelpStatus(prefs)}**.`);
     console.log(
       '\nAll data is 100% local by default. Community uploads stay blocked until the user enables them with `/eta community on`.',

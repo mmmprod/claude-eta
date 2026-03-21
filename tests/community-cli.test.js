@@ -22,11 +22,11 @@ afterEach(() => {
   fs.rmSync(TEST_CWD, { recursive: true, force: true });
 });
 
-function runEta(args) {
+function runEta(args, extraEnv = {}) {
   return execFileSync('node', ['dist/cli/eta.js', ...args, TEST_CWD], {
     cwd: REPO_ROOT,
     encoding: 'utf8',
-    env: { ...process.env, CLAUDE_PLUGIN_DATA: TEST_DATA_DIR },
+    env: { ...process.env, CLAUDE_PLUGIN_DATA: TEST_DATA_DIR, ...extraEnv },
   });
 }
 
@@ -62,10 +62,25 @@ describe('/eta community CLI', () => {
   it('shows current sharing state in help output', () => {
     const disabledHelp = runEta(['help']);
     assert.match(disabledHelp, /Community sharing: \*\*choice pending \(currently local-only\)\*\*/);
+    assert.doesNotMatch(disabledHelp, /\/eta eval/);
+    assert.doesNotMatch(disabledHelp, /\/eta admin-export/);
 
     runEta(['community', 'on']);
 
     const enabledHelp = runEta(['help']);
     assert.match(enabledHelp, /Community sharing: \*\*enabled\*\*/);
+  });
+
+  it('only exposes maintainer commands when CLAUDE_ETA_INTERNAL is enabled', () => {
+    const hidden = runEta(['admin-export']);
+    assert.match(hidden, /Unknown command/);
+
+    const internalHelp = runEta(['help'], { CLAUDE_ETA_INTERNAL: '1' });
+    assert.match(internalHelp, /Maintainer-only tools/);
+    assert.match(internalHelp, /\/eta eval/);
+    assert.match(internalHelp, /\/eta admin-export/);
+
+    const internalAdmin = runEta(['admin-export'], { CLAUDE_ETA_INTERNAL: '1' });
+    assert.match(internalAdmin, /## Admin Export/);
   });
 });
