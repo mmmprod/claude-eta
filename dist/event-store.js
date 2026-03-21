@@ -34,6 +34,7 @@ function normalizeActiveTurnState(raw) {
                 typeof value.fp === 'string' &&
                 typeof value.preview === 'string')
             : [],
+        cumulative_work_item_seconds: raw.cumulative_work_item_seconds ?? 0,
     };
 }
 function normalizeCompletedTurn(raw) {
