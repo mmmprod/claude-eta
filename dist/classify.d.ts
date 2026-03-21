@@ -9,5 +9,8 @@ export type PromptTransition = 'continuation' | 'same_work_item' | 'new_work_ite
  *  like an acknowledgement / clarification rather than a new instruction. */
 export declare function isContinuation(prompt: string, classification: TaskClassification, existingActive: ActiveTurnState | null): boolean;
 export declare function decidePromptTransition(prompt: string, classification: TaskClassification, existingActive: ActiveTurnState | null): PromptTransition;
+/** Compute similarity between a new prompt and an existing turn (0 to 1).
+ *  Used as a fallback when regex patterns don't match in decidePromptTransition. */
+export declare function computeSimilarityScore(prompt: string, promptClassification: TaskClassification, existingClassification: TaskClassification, existingPromptSummary: string): number;
 export declare function summarizePrompt(prompt: string, maxLength?: number): string;
 //# sourceMappingURL=classify.d.ts.map
