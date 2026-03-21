@@ -1,8 +1,10 @@
 import { describe, it, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
+import { Worker } from 'node:worker_threads';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
+import { pathToFileURL } from 'node:url';
 
 let TEST_DATA_DIR;
 
@@ -21,6 +23,70 @@ async function loadModule() {
   // Force fresh import by adding cache-busting query
   const ts = Date.now() + Math.random();
   return await import(`../dist/event-store.js?t=${ts}`);
+}
+
+function getEventStoreModuleUrl() {
+  const ts = Date.now() + Math.random();
+  return `${pathToFileURL(path.resolve('dist/event-store.js')).href}?t=${ts}`;
+}
+
+function runConcurrentCloseTurnWorkers(projectFp, sessionId, agentKey, reason) {
+  const gate = new SharedArrayBuffer(Int32Array.BYTES_PER_ELEMENT);
+  const workerPath = new URL('./helpers/event-store-close-worker.mjs', import.meta.url);
+  const workerData = {
+    gate,
+    moduleUrl: getEventStoreModuleUrl(),
+    projectFp,
+    sessionId,
+    agentKey,
+    reason,
+  };
+
+  const runWorker = () =>
+    new Promise((resolve, reject) => {
+      const worker = new Worker(workerPath, { workerData });
+      let ready = false;
+      let finished = false;
+
+      worker.on('message', (message) => {
+        if (message?.type === 'ready') {
+          ready = true;
+          resolve({ worker, waitForResult });
+          return;
+        }
+        if (message?.type === 'error') {
+          finished = true;
+          reject(new Error(message.error));
+          return;
+        }
+        if (message?.type === 'result') {
+          finished = true;
+          waitForResult.resolve(message.result);
+        }
+      });
+
+      worker.on('error', reject);
+      worker.on('exit', (code) => {
+        if (!finished && !ready) {
+          reject(new Error(`Worker exited before becoming ready (${code})`));
+        } else if (!finished && code !== 0) {
+          waitForResult.reject(new Error(`Worker exited with code ${code}`));
+        }
+      });
+
+      const waitForResult = {};
+      waitForResult.promise = new Promise((resultResolve, resultReject) => {
+        waitForResult.resolve = resultResolve;
+        waitForResult.reject = resultReject;
+      }).finally(() => worker.terminate());
+    });
+
+  return Promise.all([runWorker(), runWorker()]).then((workers) => {
+    const gateView = new Int32Array(gate);
+    Atomics.store(gateView, 0, 1);
+    Atomics.notify(gateView, 0, workers.length);
+    return Promise.all(workers.map((entry) => entry.waitForResult.promise));
+  });
 }
 
 function makeActiveTurn(overrides = {}) {
@@ -402,5 +468,189 @@ describe('loadCompletedTurns / loadRecentCompletedTurns', () => {
 
     const recent = loadRecentCompletedTurns(fp, 2);
     assert.equal(recent.length, 2);
+  });
+
+  it('loadCompletedTurns returns turns sorted by started_at ascending', async () => {
+    const { startTurn, closeTurn, loadCompletedTurns } = await loadModule();
+
+    const fp = 'sortfp12345678901';
+    const baseTimes = [
+      Date.now() - 30000, // oldest
+      Date.now() - 10000, // newest
+      Date.now() - 20000, // middle
+    ];
+
+    // Create turns in non-chronological order across different session files
+    for (let i = 0; i < 3; i++) {
+      const state = makeActiveTurn({
+        project_fp: fp,
+        session_id: `sess-sort-${i}`,
+        agent_key: 'main',
+        started_at_ms: baseTimes[i],
+        started_at: new Date(baseTimes[i]).toISOString(),
+      });
+      startTurn(state);
+      closeTurn(fp, `sess-sort-${i}`, 'main', 'stop');
+    }
+
+    const turns = loadCompletedTurns(fp);
+    assert.equal(turns.length, 3);
+
+    // Verify ascending order by started_at
+    for (let i = 1; i < turns.length; i++) {
+      const prev = new Date(turns[i - 1].started_at).getTime();
+      const curr = new Date(turns[i].started_at).getTime();
+      assert.ok(
+        prev <= curr,
+        `Turn ${i - 1} (${turns[i - 1].started_at}) should be <= Turn ${i} (${turns[i].started_at})`,
+      );
+    }
+  });
+
+  it('loadCompletedTurns uses deterministic tie-breakers when started_at is identical', async () => {
+    const { startTurn, closeTurn, loadCompletedTurns } = await loadModule();
+
+    const fp = 'sorttie1234567890';
+    const startedAtMs = Date.now() - 15000;
+    const startedAt = new Date(startedAtMs).toISOString();
+    const states = [
+      makeActiveTurn({
+        project_fp: fp,
+        session_id: 'sess-b',
+        agent_key: 'main',
+        turn_id: 'turn-b',
+        started_at_ms: startedAtMs,
+        started_at: startedAt,
+      }),
+      makeActiveTurn({
+        project_fp: fp,
+        session_id: 'sess-a',
+        agent_key: 'worker',
+        turn_id: 'turn-c',
+        started_at_ms: startedAtMs,
+        started_at: startedAt,
+      }),
+      makeActiveTurn({
+        project_fp: fp,
+        session_id: 'sess-a',
+        agent_key: 'main',
+        turn_id: 'turn-a',
+        started_at_ms: startedAtMs,
+        started_at: startedAt,
+      }),
+    ];
+
+    for (const state of states) {
+      startTurn(state);
+      closeTurn(fp, state.session_id, state.agent_key, 'stop');
+    }
+
+    const turns = loadCompletedTurns(fp);
+    assert.equal(turns.length, 3);
+    assert.deepEqual(
+      turns.map((turn) => [turn.session_id, turn.agent_key, turn.turn_id]),
+      [
+        ['sess-a', 'main', 'turn-a'],
+        ['sess-a', 'worker', 'turn-c'],
+        ['sess-b', 'main', 'turn-b'],
+      ],
+    );
+  });
+});
+
+// ── closeTurn lock file ──────────────────────────────────────
+
+describe('closeTurn lock file', () => {
+  it('returns null when closeTurn is called twice sequentially on the same turn', async () => {
+    const { startTurn, closeTurn } = await loadModule();
+    const { getCompletedLogPath } = await import('../dist/paths.js');
+
+    const fp = 'lockfp12345678901';
+    const state = makeActiveTurn({ project_fp: fp, session_id: 'sess-lock', agent_key: 'main' });
+    startTurn(state);
+
+    // First close should succeed
+    const first = closeTurn(fp, 'sess-lock', 'main', 'stop');
+    assert.ok(first);
+
+    // Second close should return null (turn already closed, no active file)
+    const second = closeTurn(fp, 'sess-lock', 'main', 'stop');
+    assert.equal(second, null);
+
+    // Verify only one record in completed JSONL
+    const completedPath = getCompletedLogPath(fp, 'sess-lock', 'main');
+    const content = fs.readFileSync(completedPath, 'utf-8').trim();
+    const lines = content.split('\n').filter((l) => l.trim());
+    assert.equal(lines.length, 1, 'Expected exactly one completed record');
+  });
+
+  it('allows only one overlapping closeTurn caller to complete the turn', async () => {
+    const { startTurn } = await loadModule();
+    const { getCompletedLogPath } = await import('../dist/paths.js');
+
+    const fp = 'lockrace123456789';
+    const state = makeActiveTurn({ project_fp: fp, session_id: 'sess-race', agent_key: 'main' });
+    startTurn(state);
+
+    const [first, second] = await runConcurrentCloseTurnWorkers(fp, 'sess-race', 'main', 'stop');
+    const successes = [first, second].filter(Boolean);
+    const misses = [first, second].filter((result) => result === null);
+
+    assert.equal(successes.length, 1, 'Exactly one overlapping closeTurn call should succeed');
+    assert.equal(misses.length, 1, 'Exactly one overlapping closeTurn call should bail on the lock');
+
+    const completedPath = getCompletedLogPath(fp, 'sess-race', 'main');
+    const content = fs.readFileSync(completedPath, 'utf-8').trim();
+    const lines = content.split('\n').filter((l) => l.trim());
+    assert.equal(lines.length, 1, 'Expected exactly one completed record after overlapping closeTurn calls');
+  });
+
+  it('recovers stale lock files older than 60s', async () => {
+    const { startTurn, closeTurn } = await loadModule();
+    const { getLocksDir } = await import('../dist/paths.js');
+
+    const fp = 'stalefp1234567890';
+    const state = makeActiveTurn({ project_fp: fp, session_id: 'sess-stale', agent_key: 'main' });
+    startTurn(state);
+
+    // Create a stale lock file manually (mtime in the past)
+    const locksDir = getLocksDir(fp);
+    fs.mkdirSync(locksDir, { recursive: true });
+    const lockPath = path.join(locksDir, 'sess-stale__main.lock');
+    fs.writeFileSync(lockPath, JSON.stringify({ pid: -1, token: 'stale-token', created_at_ms: Date.now() - 90_000 }));
+    // Set mtime to 90 seconds ago (beyond the 60s stale threshold)
+    const staleTime = new Date(Date.now() - 90_000);
+    fs.utimesSync(lockPath, staleTime, staleTime);
+
+    // closeTurn should recover the stale lock and succeed
+    const result = closeTurn(fp, 'sess-stale', 'main', 'stop');
+    assert.ok(result, 'closeTurn should succeed after recovering stale lock');
+    assert.equal(result.stop_reason, 'stop');
+
+    // Lock file should be cleaned up
+    assert.equal(fs.existsSync(lockPath), false, 'Lock file should be removed after close');
+  });
+
+  it('bails when lock is held by another process (fresh lock)', async () => {
+    const { startTurn, closeTurn } = await loadModule();
+    const { getLocksDir } = await import('../dist/paths.js');
+
+    const fp = 'heldlkfp123456789';
+    const state = makeActiveTurn({ project_fp: fp, session_id: 'sess-held', agent_key: 'main' });
+    startTurn(state);
+
+    // Create a fresh lock file (not stale)
+    const locksDir = getLocksDir(fp);
+    fs.mkdirSync(locksDir, { recursive: true });
+    const lockPath = path.join(locksDir, 'sess-held__main.lock');
+    fs.writeFileSync(lockPath, JSON.stringify({ pid: process.pid, token: 'live-token', created_at_ms: Date.now() }));
+
+    try {
+      // closeTurn should bail because lock is held
+      const result = closeTurn(fp, 'sess-held', 'main', 'stop');
+      assert.equal(result, null, 'closeTurn should return null when lock is held');
+    } finally {
+      fs.unlinkSync(lockPath);
+    }
   });
 });
