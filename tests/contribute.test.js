@@ -54,7 +54,7 @@ function makeCompletedTurn(overrides = {}) {
     first_bash_at_ms: null,
     model: 'claude-sonnet-4-20250514',
     source: null,
-    stop_reason: 'end_turn',
+    stop_reason: 'stop',
     path_fps: [],
     ...overrides,
   };
