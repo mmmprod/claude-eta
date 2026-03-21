@@ -58,5 +58,9 @@ export function createActiveTurn(params: CreateTurnParams): ActiveTurnState {
     status: 'active',
     path_fps: [],
     error_fingerprints: [],
+    cached_eta: null,
+    live_remaining_p50: null,
+    live_remaining_p80: null,
+    live_phase: null,
   };
 }

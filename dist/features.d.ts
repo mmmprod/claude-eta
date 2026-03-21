@@ -24,6 +24,18 @@ export interface TraceFeatures {
 /** Extract trace features from an active turn state */
 export declare function extractFeatures(state: ActiveTurnState): TraceFeatures;
 /**
+ * Recompute remaining time from a cached ETA snapshot.
+ * Pure arithmetic — no I/O, no stats lookup.
+ * Used by on-tool-use/on-tool-failure on phase transitions.
+ */
+export declare function recomputeRemaining(cachedEta: {
+    p50_wall: number;
+    p80_wall: number;
+}, elapsedSeconds: number, phase: TaskPhase): {
+    remaining_p50: number;
+    remaining_p80: number;
+};
+/**
  * Detect the current task phase from the tool usage sequence.
  *
  * - explore: before first edit (reading, grepping, globbing)
