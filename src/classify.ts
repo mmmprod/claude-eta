@@ -96,9 +96,6 @@ export function decidePromptTransition(
   // Regex signal for same work item (works across classifications)
   if (SAME_WORK_ITEM_PATTERNS.some((pattern) => pattern.test(trimmed))) return 'same_work_item';
 
-  // Classification match: same type of work → likely same work item
-  if (classification === existingActive.classification) return 'same_work_item';
-
   // Similarity fallback when regex doesn't match
   const score = computeSimilarityScore(
     prompt,
