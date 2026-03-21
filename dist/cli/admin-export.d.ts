@@ -67,9 +67,9 @@ export declare function buildAdminExport(pluginVersion: string): Promise<{
         time_ratios: {
             project: string;
             avg_wall_seconds: number;
-            avg_active_seconds: number;
-            avg_wait_seconds: number;
-            wait_ratio_pct: number;
+            avg_span_until_last_event_seconds: number;
+            avg_tail_after_last_event_seconds: number;
+            tail_after_last_event_ratio_pct: number;
         }[];
         weekly_volume: {
             week: string;

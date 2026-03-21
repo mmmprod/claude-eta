@@ -59,6 +59,31 @@ jobs:
       - name: Supabase schema validation
         run: npm run test:integration
 
+  perf:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Hook performance gate
+        env:
+          ETA_PERF_SAMPLES: 10
+          ETA_HOOK_TOTAL_AVG_MS: 180
+          ETA_HOOK_TOTAL_P95_MS: 220
+          ETA_HOOK_DELTA_AVG_MS: 90
+          ETA_HOOK_DELTA_P95_MS: 120
+        run: npm run test:perf
+
   security:
     runs-on: ubuntu-latest
     steps:
@@ -83,16 +108,19 @@ jobs:
     if: ${{ always() }}
     needs:
       - build-and-test
+      - perf
       - security
     runs-on: ubuntu-latest
     steps:
       - name: Assert required jobs passed
         env:
           BUILD_AND_TEST_RESULT: ${{ needs.build-and-test.result }}
+          PERF_RESULT: ${{ needs.perf.result }}
           SECURITY_RESULT: ${{ needs.security.result }}
         run: |
-          if [ "$BUILD_AND_TEST_RESULT" != "success" ] || [ "$SECURITY_RESULT" != "success" ]; then
+          if [ "$BUILD_AND_TEST_RESULT" != "success" ] || [ "$PERF_RESULT" != "success" ] || [ "$SECURITY_RESULT" != "success" ]; then
             echo "build-and-test result: $BUILD_AND_TEST_RESULT"
+            echo "perf result: $PERF_RESULT"
             echo "security result: $SECURITY_RESULT"
             exit 1
           fi

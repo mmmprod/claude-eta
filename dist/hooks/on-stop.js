@@ -1,7 +1,7 @@
 import { readStdin } from '../stdin.js';
 import { resolveProjectIdentity } from '../identity.js';
 import { getActiveTurn, closeTurn, setActiveTurn } from '../event-store.js';
-import { loadCompletedTurnsCompat, turnsToTaskEntries } from '../compat.js';
+import { loadCompletedTurnsCompat, turnsToAnalyticsTasks } from '../compat.js';
 import { setLastCompletedV2, consumeLastEtaV2 } from '../ephemeral.js';
 import { computeStats, fmtSec } from '../stats.js';
 import { extractDurations, findBullshitEstimate, resolveDetectorReference } from '../detector.js';
@@ -61,7 +61,7 @@ async function main() {
     const message = stdin.last_assistant_message ?? '';
     if (message) {
         const turns = loadCompletedTurnsCompat(cwd);
-        const tasks = turnsToTaskEntries(turns);
+        const tasks = turnsToAnalyticsTasks(turns);
         const stats = computeStats(tasks);
         if (stats) {
             // Resolve reference: classification-specific first, then global

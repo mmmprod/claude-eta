@@ -19,12 +19,13 @@ import { getPluginDataDir } from '../paths.js';
 import { loadPreferencesV2, savePreferencesV2 } from '../preferences.js';
 import { loadProjectMeta } from '../project-meta.js';
 import { resolveProjectIdentity } from '../identity.js';
-import { loadCompletedTurnsCompat, turnsToTaskEntries } from '../compat.js';
+import { loadCompletedTurnsCompat, turnsToAnalyticsTasks, turnsToTaskEntries } from '../compat.js';
+import { evaluateTasks, formatEvaluationReport } from '../eval.js';
 import { showExport } from './export.js';
 import { showContribute, executeContribute } from './contribute.js';
 import { showCompare } from './compare.js';
 import { showAdminExport } from './admin-export.js';
-import type { TaskEntry, TaskClassification } from '../types.js';
+import type { AnalyticsTask, CompletedTurn, TaskEntry, TaskClassification } from '../types.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -60,7 +61,7 @@ function col(s: string, len: number, align: 'left' | 'right' = 'left'): string {
 
 // ── Modes ─────────────────────────────────────────────────────
 
-function showSession(tasks: TaskEntry[]): void {
+function showSession(tasks: AnalyticsTask[]): void {
   const lastSessionId = tasks[tasks.length - 1].session_id;
   const sessionTasks = tasks.filter((t) => t.session_id === lastSessionId);
 
@@ -86,7 +87,7 @@ function showSession(tasks: TaskEntry[]): void {
   }
 }
 
-function showHistory(tasks: TaskEntry[]): void {
+function showHistory(tasks: AnalyticsTask[]): void {
   const recent = tasks.slice(-20).reverse();
 
   console.log(`## Last ${recent.length} Tasks\n`);
@@ -103,14 +104,14 @@ function showHistory(tasks: TaskEntry[]): void {
   }
 }
 
-function showStats(tasks: TaskEntry[]): void {
+function showStats(tasks: AnalyticsTask[]): void {
   const completed = tasks.filter((t) => t.duration_seconds !== null);
   if (completed.length === 0) {
     console.log('No completed tasks yet.');
     return;
   }
 
-  const byType = new Map<TaskClassification, TaskEntry[]>();
+  const byType = new Map<TaskClassification, AnalyticsTask[]>();
   for (const t of completed) {
     const list = byType.get(t.classification) ?? [];
     list.push(t);
@@ -137,7 +138,7 @@ function showStats(tasks: TaskEntry[]): void {
   }
 }
 
-function showInspect(cwd: string, tasks: TaskEntry[]): void {
+function showInspect(cwd: string, tasks: TaskEntry[], turns: CompletedTurn[]): void {
   const { fp, displayName } = resolveProjectIdentity(cwd);
   const meta = loadProjectMeta(fp);
   const completed = tasks.filter((t) => t.duration_seconds !== null);
@@ -174,11 +175,11 @@ function showInspect(cwd: string, tasks: TaskEntry[]): void {
 
   console.log(`\n### What is stored per turn\n`);
   console.log(
-    'Each completed turn contains: `turn_id`, `work_item_id`, `session_id`, `agent_key`, `classification`, `prompt_summary`, `wall_seconds`, `active_seconds`, `tool_calls`, `files_read`, `files_edited`, `files_created`, `errors`, `model`, `stop_reason`.',
+    'Each completed turn contains: `turn_id`, `work_item_id`, `session_id`, `agent_key`, `classification`, `prompt_summary`, `wall_seconds`, `span_until_last_event_seconds`, `tail_after_last_event_seconds`, `tool_calls`, `files_read`, `files_edited`, `files_created`, `errors`, `model`, `stop_reason`. Legacy `active_seconds` / `wait_seconds` are compatibility aliases for those proxy fields.',
   );
   console.log('\n**Not stored**: full prompt text, file contents, conversation content, code.');
-  if (tasks.length > 0) {
-    const last = tasks[tasks.length - 1];
+  if (turns.length > 0) {
+    const last = turns[turns.length - 1];
     console.log(`\n### Latest turn (raw)\n`);
     console.log('```json');
     console.log(JSON.stringify(last, null, 2));
@@ -218,7 +219,7 @@ const FEEDBACK_LINE = '\n---\nFeedback? Bug? https://github.com/mmmprod/claude-e
 
 // ── Recap ────────────────────────────────────────────────────
 
-function showRecap(tasks: TaskEntry[]): void {
+function showRecap(tasks: AnalyticsTask[]): void {
   const completed = tasks.filter((t) => t.duration_seconds != null);
   if (completed.length === 0) {
     console.log('No completed tasks yet.');
@@ -242,7 +243,7 @@ function showRecap(tasks: TaskEntry[]): void {
   const totalCreated = dayTasks.reduce((s, t) => s + t.files_created, 0);
   const totalErrors = dayTasks.reduce((s, t) => s + t.errors, 0);
 
-  const byType = new Map<TaskClassification, TaskEntry[]>();
+  const byType = new Map<TaskClassification, AnalyticsTask[]>();
   for (const t of dayTasks) {
     const list = byType.get(t.classification) ?? [];
     list.push(t);
@@ -254,7 +255,7 @@ function showRecap(tasks: TaskEntry[]): void {
     dayTasks[0].timestamp_start.slice(0, 10) === todayStr ? 'Today' : dayTasks[0].timestamp_start.slice(0, 10);
 
   console.log(`## ${dayLabel}'s Recap\n`);
-  console.log(`**${dayTasks.length} tasks** completed in **${fmtDuration(totalSec)}** of active work.\n`);
+  console.log(`**${dayTasks.length} tasks** completed in **${fmtDuration(totalSec)}** of tracked wall time.\n`);
 
   console.log(`### By type\n`);
   for (const [cls, entries] of sorted) {
@@ -373,6 +374,7 @@ async function main(): Promise<void> {
     console.log(`| \`/eta auto on\`               | Enable Auto-ETA injection                  |`);
     console.log(`| \`/eta auto off\`              | Disable Auto-ETA injection                 |`);
     console.log(`| \`/eta insights\`              | Deep patterns in your task data             |`);
+    console.log(`| \`/eta eval\`                  | Walk-forward ETA calibration report         |`);
     console.log(`| \`/eta recap\`                 | Today's activity summary                    |`);
     console.log(`| \`/eta admin-export\`          | Full admin dashboard JSON export            |`);
     console.log(`| \`/eta help\`                  | This help                                      |`);
@@ -446,7 +448,8 @@ async function main(): Promise<void> {
 
   // Sync commands — load data via compat layer (v2 or legacy)
   const turns = loadCompletedTurnsCompat(cwd);
-  const tasks = turnsToTaskEntries(turns);
+  const rawTasks = turnsToTaskEntries(turns);
+  const tasks = turnsToAnalyticsTasks(turns);
 
   // auto and inspect work even with zero completed turns
   if (mode === 'auto') {
@@ -455,7 +458,7 @@ async function main(): Promise<void> {
     return;
   }
   if (mode === 'inspect') {
-    showInspect(cwd, tasks);
+    showInspect(cwd, rawTasks, turns);
     console.log(FEEDBACK_LINE);
     return;
   }
@@ -484,6 +487,9 @@ async function main(): Promise<void> {
       console.log(formatInsightsReport(results));
       break;
     }
+    case 'eval':
+      console.log(formatEvaluationReport(evaluateTasks(tasks)));
+      break;
     default:
       showSession(tasks);
       break;

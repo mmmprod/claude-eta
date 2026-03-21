@@ -42,6 +42,11 @@ export function classifyPrompt(prompt) {
 /** Conversational / continuation patterns — short acknowledgements, not new tasks.
  *  Also used by auto-eta.ts to skip ETA injection on conversational prompts. */
 export const CONTINUATION_PATTERNS = /^(merci|thanks|thank you|ok|oui|yes|non|no|continue|go|go ahead|sure|d'accord|parfait|cool|nice|got it|understood|proceed|do it|vas-?y|c'est bon|exactement|exactly|right|correct|yep|yup|ouais|ça marche|good|great|bien|super|entendu|compris|allez|let's go|on y va|fais[- ]le|make it so|ship it|lgtm)[\s!.]*$/i;
+const SAME_WORK_ITEM_PATTERNS = [
+    /^(continue(?:\s+(?:et|with))?|poursuis|keep going|still on|same\b|m[eê]me\b|also\b|ajoute aussi|add also|and also|without changing (?:the )?scope|sans changer le scope)/i,
+    /\b(for the same (?:fix|task|issue)|same (?:fix|task|scope|issue|feature)|m[eê]me (?:fix|bug|scope|t[aâ]che|feature)|sur le m[eê]me (?:fix|bug|scope)|without changing (?:the )?scope|sans changer le scope|cas limites|edge cases)\b/i,
+];
+const EXPLICIT_RESET_PATTERNS = /^(new task|another task|something else|switch to|let'?s switch|on passe [àa]|passe [àa]|nouvelle? t[âa]che|autre sujet|change de sujet|nouveau sujet)\b/i;
 /** Detect if a prompt is a continuation of the current work item (not a new task).
  *  Returns true only when there's an existing active turn AND the prompt looks
  *  like an acknowledgement / clarification rather than a new instruction. */
@@ -56,6 +61,18 @@ export function isContinuation(prompt, classification, existingActive) {
     if (classification === 'other' && trimmed.length < 40)
         return true;
     return false;
+}
+export function decidePromptTransition(prompt, classification, existingActive) {
+    if (!existingActive)
+        return 'new_work_item';
+    if (isContinuation(prompt, classification, existingActive))
+        return 'continuation';
+    const trimmed = prompt.trim();
+    if (EXPLICIT_RESET_PATTERNS.test(trimmed))
+        return 'new_work_item';
+    if (SAME_WORK_ITEM_PATTERNS.some((pattern) => pattern.test(trimmed)))
+        return 'same_work_item';
+    return 'new_work_item';
 }
 export function summarizePrompt(prompt, maxLength = 80) {
     const firstLine = prompt.split('\n')[0].trim();

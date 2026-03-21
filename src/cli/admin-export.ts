@@ -15,7 +15,7 @@ import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { getPluginDataDir, getActiveDir, getSessionsDir } from '../paths.js';
 import { loadCompletedTurns } from '../event-store.js';
-import { turnsToTaskEntries } from '../compat.js';
+import { turnsToAnalyticsTasks } from '../compat.js';
 import { computeAllInsights } from '../insights/index.js';
 import { median, groupBy } from '../insights/types.js';
 import { isoWeekLabel } from '../insights/temporal.js';
@@ -270,16 +270,16 @@ function buildDataQuality(projects: ProjectInfo[], allTurns: CompletedTurn[]) {
         sumWait = 0;
       for (const t of p.turns) {
         sumWall += t.wall_seconds;
-        sumActive += t.active_seconds;
-        sumWait += t.wait_seconds;
+        sumActive += t.span_until_last_event_seconds;
+        sumWait += t.tail_after_last_event_seconds;
       }
       const n = p.turns.length;
       return {
         project: p.displayName,
         avg_wall_seconds: Math.round(sumWall / n),
-        avg_active_seconds: Math.round(sumActive / n),
-        avg_wait_seconds: Math.round(sumWait / n),
-        wait_ratio_pct: sumWall > 0 ? Math.round((sumWait / sumWall) * 100) : 0,
+        avg_span_until_last_event_seconds: Math.round(sumActive / n),
+        avg_tail_after_last_event_seconds: Math.round(sumWait / n),
+        tail_after_last_event_ratio_pct: sumWall > 0 ? Math.round((sumWait / sumWall) * 100) : 0,
       };
     });
 
@@ -364,7 +364,7 @@ export async function buildAdminExport(pluginVersion: string) {
 
   const projects = discoverProjects();
   const allTurns = projects.flatMap((p) => p.turns);
-  const allTasks = turnsToTaskEntries(allTurns);
+  const allTasks = turnsToAnalyticsTasks(allTurns);
 
   const supabase = await supabasePromise;
 

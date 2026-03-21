@@ -17,6 +17,29 @@ export interface TaskEntry {
     errors: number;
     model: string;
 }
+/** Logical main-task aggregate used by v2 analytics paths. */
+export interface AnalyticsTask {
+    analytics_id: string;
+    work_item_id: string;
+    session_id: string;
+    project: string;
+    timestamp_start: string;
+    timestamp_end: string | null;
+    duration_seconds: number | null;
+    prompt_summary: string;
+    prompt_complexity: number;
+    classification: TaskClassification;
+    tool_calls: number;
+    files_read: number;
+    files_edited: number;
+    files_created: number;
+    errors: number;
+    model: string;
+    first_edit_offset_seconds: number | null;
+    first_bash_offset_seconds: number | null;
+    runner_kind: 'main';
+    source_turn_count: number;
+}
 /** Project-level data file (v1 legacy format) */
 export interface ProjectData {
     project: string;
@@ -147,6 +170,10 @@ export interface CompletedTurn {
     started_at: string;
     ended_at: string;
     wall_seconds: number;
+    first_edit_offset_seconds: number | null;
+    first_bash_offset_seconds: number | null;
+    span_until_last_event_seconds: number;
+    tail_after_last_event_seconds: number;
     active_seconds: number;
     wait_seconds: number;
     tool_calls: number;

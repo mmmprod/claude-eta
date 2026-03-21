@@ -1,7 +1,7 @@
 /**
  * Barrel module — computes all insights and formats the report.
  */
-import type { TaskEntry } from '../types.js';
+import type { AnalyticsTask } from '../types.js';
 import type { InsightResult } from './types.js';
 import { completed } from './types.js';
 import { errorDurationCorrelation, contextSwitchCost, volatilityRootCauses } from './correlations.js';
@@ -12,7 +12,7 @@ export type { InsightResult } from './types.js';
 export { formatInsightsReport } from './format.js';
 
 /** Run all 9 insight analyses. Returns only those with sufficient data. */
-export function computeAllInsights(tasks: TaskEntry[]): InsightResult[] {
+export function computeAllInsights(tasks: AnalyticsTask[]): InsightResult[] {
   const valid = completed(tasks);
   const fns = [
     errorDurationCorrelation,

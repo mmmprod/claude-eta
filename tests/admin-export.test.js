@@ -361,8 +361,8 @@ describe('admin-export', () => {
       const ratios = result.data_quality.time_ratios;
       assert.ok(ratios.length >= 2);
       for (const r of ratios) {
-        assert.ok(r.avg_wall_seconds >= r.avg_active_seconds);
-        assert.ok(r.wait_ratio_pct >= 0 && r.wait_ratio_pct <= 100);
+        assert.ok(r.avg_wall_seconds >= r.avg_span_until_last_event_seconds);
+        assert.ok(r.tail_after_last_event_ratio_pct >= 0 && r.tail_after_last_event_ratio_pct <= 100);
       }
     });
 
