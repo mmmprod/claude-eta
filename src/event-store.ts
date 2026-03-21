@@ -9,6 +9,7 @@
  */
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { randomUUID } from 'node:crypto';
 // crypto no longer needed — atomicWrite moved to paths.ts
 import type { SessionMeta, ActiveTurnState, EventRecord, CompletedTurn, StopReason } from './types.js';
 import type { TurnEventType } from './types.js';
@@ -23,6 +24,7 @@ import {
   getCompletedDir,
   getActiveDir,
   getClosingDir,
+  getLocksDir,
   atomicWrite,
   atomicWriteIfAbsent,
 } from './paths.js';
@@ -191,16 +193,193 @@ function buildCompletedTurn(
   };
 }
 
+/** Stale lock threshold: 60 seconds */
+const STALE_LOCK_MS = 60_000;
+
+/** O_EXCL open flags — atomic "create only if not exists" on POSIX */
+const LOCK_FLAGS = fs.constants.O_WRONLY | fs.constants.O_CREAT | fs.constants.O_EXCL;
+
+type LockOwner = {
+  pid: number;
+  token: string;
+  created_at_ms: number;
+};
+
+type LockHandle = {
+  fd: number;
+  owner: LockOwner;
+};
+
+function createLockOwner(): LockOwner {
+  return {
+    pid: process.pid,
+    token: randomUUID(),
+    created_at_ms: Date.now(),
+  };
+}
+
+function parseLockOwner(raw: string): LockOwner | null {
+  try {
+    const parsed = JSON.parse(raw) as Partial<LockOwner>;
+    const pid = parsed.pid;
+    const token = parsed.token;
+    const createdAtMs = parsed.created_at_ms;
+    if (!Number.isInteger(pid) || pid == null || pid <= 0) return null;
+    if (typeof token !== 'string' || token.length === 0) return null;
+    if (typeof createdAtMs !== 'number' || !Number.isFinite(createdAtMs)) return null;
+    return {
+      pid,
+      token,
+      created_at_ms: createdAtMs,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function sameLockOwner(left: LockOwner | null, right: LockOwner | null): boolean {
+  if (!left || !right) return left === right;
+  return left.pid === right.pid && left.token === right.token && left.created_at_ms === right.created_at_ms;
+}
+
+function readLockOwner(lockPath: string): LockOwner | null {
+  try {
+    return parseLockOwner(fs.readFileSync(lockPath, 'utf-8'));
+  } catch {
+    return null;
+  }
+}
+
+function isProcessAlive(pid: number | null | undefined): boolean {
+  if (!Number.isInteger(pid) || pid == null || pid <= 0) return false;
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    return (error as NodeJS.ErrnoException).code === 'EPERM';
+  }
+}
+
+function sameFileIdentity(left: fs.Stats, right: fs.Stats): boolean {
+  return left.dev === right.dev && left.ino === right.ino && left.mtimeMs === right.mtimeMs && left.size === right.size;
+}
+
+/** Try to open a lock file with O_EXCL; returns handle or null */
+function tryOpenLock(lockPath: string): LockHandle | null {
+  const owner = createLockOwner();
+  let fd: number | null = null;
+
+  try {
+    fd = fs.openSync(lockPath, LOCK_FLAGS);
+    fs.writeFileSync(fd, JSON.stringify(owner), 'utf-8');
+    fs.fsyncSync(fd);
+    return { fd, owner };
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'EEXIST') {
+      return null;
+    }
+
+    if (fd !== null) {
+      try {
+        fs.closeSync(fd);
+      } catch {
+        /* best-effort cleanup */
+      }
+      try {
+        fs.unlinkSync(lockPath);
+      } catch {
+        /* best-effort cleanup */
+      }
+    }
+    throw error;
+  }
+}
+
+function compareStringKey(left: string | null | undefined, right: string | null | undefined): number {
+  return (left ?? '').localeCompare(right ?? '');
+}
+
+function compareCompletedTurns(left: CompletedTurn, right: CompletedTurn): number {
+  const startedAt = left.started_at.localeCompare(right.started_at);
+  if (startedAt !== 0) return startedAt;
+
+  const sessionId = compareStringKey(left.session_id, right.session_id);
+  if (sessionId !== 0) return sessionId;
+
+  const agentKey = compareStringKey(left.agent_key, right.agent_key);
+  if (agentKey !== 0) return agentKey;
+
+  return compareStringKey(left.turn_id, right.turn_id);
+}
+
+/**
+ * Try to acquire an advisory lock file using O_EXCL (atomic on POSIX).
+ * Returns the file descriptor on success, or null if lock is held.
+ * Recovers stale locks older than STALE_LOCK_MS.
+ */
+function acquireLock(lockPath: string): LockHandle | null {
+  ensureDir(path.dirname(lockPath));
+
+  const handle = tryOpenLock(lockPath);
+  if (handle !== null) return handle;
+
+  // Lock file exists — check for staleness and only recover if the recorded owner is dead.
+  try {
+    const snapshotStat = fs.statSync(lockPath);
+    if (Date.now() - snapshotStat.mtimeMs <= STALE_LOCK_MS) {
+      return null;
+    }
+
+    const snapshotOwner = readLockOwner(lockPath);
+    if (snapshotOwner && isProcessAlive(snapshotOwner.pid)) {
+      return null;
+    }
+
+    const currentStat = fs.statSync(lockPath);
+    const currentOwner = readLockOwner(lockPath);
+    if (!sameFileIdentity(snapshotStat, currentStat) || !sameLockOwner(snapshotOwner, currentOwner)) {
+      return null;
+    }
+
+    fs.unlinkSync(lockPath);
+    return tryOpenLock(lockPath);
+  } catch {
+    // stat failed — lock was just released, retry once
+    return tryOpenLock(lockPath);
+  }
+}
+
+/** Release an advisory lock: close fd + unlink file */
+function releaseLock(lock: LockHandle, lockPath: string): void {
+  const shouldUnlink = sameLockOwner(readLockOwner(lockPath), lock.owner);
+
+  try {
+    fs.closeSync(lock.fd);
+  } catch {
+    /* */
+  }
+
+  if (shouldUnlink) {
+    try {
+      fs.unlinkSync(lockPath);
+    } catch {
+      /* */
+    }
+  }
+}
+
 /**
  * Idempotent close turn — guaranteed to produce at most one completed record.
  *
  * Protocol:
+ * 0. Acquire advisory lock (O_EXCL) — prevents concurrent closeTurn race
  * 1. Read active file → if missing, check closing/ for crash recovery
  * 2. Rename active → closing (atomic staging)
  * 3. Dedup check: if turn_id already in completed JSONL, delete closing and return
  * 4. Append completed record to JSONL
  * 5. Append closing event to event log
  * 6. Delete closing file
+ * 7. Release lock
  */
 export function closeTurn(
   projectFp: string,
@@ -209,79 +388,92 @@ export function closeTurn(
   reason: StopReason,
   extras?: Partial<Pick<CompletedTurn, 'repo_loc_bucket' | 'repo_file_count_bucket'>>,
 ): CompletedTurn | null {
-  const activePath = getActiveTurnPath(projectFp, sessionId, agentKey);
-  const closingPath = getClosingPath(projectFp, sessionId, agentKey);
-  let active: ActiveTurnState | null = null;
-
-  let recoveredFromClosing = false;
-
-  // Step 1: Try to read from active, or fall back to closing (crash recovery)
-  try {
-    active = JSON.parse(fs.readFileSync(activePath, 'utf-8')) as ActiveTurnState;
-  } catch {
-    // No active file — check closing for crash recovery
-    try {
-      active = JSON.parse(fs.readFileSync(closingPath, 'utf-8')) as ActiveTurnState;
-      recoveredFromClosing = true;
-    } catch {
-      // Neither active nor closing — turn already closed or never existed
-      return null;
-    }
+  // Step 0: Acquire advisory lock
+  const lockPath = path.join(getLocksDir(projectFp), `${sessionId}__${agentKey}.lock`);
+  const lock = acquireLock(lockPath);
+  if (lock === null) {
+    // Lock already held — another process is closing this turn. Bail.
+    return null;
   }
 
-  // Step 2: Stage — rename active → closing (if not already in closing)
-  if (!recoveredFromClosing) {
-    ensureDir(getClosingDir(projectFp));
+  try {
+    const activePath = getActiveTurnPath(projectFp, sessionId, agentKey);
+    const closingPath = getClosingPath(projectFp, sessionId, agentKey);
+    let active: ActiveTurnState | null = null;
+
+    let recoveredFromClosing = false;
+
+    // Step 1: Try to read from active, or fall back to closing (crash recovery)
     try {
-      fs.renameSync(activePath, closingPath);
+      active = JSON.parse(fs.readFileSync(activePath, 'utf-8')) as ActiveTurnState;
     } catch {
-      // Rename failed — if closing exists (concurrent call), treat as recovery; otherwise bail
+      // No active file — check closing for crash recovery
       try {
-        fs.statSync(closingPath);
+        active = JSON.parse(fs.readFileSync(closingPath, 'utf-8')) as ActiveTurnState;
         recoveredFromClosing = true;
       } catch {
+        // Neither active nor closing — turn already closed or never existed
         return null;
       }
     }
-  }
 
-  // Step 3: Dedup check — only needed during crash recovery
-  if (recoveredFromClosing && isTurnAlreadyCompleted(projectFp, sessionId, agentKey, active.turn_id)) {
+    // Step 2: Stage — rename active → closing (if not already in closing)
+    if (!recoveredFromClosing) {
+      ensureDir(getClosingDir(projectFp));
+      try {
+        fs.renameSync(activePath, closingPath);
+      } catch {
+        // Rename failed — if closing exists (concurrent call), treat as recovery; otherwise bail
+        try {
+          fs.statSync(closingPath);
+          recoveredFromClosing = true;
+        } catch {
+          return null;
+        }
+      }
+    }
+
+    // Step 3: Dedup check — only needed during crash recovery
+    if (recoveredFromClosing && isTurnAlreadyCompleted(projectFp, sessionId, agentKey, active.turn_id)) {
+      try {
+        fs.unlinkSync(closingPath);
+      } catch {
+        /* already gone */
+      }
+      return null;
+    }
+
+    // Step 4: Build and append completed record
+    const completed = buildCompletedTurn(active, reason, extras);
+    const completedPath = getCompletedLogPath(projectFp, sessionId, agentKey);
+    ensureDir(path.dirname(completedPath));
+    fs.appendFileSync(completedPath, JSON.stringify(completed) + '\n');
+
+    // Step 5: Append closing event (non-fatal)
+    try {
+      ensureDir(path.dirname(getEventLogPath(projectFp, sessionId, agentKey)));
+      appendEvent(projectFp, sessionId, agentKey, {
+        seq: active.tool_calls + 1,
+        ts: completed.ended_at,
+        ts_ms: Date.now(),
+        event: STOP_REASON_TO_EVENT[reason] ?? 'turn_stopped',
+      });
+    } catch {
+      // Event log failure is non-fatal — completed record is already persisted
+    }
+
+    // Step 6: Clean up closing file
     try {
       fs.unlinkSync(closingPath);
     } catch {
       /* already gone */
     }
-    return null;
+
+    return completed;
+  } finally {
+    // Step 7: Always release the lock
+    releaseLock(lock, lockPath);
   }
-
-  // Step 4: Build and append completed record
-  const completed = buildCompletedTurn(active, reason, extras);
-  const completedPath = getCompletedLogPath(projectFp, sessionId, agentKey);
-  ensureDir(path.dirname(completedPath));
-  fs.appendFileSync(completedPath, JSON.stringify(completed) + '\n');
-
-  // Step 5: Append closing event (non-fatal)
-  try {
-    ensureDir(path.dirname(getEventLogPath(projectFp, sessionId, agentKey)));
-    appendEvent(projectFp, sessionId, agentKey, {
-      seq: active.tool_calls + 1,
-      ts: completed.ended_at,
-      ts_ms: Date.now(),
-      event: STOP_REASON_TO_EVENT[reason] ?? 'turn_stopped',
-    });
-  } catch {
-    // Event log failure is non-fatal — completed record is already persisted
-  }
-
-  // Step 6: Clean up closing file
-  try {
-    fs.unlinkSync(closingPath);
-  } catch {
-    /* already gone */
-  }
-
-  return completed;
 }
 
 /** Close all active turns for a session (used by SessionEnd) */
@@ -322,7 +514,7 @@ export function loadRecentCompletedTurns(projectFp: string, limit: number): Comp
 
 // ── Internals ────────────────────────────────────────────────
 
-/** Read all JSONL files from the completed directory */
+/** Read all JSONL files from the completed directory, sorted by started_at ascending */
 function readAllCompletedJsonl(projectFp: string): CompletedTurn[] {
   const dir = getCompletedDir(projectFp);
   const turns: CompletedTurn[] = [];
@@ -344,6 +536,9 @@ function readAllCompletedJsonl(projectFp: string): CompletedTurn[] {
   } catch {
     // No completed dir yet
   }
+
+  // Sort by started_at ascending with stable tie-breakers for deterministic output.
+  turns.sort(compareCompletedTurns);
 
   return turns;
 }

@@ -56,6 +56,11 @@ export function getClosingDir(projectFp: string): string {
   return path.join(getProjectDir(projectFp), 'closing');
 }
 
+/** Advisory lock dir (closeTurn race prevention): <project>/locks/ */
+export function getLocksDir(projectFp: string): string {
+  return path.join(getProjectDir(projectFp), 'locks');
+}
+
 /** Community data: <data>/community/ */
 export function getCommunityDir(): string {
   return path.join(getPluginDataDir(), 'community');
@@ -130,4 +135,5 @@ export function ensureProjectDirs(projectFp: string): void {
   ensureDir(getCompletedDir(projectFp));
   ensureDir(getSessionsDir(projectFp));
   ensureDir(getCacheDir(projectFp));
+  ensureDir(getLocksDir(projectFp));
 }
