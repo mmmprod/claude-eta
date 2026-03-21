@@ -64,8 +64,18 @@ async function main() {
             // Prefer refined_eta from phase-transition recalc (already computed by on-tool-use)
             const hasRefinedEta = existing.refined_eta && existing.last_phase && existing.last_phase !== 'explore';
             const refined = hasRefinedEta
-                ? { ...initial, remaining_p50: existing.refined_eta.p50, remaining_p80: existing.refined_eta.p80, calibration: 'project+trace', phase: features.phase }
-                : estimateWithTrace(initial, elapsed, features.phase, { stats, classification: existing.classification, model: existing.model });
+                ? {
+                    ...initial,
+                    remaining_p50: existing.refined_eta.p50,
+                    remaining_p80: existing.refined_eta.p80,
+                    calibration: 'project+trace',
+                    phase: features.phase,
+                }
+                : estimateWithTrace(initial, elapsed, features.phase, {
+                    stats,
+                    classification: existing.classification,
+                    model: existing.model,
+                });
             const legacy = toTaskEstimate(refined, existing.prompt_complexity);
             contextParts.push(formatStatsContext(stats, legacy));
             if (features.phase !== 'explore') {
