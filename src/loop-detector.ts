@@ -15,10 +15,10 @@ export function normalizeError(text: string): string {
   return text
     .slice(0, 1500)
     .toLowerCase()
-    .replace(/['"][^'"]*['"]/g, '<val>')    // quoted values (types, paths, names)
-    .replace(/\S+[/\\]\S+/g, '<path>')      // anything with / or \ (file paths)
-    .replace(/\b\d+\b/g, '<N>')             // all bare numbers
-    .replace(/\s+/g, ' ')                    // collapse whitespace
+    .replace(/['"][^'"]*['"]/g, '<val>') // quoted values (types, paths, names)
+    .replace(/\S+[/\\]\S+/g, '<path>') // anything with / or \ (file paths)
+    .replace(/\b\d+\b/g, '<N>') // all bare numbers
+    .replace(/\s+/g, ' ') // collapse whitespace
     .trim()
     .slice(0, 150);
 }
@@ -47,10 +47,7 @@ export interface LoopDetection {
  * Detect a repair loop in the accumulated error fingerprints.
  * Returns the most frequent fingerprint if it appears >= threshold times.
  */
-export function detectRepairLoop(
-  fingerprints: ErrorFingerprint[],
-  threshold = 3,
-): LoopDetection | null {
+export function detectRepairLoop(fingerprints: ErrorFingerprint[], threshold = 3): LoopDetection | null {
   if (fingerprints.length < threshold) return null;
 
   const counts = new Map<string, { count: number; preview: string }>();

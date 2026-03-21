@@ -126,18 +126,12 @@ describe('detectRepairLoop', () => {
   });
 
   it('respects custom threshold=5 (does not detect at 4)', () => {
-    const result = detectRepairLoop(
-      fps('same error', 'same error', 'same error', 'same error'),
-      5,
-    );
+    const result = detectRepairLoop(fps('same error', 'same error', 'same error', 'same error'), 5);
     assert.equal(result, null);
   });
 
   it('respects custom threshold=5 (detects at 5)', () => {
-    const result = detectRepairLoop(
-      fps('same error', 'same error', 'same error', 'same error', 'same error'),
-      5,
-    );
+    const result = detectRepairLoop(fps('same error', 'same error', 'same error', 'same error', 'same error'), 5);
     assert.notEqual(result, null);
     assert.equal(result.count, 5);
   });

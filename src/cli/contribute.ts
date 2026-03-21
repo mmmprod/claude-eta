@@ -113,7 +113,9 @@ function ensureCommunitySharingEnabled(): boolean {
   if (prefs.community_choice_made) {
     console.log('Community sharing is disabled.');
     console.log('You chose local-only mode. Local estimates still learn from your private data only.');
-    console.log('Enable uploads later with `/eta community on`, then run `/eta contribute` to preview what would be sent.');
+    console.log(
+      'Enable uploads later with `/eta community on`, then run `/eta contribute` to preview what would be sent.',
+    );
     return false;
   }
 

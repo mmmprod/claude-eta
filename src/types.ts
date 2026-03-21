@@ -60,8 +60,8 @@ export type LastCompleted = Pick<
 
 /** Error fingerprint for loop detection */
 export interface ErrorFingerprint {
-  fp: string;       // sha256 hash, 8 chars
-  preview: string;  // first 100 chars of normalized error
+  fp: string; // sha256 hash, 8 chars
+  preview: string; // first 100 chars of normalized error
 }
 
 /** User preferences for Auto-ETA (stored in _preferences.json) */

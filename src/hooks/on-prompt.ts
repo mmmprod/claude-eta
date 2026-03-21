@@ -157,7 +157,7 @@ async function main(): Promise<void> {
       if (loopResult) {
         contextParts.push(
           `[claude-eta] Warning: your previous attempt hit the same error ${loopResult.count} times: "${loopResult.preview}".\n` +
-          `Before trying again, reconsider your approach. Don't retry the same strategy.`,
+            `Before trying again, reconsider your approach. Don't retry the same strategy.`,
         );
       }
     }

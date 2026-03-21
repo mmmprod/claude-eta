@@ -336,7 +336,9 @@ function showCommunity(): void {
       '\nAnonymized uploads are allowed, but they still require a manual `/eta contribute --confirm` each time.',
     );
   } else {
-    console.log('\nYou explicitly chose local-only mode. No anonymized records can be uploaded unless you later run `/eta community on`.');
+    console.log(
+      '\nYou explicitly chose local-only mode. No anonymized records can be uploaded unless you later run `/eta community on`.',
+    );
   }
 }
 
