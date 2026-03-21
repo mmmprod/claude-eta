@@ -47,6 +47,8 @@ claude plugin update claude-eta@claude-eta
 
 After ~5 tasks, Claude gets your real numbers instead of guessing. When it still says something absurd, the bullshit detector catches it and corrects inline.
 
+**Continuation detection** — short acknowledgements ("ok", "continue", "vas-y") don't reset the timer. The active turn stays alive and the estimate refines in real time based on the current phase (explore → edit → validate → repair loop).
+
 9 hooks track the full lifecycle — including tool failures, subagents, and session end. Data is append-only JSONL, isolated per session and agent.
 
 ## Commands
@@ -64,6 +66,8 @@ After ~5 tasks, Claude gets your real numbers instead of guessing. When it still
 | `/eta inspect` | See exactly what's stored |
 | `/eta auto` | Auto-ETA status and accuracy |
 | `/eta auto on/off` | Toggle automatic ETA injection |
+| `/eta community` | Community sharing status |
+| `/eta community on/off` | Allow or block anonymized uploads |
 | `/eta recap` | Today's daily journal |
 | `/eta help` | All commands |
 
@@ -72,7 +76,7 @@ After ~5 tasks, Claude gets your real numbers instead of guessing. When it still
 The estimation engine improves with data. Three ways to help:
 
 1. **Use it.** Every task makes your local estimates better.
-2. **`/eta contribute --confirm`** shares anonymized per-task records: task type, duration, tool/file counts, model name, hashed project/contributor IDs. No code, no prompts, no file paths.
+2. **`/eta contribute --confirm`** shares anonymized per-task records only after the user enables community sharing with `/eta community on`: task type, duration, tool/file counts, model name, hashed project/contributor IDs. No code, no prompts, no file paths.
 3. **Open an issue** when an estimate is way off.
 
 ## Privacy
@@ -83,7 +87,12 @@ Data lives under `${CLAUDE_PLUGIN_DATA}` (or `~/.claude/plugins/claude-eta/` for
 
 `/eta inspect` to see everything. `/eta export` to review before sharing.
 
-Community features (`compare`, `contribute`) are opt-in. [Details below.](#community-baselines)
+Community features are split:
+
+- `compare` is read-only and does not upload your data
+- `contribute` stays blocked until the user enables sharing with `/eta community on`
+
+[Details below.](#community-baselines)
 
 ## Roadmap
 
@@ -91,8 +100,8 @@ Community features (`compare`, `contribute`) are opt-in. [Details below.](#commu
 |---|---|---|
 | 0 — Feedback Loop | Shipped | Task timing, classification, per-session recalibration |
 | 1 — Static Estimation | Shipped | Shrinkage quantile intervals, complexity scoring |
-| 2 — Live Refinement | Shipped | Phase detection (explore/edit/validate/repair), trace features |
-| 3 — Collective Intelligence | Shipped | Opt-in community baselines via `/eta contribute` |
+| 2 — Live Refinement | Shipped | Phase-aware remaining-time estimates, continuation detection, elapsed subtraction |
+| 3 — Collective Intelligence | Shipped | Opt-in community baselines via `/eta contribute`, server-side dedup |
 | 4 — Deep Insights | Shipped | 9 correlation/breakdown/temporal analyses |
 | BS Detector | Shipped | Catches absurd time claims using classification-specific baselines |
 | Auto-ETA | Shipped | Opt-in automatic ETA injection with accuracy self-check |
@@ -100,13 +109,15 @@ Community features (`compare`, `contribute`) are opt-in. [Details below.](#commu
 
 ## Community baselines
 
-`/eta compare` fetches anonymous community averages (read-only).
+`/eta compare` fetches anonymous community averages (read-only, no upload).
 
-`/eta contribute` previews what would be sent. Nothing leaves your machine until you run `/eta contribute --confirm`.
+`/eta contribute` previews what would be sent. Nothing leaves your machine until you both enable sharing with `/eta community on` and run `/eta contribute --confirm`.
 
-**Sent:** task type, duration, tool/file counts, normalized model name, project hash, contributor hash, plugin version, error count. Run `/eta export` to see the exact payload.
+**Sent:** task type, duration, tool/file counts, normalized model name, project hash, contributor hash, dedup key, plugin version, error count. Run `/eta export` to see the exact payload.
 
 **Never sent:** prompts, file paths, project names, code.
+
+**Dedup:** each record carries a `dedup_key` (sha256 of contributor + task ID). Retries, second machines, or local state resets won't create duplicates — the server rejects them via a unique index.
 
 ## Maintainer infra
 
@@ -155,6 +166,7 @@ If the workflow succeeds but `baselines_cache` is still empty, that usually mean
 |---|---|
 | `command not found: claude` | [Install Claude Code](https://docs.anthropic.com/en/docs/claude-code/overview) |
 | `/eta` shows nothing | Normal on first use. Complete a few tasks first. |
+| `/eta contribute` fails with `dedup_key` error | Run the Supabase migration `20260321_dedup_key.sql` on your instance |
 | Plugin not in `claude plugin list` | `claude plugin marketplace update claude-eta && claude plugin update claude-eta@claude-eta` |
 | Need latest version | Same command as above, then restart Claude Code |
 

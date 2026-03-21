@@ -31,6 +31,7 @@ describe('eta command alias', () => {
     assert.match(content, /claude-eta-managed-alias/);
     assert.match(content, /# \/eta — claude-eta global shortcut/);
     assert.match(content, /\/tmp\/claude-eta-plugin\/dist\/cli\/eta\.js/);
+    assert.match(content, /community/);
   });
 
   it('does not overwrite a user-owned /eta command', async () => {

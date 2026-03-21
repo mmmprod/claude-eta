@@ -1,5 +1,6 @@
 export interface UserPreferencesV2 {
     auto_eta: boolean;
+    community_sharing: boolean;
     prompts_since_last_eta: number;
     last_eta_task_id: string | null;
     updated_at: string;

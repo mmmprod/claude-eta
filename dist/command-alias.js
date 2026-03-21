@@ -14,7 +14,7 @@ export function buildEtaCommandAlias(pluginRoot) {
     const runtimePath = shellPath(path.resolve(pluginRoot, 'dist', 'cli', 'eta.js'));
     return `---
 description: Show task duration stats — global shortcut installed by claude-eta
-argument-hint: [session|history|stats|inspect|compare|export|contribute|help]
+argument-hint: [session|history|stats|inspect|compare|community|export|contribute|auto|help]
 allowed-tools: [Bash]
 disable-model-invocation: true
 ---

@@ -79,9 +79,50 @@ function writeCompletedTurns(cwd, turns) {
   fs.writeFileSync(path.join(completedDir, 'sess-1__main.jsonl'), lines, 'utf-8');
 }
 
+function writePreferences(overrides = {}) {
+  const prefsPath = path.join(TEST_DATA_DIR, 'config', 'preferences.json');
+  fs.mkdirSync(path.dirname(prefsPath), { recursive: true });
+  fs.writeFileSync(
+    prefsPath,
+    JSON.stringify(
+      {
+        auto_eta: false,
+        community_sharing: false,
+        prompts_since_last_eta: 0,
+        last_eta_task_id: null,
+        updated_at: new Date().toISOString(),
+        ...overrides,
+      },
+      null,
+      2,
+    ),
+    'utf-8',
+  );
+}
+
 describe('showContribute', () => {
+  it('blocks preview when community sharing is disabled', async () => {
+    writeCompletedTurns(TEST_CWD, [makeCompletedTurn()]);
+
+    const logs = [];
+    const originalLog = console.log;
+    console.log = (...args) => logs.push(args.join(' '));
+
+    try {
+      const ts = Date.now() + Math.random();
+      const { showContribute } = await import(`../dist/cli/contribute.js?t=${ts}`);
+      await showContribute(TEST_CWD, '1.0.0');
+    } finally {
+      console.log = originalLog;
+    }
+
+    assert.ok(logs.some((line) => line.includes('Community sharing is disabled.')));
+    assert.ok(!logs.some((line) => line.includes('new anonymized records ready to contribute')));
+  });
+
   it('ignores malformed persisted contribution state', async () => {
     writeCompletedTurns(TEST_CWD, [makeCompletedTurn()]);
+    writePreferences({ community_sharing: true });
 
     const statePath = path.join(TEST_DATA_DIR, 'community', '_contribute_state.json');
     fs.mkdirSync(path.dirname(statePath), { recursive: true });
@@ -108,5 +149,33 @@ describe('showContribute', () => {
     }
 
     assert.ok(logs.some((line) => line.includes('new anonymized records ready to contribute')));
+  });
+});
+
+describe('executeContribute', () => {
+  it('does not upload when community sharing is disabled', async () => {
+    writeCompletedTurns(TEST_CWD, [makeCompletedTurn()]);
+
+    const logs = [];
+    const originalLog = console.log;
+    const originalFetch = global.fetch;
+    let fetchCalled = false;
+    console.log = (...args) => logs.push(args.join(' '));
+    global.fetch = async () => {
+      fetchCalled = true;
+      throw new Error('fetch should not be called');
+    };
+
+    try {
+      const ts = Date.now() + Math.random();
+      const { executeContribute } = await import(`../dist/cli/contribute.js?t=${ts}`);
+      await executeContribute(TEST_CWD, '1.0.0');
+    } finally {
+      console.log = originalLog;
+      global.fetch = originalFetch;
+    }
+
+    assert.equal(fetchCalled, false);
+    assert.ok(logs.some((line) => line.includes('Community sharing is disabled.')));
   });
 });

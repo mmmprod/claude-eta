@@ -10,6 +10,7 @@ import { loadCompletedTurnsCompat, turnsToTaskEntries } from '../compat.js';
 import { resolveProjectIdentity } from '../identity.js';
 import { loadProjectMeta } from '../project-meta.js';
 import { getCommunityDir } from '../paths.js';
+import { loadPreferencesV2 } from '../preferences.js';
 import { anonymizeTask, type AnonymizedRecord } from './export.js';
 import { insertVelocityRecords } from '../supabase.js';
 
@@ -103,7 +104,19 @@ function getNewRecords(cwd: string, pluginVersion: string): { records: Anonymize
   return { records, taskIds };
 }
 
+function ensureCommunitySharingEnabled(): boolean {
+  const prefs = loadPreferencesV2();
+  if (prefs.community_sharing) return true;
+
+  console.log('Community sharing is disabled.');
+  console.log('Local estimates still learn from your private data only.');
+  console.log('Enable uploads with `/eta community on`, then run `/eta contribute` to preview what would be sent.');
+  return false;
+}
+
 export async function showContribute(cwd: string, pluginVersion: string): Promise<void> {
+  if (!ensureCommunitySharingEnabled()) return;
+
   const { records } = getNewRecords(cwd, pluginVersion);
 
   if (records.length === 0) {
@@ -135,6 +148,8 @@ export async function showContribute(cwd: string, pluginVersion: string): Promis
 }
 
 export async function executeContribute(cwd: string, pluginVersion: string): Promise<void> {
+  if (!ensureCommunitySharingEnabled()) return;
+
   const { records, taskIds } = getNewRecords(cwd, pluginVersion);
 
   if (records.length === 0) {

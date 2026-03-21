@@ -134,6 +134,7 @@ function showInspect(cwd: string, tasks: TaskEntry[]): void {
   const { fp, displayName } = resolveProjectIdentity(cwd);
   const meta = loadProjectMeta(fp);
   const completed = tasks.filter((t) => t.duration_seconds !== null);
+  const prefs = loadPreferencesV2();
 
   console.log(`## Data Inspection (v2)\n`);
   console.log(`| Field               | Value                          |`);
@@ -143,6 +144,7 @@ function showInspect(cwd: string, tasks: TaskEntry[]): void {
   console.log(`| Data dir            | ${col(getPluginDataDir(), 30)}|`);
   console.log(`| Total turns         | ${col(String(tasks.length), 30)}|`);
   console.log(`| Completed           | ${col(String(completed.length), 30)}|`);
+  console.log(`| Community sharing   | ${col(prefs.community_sharing ? 'enabled' : 'disabled', 30)}|`);
   if (meta) {
     console.log(`| Created             | ${col(meta.created, 30)}|`);
     if (meta.file_count != null) {
@@ -310,6 +312,23 @@ function showAuto(cwd: string): void {
   }
 }
 
+function showCommunity(): void {
+  const prefs = loadPreferencesV2();
+
+  console.log(`## Community Sharing\n`);
+  console.log(`Upload switch: **${prefs.community_sharing ? 'enabled' : 'disabled'}**`);
+  console.log('Local learning stays active either way.');
+  console.log('`/eta compare` is read-only and does not upload your task data.');
+
+  if (prefs.community_sharing) {
+    console.log(
+      '\nAnonymized uploads are allowed, but they still require a manual `/eta contribute --confirm` each time.',
+    );
+  } else {
+    console.log('\nNo anonymized records can be uploaded until you enable sharing with `/eta community on`.');
+  }
+}
+
 // ── Main ──────────────────────────────────────────────────────
 
 async function main(): Promise<void> {
@@ -330,6 +349,9 @@ async function main(): Promise<void> {
     console.log(`| \`/eta stats\`                 | Averages by task type                          |`);
     console.log(`| \`/eta inspect\`               | What data is stored (transparency)             |`);
     console.log(`| \`/eta compare\`               | Your stats vs community baselines              |`);
+    console.log(`| \`/eta community\`             | Community sharing status                       |`);
+    console.log(`| \`/eta community on\`          | Allow anonymized community uploads             |`);
+    console.log(`| \`/eta community off\`         | Block anonymized community uploads             |`);
     console.log(`| \`/eta export\`                | Anonymize & save to local JSON                 |`);
     console.log(`| \`/eta contribute\`            | Preview what would be shared                   |`);
     console.log(`| \`/eta contribute --confirm\`  | Upload anonymized data (opt-in)                |`);
@@ -340,7 +362,9 @@ async function main(): Promise<void> {
     console.log(`| \`/eta recap\`                 | Today's activity summary                    |`);
     console.log(`| \`/eta admin-export\`          | Full admin dashboard JSON export            |`);
     console.log(`| \`/eta help\`                  | This help                                      |`);
-    console.log(`\nAll data is 100% local by default. Community features (\`compare\`, \`contribute\`) are opt-in.`);
+    console.log(
+      '\nAll data is 100% local by default. Community uploads stay blocked until the user enables them with `/eta community on`.',
+    );
     console.log(FEEDBACK_LINE);
     return;
   }
@@ -359,6 +383,25 @@ async function main(): Promise<void> {
       await showCompare(cwd);
       console.log(FEEDBACK_LINE);
       return;
+    case 'community': {
+      const subArg = process.argv[3];
+      if (subArg === 'on' || subArg === 'off') {
+        const prefs = loadPreferencesV2();
+        prefs.community_sharing = subArg === 'on';
+        prefs.updated_at = new Date().toISOString();
+        savePreferencesV2(prefs);
+        console.log(
+          subArg === 'on'
+            ? 'Community sharing **enabled**. Uploads remain manual: review with `/eta contribute`, send with `/eta contribute --confirm`.'
+            : 'Community sharing **disabled**. No anonymized records can be uploaded until you re-enable it with `/eta community on`.',
+        );
+        console.log(FEEDBACK_LINE);
+        return;
+      }
+      showCommunity();
+      console.log(FEEDBACK_LINE);
+      return;
+    }
     case 'export':
       showExport(cwd, pluginVersion);
       console.log(FEEDBACK_LINE);
