@@ -761,3 +761,89 @@ describe('closeTurn lock file', () => {
     }
   });
 });
+
+// ── findActiveMainTurn ───────────────────────────────────────
+
+describe('findActiveMainTurn', () => {
+  it('returns null when no active directory exists', async () => {
+    const { findActiveMainTurn } = await loadModule();
+    assert.equal(findActiveMainTurn('nonexistentfp12345'), null);
+  });
+
+  it('returns null when active directory is empty', async () => {
+    const { findActiveMainTurn } = await loadModule();
+    const { getActiveDir, ensureDir } = await import('../dist/paths.js');
+    const fp = 'emptyactivefp1234';
+    ensureDir(getActiveDir(fp));
+    assert.equal(findActiveMainTurn(fp), null);
+  });
+
+  it('returns the active main-runner turn', async () => {
+    const { startTurn, findActiveMainTurn } = await loadModule();
+    const fp = 'findmainfp12345678';
+    const state = makeActiveTurn({ project_fp: fp, session_id: 'sess-find', agent_key: 'main' });
+    startTurn(state);
+
+    const found = findActiveMainTurn(fp);
+    assert.ok(found);
+    assert.equal(found.turn_id, state.turn_id);
+    assert.equal(found.runner_kind, 'main');
+    assert.equal(found.status, 'active');
+  });
+
+  it('returns the most recent active main turn when multiple exist', async () => {
+    const { startTurn, findActiveMainTurn } = await loadModule();
+    const fp = 'multimain12345678';
+    const now = Date.now();
+
+    const older = makeActiveTurn({
+      project_fp: fp,
+      session_id: 'sess-old',
+      agent_key: 'main',
+      started_at_ms: now - 10000,
+      started_at: new Date(now - 10000).toISOString(),
+    });
+    const newer = makeActiveTurn({
+      project_fp: fp,
+      session_id: 'sess-new',
+      agent_key: 'main',
+      started_at_ms: now - 1000,
+      started_at: new Date(now - 1000).toISOString(),
+    });
+
+    startTurn(older);
+    startTurn(newer);
+
+    const found = findActiveMainTurn(fp);
+    assert.ok(found);
+    assert.equal(found.session_id, 'sess-new');
+  });
+
+  it('ignores subagent turns', async () => {
+    const { startTurn, findActiveMainTurn } = await loadModule();
+    const fp = 'ignoresub12345678';
+
+    const sub = makeActiveTurn({
+      project_fp: fp,
+      session_id: 'sess-sub',
+      agent_key: 'agent-1',
+      agent_id: 'agent-1',
+      runner_kind: 'subagent',
+    });
+    startTurn(sub);
+
+    assert.equal(findActiveMainTurn(fp), null);
+  });
+
+  it('ignores stop_blocked turns', async () => {
+    const { startTurn, setActiveTurn, findActiveMainTurn } = await loadModule();
+    const fp = 'blocked123456789a';
+
+    const state = makeActiveTurn({ project_fp: fp, session_id: 'sess-blk', agent_key: 'main' });
+    startTurn(state);
+    state.status = 'stop_blocked';
+    setActiveTurn(state);
+
+    assert.equal(findActiveMainTurn(fp), null);
+  });
+});
