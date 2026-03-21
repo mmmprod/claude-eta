@@ -18,6 +18,7 @@ import { loadCompletedTurnsCompat, turnsToTaskEntries } from '../compat.js';
 import { loadPreferencesV2, savePreferencesV2 } from '../preferences.js';
 import { setLastEtaV2, consumeLastCompletedV2 } from '../ephemeral.js';
 import { checkDisableRequest, evaluateAutoEta } from '../auto-eta.js';
+import { loadProjectMeta } from '../project-meta.js';
 import { classifyPrompt, summarizePrompt } from '../classify.js';
 import {
   computeStats,
@@ -186,10 +187,21 @@ async function main(): Promise<void> {
       savePreferencesV2(prefs);
       contextParts.push('[claude-eta] Auto-ETA disabled. Re-enable anytime with /eta auto on.');
     } else {
+      // Load accuracy from project meta for the auto-eta gate
+      const meta = loadProjectMeta(fp);
+      const rawAccuracy = meta?.eta_accuracy?.by_classification ?? {};
+      const etaAccuracy: Record<string, { hits: number; misses: number }> = {};
+      for (const [cls, entry] of Object.entries(rawAccuracy)) {
+        etaAccuracy[cls] = {
+          hits: entry.interval80_hits,
+          misses: entry.interval80_total - entry.interval80_hits,
+        };
+      }
+
       const decision = evaluateAutoEta({
         prefs,
         stats,
-        etaAccuracy: {},
+        etaAccuracy,
         classification,
         prompt,
         taskId: turnId,

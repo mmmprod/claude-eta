@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.9.1](https://github.com/mmmprod/claude-eta/compare/claude-eta-v0.9.0...claude-eta-v0.9.1) (2026-03-20)
+
+
+### Bug Fixes
+
+* **anonymize:** salt projectHash, move contributor ID to CLAUDE_PLUGIN_DATA ([#49](https://github.com/mmmprod/claude-eta/issues/49)) ([5887e37](https://github.com/mmmprod/claude-eta/commit/5887e37ff59094fdbe215955968af9569c55cb72))
+* migrate CLI surface (export/compare/contribute) to v2 data layer ([#52](https://github.com/mmmprod/claude-eta/issues/52)) ([1fb678c](https://github.com/mmmprod/claude-eta/commit/1fb678cef6a675896bde6be6bb7bf288e827c4aa))
+
+## [0.9.0](https://github.com/mmmprod/claude-eta/compare/claude-eta-v0.8.1...claude-eta-v0.9.0) (2026-03-20)
+
+
+### Features
+
+* **hooks:** implement SubagentStart/Stop for subagent turn tracking ([#47](https://github.com/mmmprod/claude-eta/issues/47)) ([46cd7c6](https://github.com/mmmprod/claude-eta/commit/46cd7c60798266336dd20e763d5b96bcc397a511))
+
+## [0.8.1](https://github.com/mmmprod/claude-eta/compare/claude-eta-v0.8.0...claude-eta-v0.8.1) (2026-03-20)
+
+
+### Bug Fixes
+
+* persist Auto-ETA accuracy instead of discarding it ([#51](https://github.com/mmmprod/claude-eta/issues/51)) ([a6ea63c](https://github.com/mmmprod/claude-eta/commit/a6ea63cb2697b19a7c980e6cda522d272866b075))
+
 ## [0.8.0](https://github.com/mmmprod/claude-eta/compare/claude-eta-v0.7.0...claude-eta-v0.8.0) (2026-03-20)
 
 

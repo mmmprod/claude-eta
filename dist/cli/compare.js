@@ -4,11 +4,11 @@
  */
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import * as os from 'node:os';
-import { loadProject } from '../store.js';
+import { loadCompletedTurnsCompat, turnsToTaskEntries } from '../compat.js';
+import { getPluginDataDir } from '../paths.js';
 import { computeStats, fmtSec } from '../stats.js';
 import { fetchBaselines } from '../supabase.js';
-const CACHE_PATH = path.join(os.homedir(), '.claude', 'plugins', 'claude-eta', 'cache', 'baselines.json');
+const CACHE_PATH = path.join(getPluginDataDir(), 'cache', 'baselines.json');
 const CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours
 function loadCache() {
     try {
@@ -49,9 +49,10 @@ function ratio(local, community) {
         return `${r.toFixed(2)}x slower`;
     return '~same';
 }
-export async function showCompare(projName) {
-    const data = loadProject(projName);
-    const localStats = computeStats(data.tasks);
+export async function showCompare(cwd) {
+    const turns = loadCompletedTurnsCompat(cwd);
+    const tasks = turnsToTaskEntries(turns);
+    const localStats = computeStats(tasks);
     if (!localStats) {
         console.log('Not enough local data yet (need 5+ completed tasks).');
         return;

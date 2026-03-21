@@ -20,6 +20,8 @@ export interface ProjectMeta {
 }
 export declare function loadProjectMeta(fp: string): ProjectMeta | null;
 export declare function saveProjectMeta(fp: string, meta: ProjectMeta): void;
+/** Update ETA accuracy for a classification (hit or miss) */
+export declare function updateEtaAccuracy(fp: string, classification: string, hit: boolean): void;
 /** Create or update project meta — merges with existing if present */
 export declare function upsertProjectMeta(fp: string, updates: Partial<ProjectMeta> & Pick<ProjectMeta, 'project_fp' | 'display_name' | 'cwd_realpath'>): ProjectMeta;
 //# sourceMappingURL=project-meta.d.ts.map

@@ -266,7 +266,6 @@ async function main() {
     // Last arg is always cwd (appended by command runner as $(pwd)).
     // Earlier positional args (e.g. "auto on") sit between mode and cwd.
     const cwd = process.argv.at(-1) ?? process.cwd();
-    const project = path.basename(cwd);
     const confirm = process.argv.includes('--confirm');
     const pluginVersion = getPluginVersion();
     // Help
@@ -297,19 +296,19 @@ async function main() {
     switch (mode) {
         case 'contribute':
             if (confirm) {
-                await executeContribute(project, pluginVersion);
+                await executeContribute(cwd, pluginVersion);
             }
             else {
-                await showContribute(project, pluginVersion);
+                await showContribute(cwd, pluginVersion);
             }
             console.log(FEEDBACK_LINE);
             return;
         case 'compare':
-            await showCompare(project);
+            await showCompare(cwd);
             console.log(FEEDBACK_LINE);
             return;
         case 'export':
-            showExport(project, pluginVersion);
+            showExport(cwd, pluginVersion);
             console.log(FEEDBACK_LINE);
             return;
         case 'admin-export':
