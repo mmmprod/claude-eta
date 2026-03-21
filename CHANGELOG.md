@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.15.0](https://github.com/mmmprod/claude-eta/compare/claude-eta-v0.14.1...claude-eta-v0.15.0) (2026-03-21)
+
+
+### Features
+
+* **classify,auto-eta:** similarity scoring + model-aware confidence ([#74](https://github.com/mmmprod/claude-eta/issues/74)) ([e898fa7](https://github.com/mmmprod/claude-eta/commit/e898fa7788c42767ee69385bae94870e990ac177))
+* **eta:** live ETA recalculation on phase transitions ([#77](https://github.com/mmmprod/claude-eta/issues/77)) ([e2d93a0](https://github.com/mmmprod/claude-eta/commit/e2d93a02ba844eeebbc0a5a0650970479dec36ec))
+
+
+### Bug Fixes
+
+* **anonymize:** preserve model version in normalizeModel, unify normalizers ([#75](https://github.com/mmmprod/claude-eta/issues/75)) ([0dca350](https://github.com/mmmprod/claude-eta/commit/0dca350df47a3f0709ba135b88eb0c4455e32bf0))
+* **export:** add source_turn_count to AnonymizedRecord for distribution parity ([#73](https://github.com/mmmprod/claude-eta/issues/73)) ([1492eee](https://github.com/mmmprod/claude-eta/commit/1492eeeb5a6f8450b82be5018724dab57cc03e40))
+
 ## [0.14.1](https://github.com/mmmprod/claude-eta/compare/claude-eta-v0.14.0...claude-eta-v0.14.1) (2026-03-21)
 
 
