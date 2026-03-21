@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.9.2](https://github.com/mmmprod/claude-eta/compare/claude-eta-v0.9.1...claude-eta-v0.9.2) (2026-03-21)
+
+
+### Bug Fixes
+
+* closeTurn advisory lock + sort completed turns (P1 [#4](https://github.com/mmmprod/claude-eta/issues/4), [#6](https://github.com/mmmprod/claude-eta/issues/6)) ([#50](https://github.com/mmmprod/claude-eta/issues/50)) ([ae47b07](https://github.com/mmmprod/claude-eta/commit/ae47b07368c9db2f1c38f5e748e4e61d764609a8))
+* search both legacy paths for v1 data during migration ([#48](https://github.com/mmmprod/claude-eta/issues/48)) ([b6c87c8](https://github.com/mmmprod/claude-eta/commit/b6c87c89869e6924b84e28a3d4f7676e57de913f))
+
 ## [0.9.1](https://github.com/mmmprod/claude-eta/compare/claude-eta-v0.9.0...claude-eta-v0.9.1) (2026-03-20)
 
 
