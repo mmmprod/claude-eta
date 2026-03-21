@@ -68,10 +68,16 @@ export function decidePromptTransition(prompt, classification, existingActive) {
     if (isContinuation(prompt, classification, existingActive))
         return 'continuation';
     const trimmed = prompt.trim();
+    // Explicit reset always wins
     if (EXPLICIT_RESET_PATTERNS.test(trimmed))
         return 'new_work_item';
+    // Regex signal for same work item (works across classifications)
     if (SAME_WORK_ITEM_PATTERNS.some((pattern) => pattern.test(trimmed)))
         return 'same_work_item';
+    // Classification match: same type of work → likely same work item
+    if (classification === existingActive.classification)
+        return 'same_work_item';
+    // Different classification → new work item
     return 'new_work_item';
 }
 export function summarizePrompt(prompt, maxLength = 80) {
