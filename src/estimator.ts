@@ -81,10 +81,9 @@ export function estimateInitial(
   // Classification-specific stats
   const clsStats = stats.byClassification.find((s) => s.classification === classification);
   const normalizedModel = context?.model ? normalizeModel(context.model) : null;
-  const clsModelStats =
-    normalizedModel != null
-      ? stats.byClassificationModel.find((s) => s.classification === classification && s.model === normalizedModel)
-      : undefined;
+  const clsModelStats = normalizedModel
+    ? stats.byClassificationModel.find((s) => s.classification === classification && s.model === normalizedModel)
+    : undefined;
 
   if (!clsStats || clsStats.count < 2) {
     // No classification data — use blended global
@@ -150,13 +149,12 @@ export function estimateWithTrace(
     const phaseStats = stats.byClassificationPhase.find(
       (entry) => entry.phase === phaseBucket && entry.classification === classification,
     );
-    const phaseModelStats =
-      normalizedModel != null
-        ? stats.byClassificationModelPhase.find(
-            (entry) =>
-              entry.phase === phaseBucket && entry.classification === classification && entry.model === normalizedModel,
-          )
-        : undefined;
+    const phaseModelStats = normalizedModel
+      ? stats.byClassificationModelPhase.find(
+          (entry) =>
+            entry.phase === phaseBucket && entry.classification === classification && entry.model === normalizedModel,
+        )
+      : undefined;
 
     if (phaseStats && phaseStats.count >= 2) {
       let learnedP50 = phaseStats.median;

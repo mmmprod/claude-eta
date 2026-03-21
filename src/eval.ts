@@ -178,7 +178,7 @@ export function evaluateTasks(tasks: AnalyticsTask[]): EvalReport {
       actualDuration,
     );
 
-    const normalizedModel = normalizeModel(task.model);
+    const normalizedModel = task.model ? normalizeModel(task.model) : null;
     if (normalizedModel) {
       pushObservation(
         getBreakdownBuckets(byClassificationModel, `${task.classification} on ${normalizedModel}`),

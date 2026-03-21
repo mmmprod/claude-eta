@@ -104,8 +104,8 @@ export function selectDominantModel(tasks: Pick<AnalyticsTask, 'model'>[]): stri
 
   const counts = new Map<string, number>();
   for (const task of tasks) {
+    if (!task.model) continue;
     const normalized = normalizeModel(task.model);
-    if (!normalized) continue;
     counts.set(normalized, (counts.get(normalized) ?? 0) + 1);
   }
 

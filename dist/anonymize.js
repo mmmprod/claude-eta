@@ -58,25 +58,18 @@ export function contributorHash() {
 export function projectHash(projectName) {
     return hashWithLocalSalt(projectName);
 }
-/** Normalize model ID: strip bracket suffixes, date suffixes, keep version.
+/** Normalize model ID: strip bracket suffixes and date suffixes, pass through everything else.
  *  "claude-sonnet-4-6" → "claude-sonnet-4-6"
  *  "claude-opus-4-6[1m]" → "claude-opus-4-6"
  *  "claude-sonnet-4-5-20250929" → "claude-sonnet-4-5"
  *  "claude-sonnet-4-20250514" → "claude-sonnet-4"
+ *  "gpt-4" → "gpt-4"
  */
 export function normalizeModel(model) {
     // 1. Strip bracket suffix (e.g. [1m])
     let cleaned = model.replace(/\[.*\]$/, '');
     // 2. Strip trailing -YYYYMMDD date suffix (exactly 8 digits at end)
     cleaned = cleaned.replace(/-\d{8}$/, '');
-    // 3. Match claude-{family}-{version}
-    const match = cleaned.match(/^claude-(opus|sonnet|haiku)-(.+)$/);
-    if (!match)
-        return null;
-    const version = match[2];
-    // 4. Validate version: must be digits, dots, and hyphens only, starting with a digit
-    if (!/^\d[\d.-]*$/.test(version))
-        return null;
     return cleaned;
 }
 /** Deterministic dedup key: sha256(contributorHash + ":" + taskId), truncated to 32 hex chars.

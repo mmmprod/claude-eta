@@ -143,8 +143,8 @@ export function computeStats(tasks: AnalyticsTask[]): ProjectStats | null {
   const modelGroups = new Map<string, AnalyticsTask[]>();
   for (const task of tasks) {
     if (task.duration_seconds == null || task.duration_seconds <= 0) continue;
+    if (!task.model) continue;
     const normalizedModel = normalizeModel(task.model);
-    if (!normalizedModel) continue;
     const key = `${task.classification}:${normalizedModel}`;
     const list = modelGroups.get(key) ?? [];
     list.push(task);
@@ -186,7 +186,7 @@ export function computeStats(tasks: AnalyticsTask[]): ProjectStats | null {
       ['edit', task.first_edit_offset_seconds],
       ['validate', task.first_bash_offset_seconds],
     ];
-    const normalizedModel = normalizeModel(task.model);
+    const normalizedModel = task.model ? normalizeModel(task.model) : null;
 
     for (const [phase, offset] of phaseSamples) {
       if (offset == null || offset < 0 || offset >= task.duration_seconds) continue;

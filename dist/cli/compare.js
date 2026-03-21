@@ -71,9 +71,9 @@ export function selectDominantModel(tasks) {
         return null;
     const counts = new Map();
     for (const task of tasks) {
-        const normalized = normalizeModel(task.model);
-        if (!normalized)
+        if (!task.model)
             continue;
+        const normalized = normalizeModel(task.model);
         counts.set(normalized, (counts.get(normalized) ?? 0) + 1);
     }
     if (counts.size === 0)
