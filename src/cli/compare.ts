@@ -6,6 +6,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { loadCompletedTurnsCompat, turnsToTaskEntries } from '../compat.js';
 import { getPluginDataDir } from '../paths.js';
+import { loadPreferencesV2 } from '../preferences.js';
 import { computeStats, fmtSec } from '../stats.js';
 import { fetchBaselines, type BaselineRecord } from '../supabase.js';
 
@@ -63,9 +64,11 @@ export async function showCompare(cwd: string): Promise<void> {
   const turns = loadCompletedTurnsCompat(cwd);
   const tasks = turnsToTaskEntries(turns);
   const localStats = computeStats(tasks);
+  const prefs = loadPreferencesV2();
 
   if (!localStats) {
     console.log('Not enough local data yet (need 5+ completed tasks).');
+    console.log('`/eta compare` is read-only and never uploads your task data.');
     return;
   }
 
@@ -84,6 +87,8 @@ export async function showCompare(cwd: string): Promise<void> {
   }
 
   console.log(`## Your Stats vs Community\n`);
+  console.log('Read-only fetch: this command never uploads your task data.');
+  console.log(`Community upload switch: **${prefs.community_sharing ? 'enabled' : 'disabled'}**.\n`);
   console.log(`| Type      | Your Median | Community | Ratio           | Community N |`);
   console.log(`|-----------|-------------|-----------|-----------------|-------------|`);
 

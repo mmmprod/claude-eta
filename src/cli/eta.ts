@@ -338,6 +338,7 @@ async function main(): Promise<void> {
   const cwd = process.argv.at(-1) ?? process.cwd();
   const confirm = process.argv.includes('--confirm');
   const pluginVersion = getPluginVersion();
+  const prefs = loadPreferencesV2();
 
   // Help
   if (mode === 'help') {
@@ -362,6 +363,7 @@ async function main(): Promise<void> {
     console.log(`| \`/eta recap\`                 | Today's activity summary                    |`);
     console.log(`| \`/eta admin-export\`          | Full admin dashboard JSON export            |`);
     console.log(`| \`/eta help\`                  | This help                                      |`);
+    console.log(`\nCommunity sharing: **${prefs.community_sharing ? 'enabled' : 'disabled'}**.`);
     console.log(
       '\nAll data is 100% local by default. Community uploads stay blocked until the user enables them with `/eta community on`.',
     );
@@ -386,7 +388,6 @@ async function main(): Promise<void> {
     case 'community': {
       const subArg = process.argv[3];
       if (subArg === 'on' || subArg === 'off') {
-        const prefs = loadPreferencesV2();
         prefs.community_sharing = subArg === 'on';
         prefs.updated_at = new Date().toISOString();
         savePreferencesV2(prefs);
@@ -413,7 +414,6 @@ async function main(): Promise<void> {
     case 'auto': {
       const subArg = process.argv[3];
       if (subArg === 'on' || subArg === 'off') {
-        const prefs = loadPreferencesV2();
         prefs.auto_eta = subArg === 'on';
         prefs.updated_at = new Date().toISOString();
         savePreferencesV2(prefs);
@@ -448,6 +448,9 @@ async function main(): Promise<void> {
 
   if (tasks.length === 0) {
     console.log('No tasks tracked yet. claude-eta is recording — data will appear after your first completed task.');
+    console.log(
+      `Privacy mode: **${prefs.community_sharing ? 'community uploads enabled (manual confirm required)' : 'local-only by default'}**. Use \`/eta community\` to manage sharing.`,
+    );
     return;
   }
 

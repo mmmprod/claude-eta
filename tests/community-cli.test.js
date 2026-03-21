@@ -52,4 +52,14 @@ describe('/eta community CLI', () => {
     const disabledPrefs = JSON.parse(fs.readFileSync(prefsPath, 'utf-8'));
     assert.equal(disabledPrefs.community_sharing, false);
   });
+
+  it('shows current sharing state in help output', () => {
+    const disabledHelp = runEta(['help']);
+    assert.match(disabledHelp, /Community sharing: \*\*disabled\*\*/);
+
+    runEta(['community', 'on']);
+
+    const enabledHelp = runEta(['help']);
+    assert.match(enabledHelp, /Community sharing: \*\*enabled\*\*/);
+  });
 });

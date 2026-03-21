@@ -11,6 +11,7 @@ import { getConfigDir, ensureDir, atomicWrite, findLegacyFile } from './paths.js
 export interface UserPreferencesV2 {
   auto_eta: boolean;
   community_sharing: boolean;
+  community_onboarding_seen: boolean;
   prompts_since_last_eta: number;
   last_eta_task_id: string | null;
   updated_at: string;
@@ -19,6 +20,7 @@ export interface UserPreferencesV2 {
 const DEFAULTS: UserPreferencesV2 = {
   auto_eta: false,
   community_sharing: false,
+  community_onboarding_seen: false,
   prompts_since_last_eta: 0,
   last_eta_task_id: null,
   updated_at: new Date().toISOString(),
@@ -37,12 +39,14 @@ function tryMigrateFromV1(): UserPreferencesV2 | null {
     const v1 = JSON.parse(content) as {
       auto_eta?: boolean;
       community_sharing?: boolean;
+      community_onboarding_seen?: boolean;
       prompts_since_last_eta?: number;
       last_eta_task_id?: string;
     };
     return {
       auto_eta: v1.auto_eta ?? false,
       community_sharing: v1.community_sharing ?? false,
+      community_onboarding_seen: v1.community_onboarding_seen ?? false,
       prompts_since_last_eta: v1.prompts_since_last_eta ?? 0,
       last_eta_task_id: v1.last_eta_task_id ?? null,
       updated_at: new Date().toISOString(),
@@ -60,6 +64,7 @@ export function loadPreferencesV2(): UserPreferencesV2 {
     return {
       auto_eta: prefs.auto_eta ?? DEFAULTS.auto_eta,
       community_sharing: prefs.community_sharing ?? DEFAULTS.community_sharing,
+      community_onboarding_seen: prefs.community_onboarding_seen ?? DEFAULTS.community_onboarding_seen,
       prompts_since_last_eta: prefs.prompts_since_last_eta ?? DEFAULTS.prompts_since_last_eta,
       last_eta_task_id: prefs.last_eta_task_id ?? DEFAULTS.last_eta_task_id,
       updated_at: prefs.updated_at ?? DEFAULTS.updated_at,

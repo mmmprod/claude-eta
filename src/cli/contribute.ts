@@ -127,6 +127,8 @@ export async function showContribute(cwd: string, pluginVersion: string): Promis
   const state = loadState();
 
   console.log(`## Contribute to Community Baselines\n`);
+  console.log('Sharing status: enabled (manual upload mode).');
+  console.log('Disable uploads anytime with `/eta community off`.\n');
   console.log(`**${records.length}** new anonymized records ready to contribute.`);
 
   if (state && state.last_contributed_at) {

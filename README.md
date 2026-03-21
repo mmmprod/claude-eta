@@ -87,6 +87,8 @@ Data lives under `${CLAUDE_PLUGIN_DATA}` (or `~/.claude/plugins/claude-eta/` for
 
 `/eta inspect` to see everything. `/eta export` to review before sharing.
 
+On first use, claude-eta makes the choice explicit: stay fully local, or later enable `/eta community on` if you want to allow manual anonymized uploads.
+
 Community features are split:
 
 - `compare` is read-only and does not upload your data

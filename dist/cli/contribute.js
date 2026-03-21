@@ -110,6 +110,8 @@ export async function showContribute(cwd, pluginVersion) {
     }
     const state = loadState();
     console.log(`## Contribute to Community Baselines\n`);
+    console.log('Sharing status: enabled (manual upload mode).');
+    console.log('Disable uploads anytime with `/eta community off`.\n');
     console.log(`**${records.length}** new anonymized records ready to contribute.`);
     if (state && state.last_contributed_at) {
         console.log(`Last contribution: ${state.last_contributed_at} (${state.last_contributed_count} records)`);

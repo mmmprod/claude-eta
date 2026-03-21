@@ -149,6 +149,7 @@ describe('showContribute', () => {
     }
 
     assert.ok(logs.some((line) => line.includes('new anonymized records ready to contribute')));
+    assert.ok(logs.some((line) => line.includes('Sharing status: enabled (manual upload mode).')));
   });
 });
 
