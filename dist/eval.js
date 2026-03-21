@@ -122,7 +122,7 @@ export function evaluateTasks(tasks) {
         });
         pushObservation(overall, 'prompt', initial.p50_wall, initial.p80_wall, actualDuration);
         pushObservation(getBreakdownBuckets(byClassification, task.classification), 'prompt', initial.p50_wall, initial.p80_wall, actualDuration);
-        const normalizedModel = normalizeModel(task.model);
+        const normalizedModel = task.model ? normalizeModel(task.model) : null;
         if (normalizedModel) {
             pushObservation(getBreakdownBuckets(byClassificationModel, `${task.classification} on ${normalizedModel}`), 'prompt', initial.p50_wall, initial.p80_wall, actualDuration);
         }

@@ -129,16 +129,20 @@ describe('normalizeModel', () => {
     assert.equal(normalizeModel('claude-sonnet-4-5-20250929'), 'claude-sonnet-4-5');
   });
 
-  it('rejects gpt-4', () => {
-    assert.equal(normalizeModel('gpt-4'), null);
+  it('passes through gpt-4 unchanged', () => {
+    assert.equal(normalizeModel('gpt-4'), 'gpt-4');
   });
 
-  it('rejects unknown model', () => {
-    assert.equal(normalizeModel('unknown'), null);
+  it('passes through unknown model unchanged', () => {
+    assert.equal(normalizeModel('unknown'), 'unknown');
   });
 
-  it('rejects gpt-4o', () => {
-    assert.equal(normalizeModel('gpt-4o'), null);
+  it('passes through gpt-4o unchanged', () => {
+    assert.equal(normalizeModel('gpt-4o'), 'gpt-4o');
+  });
+
+  it('strips date suffix: claude-haiku-4-5-20251001 → claude-haiku-4-5', () => {
+    assert.equal(normalizeModel('claude-haiku-4-5-20251001'), 'claude-haiku-4-5');
   });
 });
 

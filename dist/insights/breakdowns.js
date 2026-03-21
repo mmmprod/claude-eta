@@ -38,7 +38,7 @@ export function fileOperationRatios(tasks) {
 }
 /** Insight 3: Compare performance across models */
 export function perModelComparison(tasks) {
-    const valid = tasks.filter((t) => t.model && t.model.length > 0 && normalizeModel(t.model) !== null);
+    const valid = tasks.filter((t) => t.model && t.model.length > 0);
     if (valid.length < 10)
         return null;
     const groups = groupBy(valid, (t) => normalizeModel(t.model));

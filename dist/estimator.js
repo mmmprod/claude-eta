@@ -39,7 +39,7 @@ export function estimateInitial(stats, classification, complexity, context) {
     // Classification-specific stats
     const clsStats = stats.byClassification.find((s) => s.classification === classification);
     const normalizedModel = context?.model ? normalizeModel(context.model) : null;
-    const clsModelStats = normalizedModel != null
+    const clsModelStats = normalizedModel
         ? stats.byClassificationModel.find((s) => s.classification === classification && s.model === normalizedModel)
         : undefined;
     if (!clsStats || clsStats.count < 2) {
@@ -81,7 +81,7 @@ export function estimateWithTrace(initial, elapsedSeconds, phase, context) {
     const normalizedModel = context?.model ? normalizeModel(context.model) : null;
     if (stats && classification && phaseBucket) {
         const phaseStats = stats.byClassificationPhase.find((entry) => entry.phase === phaseBucket && entry.classification === classification);
-        const phaseModelStats = normalizedModel != null
+        const phaseModelStats = normalizedModel
             ? stats.byClassificationModelPhase.find((entry) => entry.phase === phaseBucket && entry.classification === classification && entry.model === normalizedModel)
             : undefined;
         if (phaseStats && phaseStats.count >= 2) {
