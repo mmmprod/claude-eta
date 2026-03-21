@@ -28,6 +28,7 @@ export interface AnonymizedRecord {
   plugin_version: string;
   contributor_hash: string;
   dedup_key: string;
+  source_turn_count: number;
 }
 
 export function anonymizeTask(
@@ -54,6 +55,7 @@ export function anonymizeTask(
     plugin_version: pluginVersion,
     contributor_hash: contribHash,
     dedup_key: dedupKey(contribHash, task.analytics_id),
+    source_turn_count: task.source_turn_count,
   };
 }
 

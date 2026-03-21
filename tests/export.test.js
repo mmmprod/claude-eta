@@ -146,6 +146,7 @@ describe('anonymizeTask', () => {
         assert.ok(!value.includes('/home/'), `must not contain file paths: ${value}`);
       }
     }
+    assert.equal(record.source_turn_count, 1, 'output must include source_turn_count');
   });
 
   it('skips tasks with null duration', async () => {

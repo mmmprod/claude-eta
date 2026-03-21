@@ -29,6 +29,7 @@ export function anonymizeTask(task, projIdentifier, pluginVersion, projectMeta) 
         plugin_version: pluginVersion,
         contributor_hash: contribHash,
         dedup_key: dedupKey(contribHash, task.analytics_id),
+        source_turn_count: task.source_turn_count,
     };
 }
 export function anonymizeProject(cwd, pluginVersion) {
