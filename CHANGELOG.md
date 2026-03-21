@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.16.1](https://github.com/mmmprod/claude-eta/compare/claude-eta-v0.16.0...claude-eta-v0.16.1) (2026-03-21)
+
+
+### Bug Fixes
+
+* **core:** work item lifecycle, ETA accuracy, Supabase contract, live cockpit ([#88](https://github.com/mmmprod/claude-eta/issues/88)) ([e93d3b7](https://github.com/mmmprod/claude-eta/commit/e93d3b73d58943df178577a3a4fabccb8ad6ef01))
+
 ## [0.16.0](https://github.com/mmmprod/claude-eta/compare/claude-eta-v0.15.0...claude-eta-v0.16.0) (2026-03-21)
 
 
