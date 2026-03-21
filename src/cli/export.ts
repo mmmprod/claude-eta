@@ -4,12 +4,12 @@
  */
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { loadCompletedTurnsCompat, mainTurnsToTaskEntries } from '../compat.js';
+import { loadCompletedTurnsCompat, turnsToAnalyticsTasks } from '../compat.js';
 import { resolveProjectIdentity } from '../identity.js';
 import { loadProjectMeta } from '../project-meta.js';
 import { getPluginDataDir } from '../paths.js';
 import { contributorHash, projectHash, normalizeModel, dedupKey } from '../anonymize.js';
-import type { TaskEntry } from '../types.js';
+import type { AnalyticsTask } from '../types.js';
 
 const EXPORT_DIR = path.join(getPluginDataDir(), 'export');
 
@@ -31,7 +31,7 @@ export interface AnonymizedRecord {
 }
 
 export function anonymizeTask(
-  task: TaskEntry,
+  task: AnalyticsTask,
   projIdentifier: string,
   pluginVersion: string,
   projectMeta?: { file_count?: number; loc_bucket?: string },
@@ -53,14 +53,14 @@ export function anonymizeTask(
     project_loc_bucket: projectMeta?.loc_bucket ?? null,
     plugin_version: pluginVersion,
     contributor_hash: contribHash,
-    dedup_key: dedupKey(contribHash, task.task_id),
+    dedup_key: dedupKey(contribHash, task.analytics_id),
   };
 }
 
 export function anonymizeProject(cwd: string, pluginVersion: string): AnonymizedRecord[] {
   const { fp } = resolveProjectIdentity(cwd);
   const turns = loadCompletedTurnsCompat(cwd);
-  const tasks = mainTurnsToTaskEntries(turns);
+  const tasks = turnsToAnalyticsTasks(turns);
   const meta = loadProjectMeta(fp);
   const projectMeta = { file_count: meta?.file_count ?? undefined, loc_bucket: meta?.loc_bucket ?? undefined };
   return tasks

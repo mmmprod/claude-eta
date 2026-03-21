@@ -97,16 +97,36 @@ describe('projectHash', () => {
 });
 
 describe('normalizeModel', () => {
-  it('normalizes claude-sonnet-4-20250514', () => {
+  it('strips date suffix: claude-sonnet-4-20250514 → claude-sonnet-4', () => {
     assert.equal(normalizeModel('claude-sonnet-4-20250514'), 'claude-sonnet-4');
   });
 
-  it('normalizes claude-opus-4-20250514', () => {
+  it('strips date suffix: claude-opus-4-20250514 → claude-opus-4', () => {
     assert.equal(normalizeModel('claude-opus-4-20250514'), 'claude-opus-4');
   });
 
-  it('normalizes claude-haiku-4.5-20250514', () => {
+  it('strips date suffix with dot version: claude-haiku-4.5-20250514 → claude-haiku-4.5', () => {
     assert.equal(normalizeModel('claude-haiku-4.5-20250514'), 'claude-haiku-4.5');
+  });
+
+  it('preserves hyphenated version: claude-sonnet-4-6 → claude-sonnet-4-6', () => {
+    assert.equal(normalizeModel('claude-sonnet-4-6'), 'claude-sonnet-4-6');
+  });
+
+  it('preserves hyphenated version: claude-opus-4-6 → claude-opus-4-6', () => {
+    assert.equal(normalizeModel('claude-opus-4-6'), 'claude-opus-4-6');
+  });
+
+  it('preserves hyphenated version: claude-haiku-4-5 → claude-haiku-4-5', () => {
+    assert.equal(normalizeModel('claude-haiku-4-5'), 'claude-haiku-4-5');
+  });
+
+  it('strips bracket suffix: claude-opus-4-6[1m] → claude-opus-4-6', () => {
+    assert.equal(normalizeModel('claude-opus-4-6[1m]'), 'claude-opus-4-6');
+  });
+
+  it('strips date suffix from multi-part version: claude-sonnet-4-5-20250929 → claude-sonnet-4-5', () => {
+    assert.equal(normalizeModel('claude-sonnet-4-5-20250929'), 'claude-sonnet-4-5');
   });
 
   it('rejects gpt-4', () => {
@@ -115,6 +135,10 @@ describe('normalizeModel', () => {
 
   it('rejects unknown model', () => {
     assert.equal(normalizeModel('unknown'), null);
+  });
+
+  it('rejects gpt-4o', () => {
+    assert.equal(normalizeModel('gpt-4o'), null);
   });
 });
 

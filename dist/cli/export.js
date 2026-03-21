@@ -4,7 +4,7 @@
  */
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { loadCompletedTurnsCompat, mainTurnsToTaskEntries } from '../compat.js';
+import { loadCompletedTurnsCompat, turnsToAnalyticsTasks } from '../compat.js';
 import { resolveProjectIdentity } from '../identity.js';
 import { loadProjectMeta } from '../project-meta.js';
 import { getPluginDataDir } from '../paths.js';
@@ -28,13 +28,13 @@ export function anonymizeTask(task, projIdentifier, pluginVersion, projectMeta) 
         project_loc_bucket: projectMeta?.loc_bucket ?? null,
         plugin_version: pluginVersion,
         contributor_hash: contribHash,
-        dedup_key: dedupKey(contribHash, task.task_id),
+        dedup_key: dedupKey(contribHash, task.analytics_id),
     };
 }
 export function anonymizeProject(cwd, pluginVersion) {
     const { fp } = resolveProjectIdentity(cwd);
     const turns = loadCompletedTurnsCompat(cwd);
-    const tasks = mainTurnsToTaskEntries(turns);
+    const tasks = turnsToAnalyticsTasks(turns);
     const meta = loadProjectMeta(fp);
     const projectMeta = { file_count: meta?.file_count ?? undefined, loc_bucket: meta?.loc_bucket ?? undefined };
     return tasks

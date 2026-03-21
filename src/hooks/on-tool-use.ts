@@ -10,6 +10,7 @@ import { getActiveTurn, setActiveTurn, appendEvent } from '../event-store.js';
 import { resolveProjectIdentity } from '../identity.js';
 import { hashWithLocalSalt } from '../identity.js';
 import { buildErrorFingerprint } from '../loop-detector.js';
+import { applyPhaseTransition } from '../features.js';
 
 async function main(): Promise<void> {
   const stdin = await readStdin<PostToolUseStdin>();
@@ -96,6 +97,8 @@ async function main(): Promise<void> {
       }
     }
   }
+
+  applyPhaseTransition(state, now);
 
   // ── Persist ────────────────────────────────────────────────
   setActiveTurn(state);

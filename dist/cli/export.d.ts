@@ -1,4 +1,4 @@
-import type { TaskEntry } from '../types.js';
+import type { AnalyticsTask } from '../types.js';
 export interface AnonymizedRecord {
     task_type: string;
     duration_seconds: number;
@@ -15,7 +15,7 @@ export interface AnonymizedRecord {
     contributor_hash: string;
     dedup_key: string;
 }
-export declare function anonymizeTask(task: TaskEntry, projIdentifier: string, pluginVersion: string, projectMeta?: {
+export declare function anonymizeTask(task: AnalyticsTask, projIdentifier: string, pluginVersion: string, projectMeta?: {
     file_count?: number;
     loc_bucket?: string;
 }): AnonymizedRecord | null;

@@ -2,7 +2,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { classifyPrompt, summarizePrompt, decidePromptTransition } from '../dist/classify.js';
 
-function makeActiveTurn() {
+function makeActiveTurn(overrides = {}) {
   const now = Date.now();
   return {
     turn_id: 'turn-1',
@@ -39,6 +39,7 @@ function makeActiveTurn() {
     status: 'active',
     path_fps: [],
     error_fingerprints: [],
+    ...overrides,
   };
 }
 
@@ -178,5 +179,47 @@ describe('decidePromptTransition', () => {
   it('starts a new work item when no active turn exists', () => {
     const prompt = 'continue et gere aussi les cas limites';
     assert.equal(decidePromptTransition(prompt, classifyPrompt(prompt), null), 'new_work_item');
+  });
+
+  it('same classification defaults to same_work_item', () => {
+    const existing = makeActiveTurn({ classification: 'bugfix' });
+    assert.equal(
+      decidePromptTransition('tu peux aussi couvrir le cas où session_id manque dans Stop ?', 'bugfix', existing),
+      'same_work_item',
+    );
+  });
+
+  it('follow-up bugfix prompt stays same work item', () => {
+    const existing = makeActiveTurn({ classification: 'bugfix' });
+    assert.equal(
+      decidePromptTransition('gère aussi les erreurs réseau dans compare', 'bugfix', existing),
+      'same_work_item',
+    );
+  });
+
+  it('follow-up with SQL migration stays same work item', () => {
+    const existing = makeActiveTurn({ classification: 'bugfix' });
+    assert.equal(
+      decidePromptTransition('ensuite fais la migration SQL correspondante pour ce fix', 'bugfix', existing),
+      'same_work_item',
+    );
+  });
+
+  it('different classification triggers new work item', () => {
+    const existing = makeActiveTurn({ classification: 'bugfix' });
+    assert.equal(
+      decidePromptTransition('add a new dashboard page for user metrics', 'feature', existing),
+      'new_work_item',
+    );
+  });
+
+  it('explicit reset overrides same classification', () => {
+    const existing = makeActiveTurn({ classification: 'bugfix' });
+    assert.equal(decidePromptTransition('new task: fix the other unrelated bug', 'bugfix', existing), 'new_work_item');
+  });
+
+  it('same classification works across non-bugfix types', () => {
+    const existing = makeActiveTurn({ classification: 'feature' });
+    assert.equal(decidePromptTransition('also add a sidebar to the dashboard', 'feature', existing), 'same_work_item');
   });
 });

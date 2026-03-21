@@ -41,6 +41,10 @@ export function createActiveTurn(params) {
         status: 'active',
         path_fps: [],
         error_fingerprints: [],
+        cached_eta: null,
+        live_remaining_p50: null,
+        live_remaining_p80: null,
+        live_phase: null,
     };
 }
 //# sourceMappingURL=turn-factory.js.map

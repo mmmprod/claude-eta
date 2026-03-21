@@ -138,6 +138,15 @@ export interface ActiveTurnState {
     status: 'active' | 'stop_blocked';
     path_fps: string[];
     error_fingerprints: ErrorFingerprint[];
+    cached_eta: {
+        p50_wall: number;
+        p80_wall: number;
+        basis: string;
+        calibration: string;
+    } | null;
+    live_remaining_p50: number | null;
+    live_remaining_p80: number | null;
+    live_phase: import('./features.js').TaskPhase | null;
 }
 /** Single event in the append-only event log */
 export interface EventRecord {
