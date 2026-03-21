@@ -34,4 +34,6 @@ export declare function closeAllSessionTurns(projectFp: string, sessionId: strin
 export declare function loadCompletedTurns(projectFp: string): CompletedTurn[];
 /** Load recent completed turns (most recent N by ended_at) */
 export declare function loadRecentCompletedTurns(projectFp: string, limit: number): CompletedTurn[];
+/** Scan for the most recent active main-runner turn for a project */
+export declare function findActiveMainTurn(projectFp: string): ActiveTurnState | null;
 //# sourceMappingURL=event-store.d.ts.map

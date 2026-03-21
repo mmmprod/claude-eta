@@ -56,7 +56,7 @@ function makeCompletedTurn(overrides = {}) {
     first_bash_at_ms: null,
     model: 'claude-sonnet-4-20250514',
     source: null,
-    stop_reason: 'end_turn',
+    stop_reason: 'stop',
     path_fps: [],
     ...overrides,
   };
@@ -147,6 +147,7 @@ describe('anonymizeTask', () => {
       }
     }
     assert.equal(record.source_turn_count, 1, 'output must include source_turn_count');
+    assert.equal(record.record_unit, 'work_item', 'output must include record_unit');
   });
 
   it('skips tasks with null duration', async () => {

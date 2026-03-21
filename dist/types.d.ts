@@ -152,6 +152,8 @@ export interface ActiveTurnState {
         p50: number;
         p80: number;
     } | null;
+    /** Cumulative wall-clock seconds already spent on this work item across prior turns */
+    cumulative_work_item_seconds: number;
 }
 /** Single event in the append-only event log */
 export interface EventRecord {

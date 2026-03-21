@@ -5,7 +5,7 @@
  * without requiring all modules to migrate simultaneously.
  */
 import * as fs from 'node:fs';
-import type { AnalyticsTask, CompletedTurn, TaskEntry, ProjectData } from './types.js';
+import type { AnalyticsTask, CompletedTurn, TaskEntry, ProjectData, StopReason } from './types.js';
 import { loadCompletedTurns } from './event-store.js';
 import { resolveProjectIdentity } from './identity.js';
 import { needsMigration, legacySlug } from './migrate.js';
@@ -113,6 +113,9 @@ function aggregateFirstObservedOffset(
   return null;
 }
 
+/** Stop reasons that indicate the work item reached a terminal state. */
+const TERMINAL_STOP_REASONS = new Set<StopReason>(['stop', 'stop_failure', 'session_end', 'subagent_stop', 'migrated']);
+
 /** Aggregate main-runner turns into logical work items for analytics and ETA. */
 export function turnsToAnalyticsTasks(turns: CompletedTurn[]): AnalyticsTask[] {
   const grouped = new Map<string, CompletedTurn[]>();
@@ -125,6 +128,7 @@ export function turnsToAnalyticsTasks(turns: CompletedTurn[]): AnalyticsTask[] {
   }
 
   return [...grouped.values()]
+    .filter((group) => TERMINAL_STOP_REASONS.has(group[group.length - 1].stop_reason))
     .map((group) => {
       const first = group[0];
       const last = group[group.length - 1];

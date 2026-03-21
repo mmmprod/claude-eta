@@ -181,12 +181,17 @@ describe('decidePromptTransition', () => {
     assert.equal(decidePromptTransition(prompt, classifyPrompt(prompt), null), 'new_work_item');
   });
 
-  it('same classification defaults to same_work_item', () => {
+  it('same classification with additive marker stays same_work_item via similarity', () => {
     const existing = makeActiveTurn({ classification: 'bugfix' });
     assert.equal(
       decidePromptTransition('tu peux aussi couvrir le cas où session_id manque dans Stop ?', 'bugfix', existing),
       'same_work_item',
     );
+  });
+
+  it('unrelated prompts with same classification become new_work_item', () => {
+    const existing = makeActiveTurn({ classification: 'bugfix', prompt_summary: 'fix auth validation' });
+    assert.equal(decidePromptTransition('debug the payment webhook crash', 'bugfix', existing), 'new_work_item');
   });
 
   it('follow-up bugfix prompt stays same work item', () => {

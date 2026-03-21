@@ -15,6 +15,7 @@ export interface AnonymizedRecord {
     contributor_hash: string;
     dedup_key: string;
     source_turn_count: number;
+    record_unit: 'work_item' | 'turn';
 }
 export declare function anonymizeTask(task: AnalyticsTask, projIdentifier: string, pluginVersion: string, projectMeta?: {
     file_count?: number;

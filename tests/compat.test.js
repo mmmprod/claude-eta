@@ -117,6 +117,88 @@ describe('turnsToAnalyticsTasks', () => {
     assert.equal(tasks[0].first_bash_offset_seconds, 50);
   });
 
+  it('excludes single turn with replaced_by_new_prompt stop reason', () => {
+    const turns = [
+      makeTurn({
+        turn_id: 'turn-partial',
+        work_item_id: 'wi-partial',
+        stop_reason: 'replaced_by_new_prompt',
+      }),
+    ];
+
+    const tasks = turnsToAnalyticsTasks(turns);
+
+    assert.equal(tasks.length, 0);
+  });
+
+  it('includes single turn with stop stop reason', () => {
+    const turns = [
+      makeTurn({
+        turn_id: 'turn-done',
+        work_item_id: 'wi-done',
+        stop_reason: 'stop',
+      }),
+    ];
+
+    const tasks = turnsToAnalyticsTasks(turns);
+
+    assert.equal(tasks.length, 1);
+    assert.equal(tasks[0].analytics_id, 'wi-done');
+  });
+
+  it('includes multi-turn group where last turn has terminal stop reason', () => {
+    const turns = [
+      makeTurn({
+        turn_id: 'turn-a',
+        work_item_id: 'wi-multi',
+        started_at: '2026-03-21T10:00:00.000Z',
+        ended_at: '2026-03-21T10:00:30.000Z',
+        wall_seconds: 30,
+        stop_reason: 'replaced_by_new_prompt',
+      }),
+      makeTurn({
+        turn_id: 'turn-b',
+        work_item_id: 'wi-multi',
+        started_at: '2026-03-21T10:01:00.000Z',
+        ended_at: '2026-03-21T10:01:45.000Z',
+        wall_seconds: 45,
+        stop_reason: 'stop',
+      }),
+    ];
+
+    const tasks = turnsToAnalyticsTasks(turns);
+
+    assert.equal(tasks.length, 1);
+    assert.equal(tasks[0].analytics_id, 'wi-multi');
+    assert.equal(tasks[0].duration_seconds, 75);
+    assert.equal(tasks[0].source_turn_count, 2);
+  });
+
+  it('excludes multi-turn group where last turn has replaced_by_new_prompt', () => {
+    const turns = [
+      makeTurn({
+        turn_id: 'turn-a',
+        work_item_id: 'wi-incomplete',
+        started_at: '2026-03-21T10:00:00.000Z',
+        ended_at: '2026-03-21T10:00:30.000Z',
+        wall_seconds: 30,
+        stop_reason: 'stop',
+      }),
+      makeTurn({
+        turn_id: 'turn-b',
+        work_item_id: 'wi-incomplete',
+        started_at: '2026-03-21T10:01:00.000Z',
+        ended_at: '2026-03-21T10:01:45.000Z',
+        wall_seconds: 45,
+        stop_reason: 'replaced_by_new_prompt',
+      }),
+    ];
+
+    const tasks = turnsToAnalyticsTasks(turns);
+
+    assert.equal(tasks.length, 0);
+  });
+
   it('excludes subagent turns from analytics tasks', () => {
     const turns = [
       makeTurn({ turn_id: 'turn-main', work_item_id: 'wi-main', runner_kind: 'main' }),

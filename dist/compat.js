@@ -99,6 +99,8 @@ function aggregateFirstObservedOffset(turns, key) {
     }
     return null;
 }
+/** Stop reasons that indicate the work item reached a terminal state. */
+const TERMINAL_STOP_REASONS = new Set(['stop', 'stop_failure', 'session_end', 'subagent_stop', 'migrated']);
 /** Aggregate main-runner turns into logical work items for analytics and ETA. */
 export function turnsToAnalyticsTasks(turns) {
     const grouped = new Map();
@@ -109,6 +111,7 @@ export function turnsToAnalyticsTasks(turns) {
         grouped.set(key, list);
     }
     return [...grouped.values()]
+        .filter((group) => TERMINAL_STOP_REASONS.has(group[group.length - 1].stop_reason))
         .map((group) => {
         const first = group[0];
         const last = group[group.length - 1];

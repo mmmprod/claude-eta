@@ -88,9 +88,14 @@ async function main() {
     // ── New task: close previous turn, start fresh ──
     const turnId = crypto.randomUUID();
     let workItemId = turnId;
+    let cumulativeSeconds = 0;
     if (existing) {
         if (transition === 'same_work_item') {
             workItemId = existing.work_item_id;
+            const priorTurns = turns.filter((t) => t.session_id === sessionId && t.work_item_id === existing.work_item_id);
+            const priorSeconds = priorTurns.reduce((sum, t) => sum + t.wall_seconds, 0);
+            const closingElapsed = Math.round((Date.now() - existing.started_at_ms) / 1000);
+            cumulativeSeconds = priorSeconds + closingElapsed;
         }
         closeTurn(fp, sessionId, agentKey, 'replaced_by_new_prompt');
     }
@@ -143,14 +148,15 @@ async function main() {
         live_phase: null,
         last_phase: null,
         refined_eta: null,
+        cumulative_work_item_seconds: cumulativeSeconds,
     };
     // Cache ETA snapshot before startTurn so it's persisted in a single write
     let initialEta = null;
     if (stats) {
         initialEta = estimateInitial(stats, classification, complexity, { model });
         state.cached_eta = {
-            p50_wall: initialEta.p50_wall,
-            p80_wall: initialEta.p80_wall,
+            p50_wall: Math.max(0, initialEta.p50_wall - cumulativeSeconds),
+            p80_wall: Math.max(1, initialEta.p80_wall - cumulativeSeconds),
             basis: initialEta.basis,
             calibration: initialEta.calibration,
         };
