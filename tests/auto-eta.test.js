@@ -27,8 +27,8 @@ function cleanupProject(project) {
 function makeStats(cls, count, volatility = 'medium') {
   return {
     totalCompleted: count + 10,
-    overall: { median: 60, p25: 50, p75: 80 },
-    byClassification: [{ classification: cls, count, median: 60, p25: 50, p75: 80, volatility }],
+    overall: { median: 60, p25: 50, p75: 80, p80: 86 },
+    byClassification: [{ classification: cls, count, median: 60, p25: 50, p75: 80, p80: 86, volatility }],
   };
 }
 
@@ -105,9 +105,9 @@ describe('evaluateAutoEta conditions', () => {
       baseParams({
         stats: {
           totalCompleted: 100,
-          overall: { median: 30, p25: 1, p75: 3000 },
+          overall: { median: 30, p25: 1, p75: 3000, p80: 3600 },
           byClassification: [
-            { classification: 'bugfix', count: 50, median: 30, p25: 1, p75: 3000, volatility: 'high' },
+            { classification: 'bugfix', count: 50, median: 30, p25: 1, p75: 3000, p80: 3600, volatility: 'high' },
           ],
         },
       }),

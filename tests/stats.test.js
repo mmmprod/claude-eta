@@ -47,6 +47,28 @@ describe('computeStats', () => {
     assert.equal(stats.overall.median, 180); // 3 minutes
   });
 
+  it('computes p80 that differs from p75 for non-degenerate data', () => {
+    const tasks = [
+      makeTask({ duration_seconds: 10 }),
+      makeTask({ duration_seconds: 20 }),
+      makeTask({ duration_seconds: 30 }),
+      makeTask({ duration_seconds: 40 }),
+      makeTask({ duration_seconds: 50 }),
+      makeTask({ duration_seconds: 60 }),
+      makeTask({ duration_seconds: 70 }),
+      makeTask({ duration_seconds: 80 }),
+      makeTask({ duration_seconds: 90 }),
+      makeTask({ duration_seconds: 100 }),
+    ];
+    const stats = computeStats(tasks);
+    assert.ok(stats);
+    assert.ok(
+      stats.overall.p80 > stats.overall.p75,
+      `p80 (${stats.overall.p80}) should be > p75 (${stats.overall.p75})`,
+    );
+    assert.ok('p80' in stats.overall);
+  });
+
   it('skips tasks with null duration', () => {
     const tasks = [
       makeTask({ duration_seconds: 60 }),
@@ -185,10 +207,10 @@ describe('scorePromptComplexity', () => {
 describe('estimateTask', () => {
   const stats = {
     totalCompleted: 30,
-    overall: { median: 300, p25: 120, p75: 600 },
+    overall: { median: 300, p25: 120, p75: 600, p80: 660 },
     byClassification: [
-      { classification: 'bugfix', count: 10, median: 200, p25: 100, p75: 400, volatility: 'medium' },
-      { classification: 'feature', count: 8, median: 900, p25: 600, p75: 1500, volatility: 'medium' },
+      { classification: 'bugfix', count: 10, median: 200, p25: 100, p75: 400, p80: 440, volatility: 'medium' },
+      { classification: 'feature', count: 8, median: 900, p25: 600, p75: 1500, p80: 1620, volatility: 'medium' },
     ],
     byClassificationModel: [
       {
@@ -198,6 +220,7 @@ describe('estimateTask', () => {
         median: 150,
         p25: 90,
         p75: 260,
+        p80: 286,
         volatility: 'medium',
       },
     ],
@@ -244,10 +267,10 @@ describe('formatStatsContext', () => {
   it('produces readable context string', () => {
     const stats = {
       totalCompleted: 20,
-      overall: { median: 480, p25: 120, p75: 900 },
+      overall: { median: 480, p25: 120, p75: 900, p80: 984 },
       byClassification: [
-        { classification: 'bugfix', count: 8, median: 300, p25: 120, p75: 600, volatility: 'medium' },
-        { classification: 'feature', count: 5, median: 900, p25: 600, p75: 1500, volatility: 'medium' },
+        { classification: 'bugfix', count: 8, median: 300, p25: 120, p75: 600, p80: 660, volatility: 'medium' },
+        { classification: 'feature', count: 5, median: 900, p25: 600, p75: 1500, p80: 1620, volatility: 'medium' },
       ],
       byClassificationModel: [],
       byClassificationPhase: [],
@@ -264,7 +287,7 @@ describe('formatStatsContext', () => {
   it('includes task estimate when provided', () => {
     const stats = {
       totalCompleted: 20,
-      overall: { median: 480, p25: 120, p75: 900 },
+      overall: { median: 480, p25: 120, p75: 900, p80: 984 },
       byClassification: [],
       byClassificationModel: [],
       byClassificationPhase: [],
@@ -288,7 +311,7 @@ describe('formatStatsContext', () => {
   it('notes high volatility in estimate', () => {
     const stats = {
       totalCompleted: 20,
-      overall: { median: 480, p25: 120, p75: 900 },
+      overall: { median: 480, p25: 120, p75: 900, p80: 984 },
       byClassification: [],
       byClassificationModel: [],
       byClassificationPhase: [],
