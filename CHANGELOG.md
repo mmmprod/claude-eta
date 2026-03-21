@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.16.0](https://github.com/mmmprod/claude-eta/compare/claude-eta-v0.15.0...claude-eta-v0.16.0) (2026-03-21)
+
+
+### Features
+
+* add live community badges + fix model export ([#80](https://github.com/mmmprod/claude-eta/issues/80)) ([4c5edad](https://github.com/mmmprod/claude-eta/commit/4c5edadc1e6a3392167debf688404af63d2050e5))
+
 ## [0.15.0](https://github.com/mmmprod/claude-eta/compare/claude-eta-v0.14.1...claude-eta-v0.15.0) (2026-03-21)
 
 
