@@ -6,10 +6,44 @@
  */
 import * as fs from 'node:fs';
 import { getProjectMetaPath, ensureDir, getProjectDir, atomicWrite } from './paths.js';
+/** Normalize eta_accuracy from v1 {type: {hits, misses}} or v2 EtaAccuracyV2 format.
+ *  Returns null for empty or unrecognizable input. */
+export function normalizeEtaAccuracy(raw) {
+    if (!raw || typeof raw !== 'object')
+        return null;
+    const obj = raw;
+    // Already v2 format
+    if ('by_classification' in obj && typeof obj.by_classification === 'object' && obj.by_classification !== null) {
+        return raw;
+    }
+    // v1 format: { bugfix: { hits: N, misses: M }, ... }
+    const entries = Object.entries(obj);
+    if (entries.length === 0)
+        return null;
+    const by_classification = {};
+    for (const [cls, val] of entries) {
+        if (val && typeof val === 'object' && 'hits' in val) {
+            const v1 = val;
+            by_classification[cls] = {
+                interval80_hits: v1.hits,
+                interval80_total: v1.hits + v1.misses,
+            };
+        }
+    }
+    if (Object.keys(by_classification).length === 0)
+        return null;
+    return {
+        by_classification,
+        updated_at: new Date().toISOString(),
+    };
+}
 export function loadProjectMeta(fp) {
     try {
         const content = fs.readFileSync(getProjectMetaPath(fp), 'utf-8');
-        return JSON.parse(content);
+        const raw = JSON.parse(content);
+        // Normalize eta_accuracy in case v1 format persists from migration
+        raw.eta_accuracy = normalizeEtaAccuracy(raw.eta_accuracy);
+        return raw;
     }
     catch {
         return null;

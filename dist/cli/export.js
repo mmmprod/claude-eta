@@ -8,11 +8,12 @@ import { loadCompletedTurnsCompat, turnsToTaskEntries } from '../compat.js';
 import { resolveProjectIdentity } from '../identity.js';
 import { loadProjectMeta } from '../project-meta.js';
 import { getPluginDataDir } from '../paths.js';
-import { contributorHash, projectHash, normalizeModel } from '../anonymize.js';
+import { contributorHash, projectHash, normalizeModel, dedupKey } from '../anonymize.js';
 const EXPORT_DIR = path.join(getPluginDataDir(), 'export');
 export function anonymizeTask(task, projIdentifier, pluginVersion, projectMeta) {
     if (task.duration_seconds == null || task.duration_seconds <= 0)
         return null;
+    const contribHash = contributorHash();
     return {
         task_type: task.classification,
         duration_seconds: task.duration_seconds,
@@ -26,7 +27,8 @@ export function anonymizeTask(task, projIdentifier, pluginVersion, projectMeta) 
         project_file_count: projectMeta?.file_count ?? null,
         project_loc_bucket: projectMeta?.loc_bucket ?? null,
         plugin_version: pluginVersion,
-        contributor_hash: contributorHash(),
+        contributor_hash: contribHash,
+        dedup_key: dedupKey(contribHash, task.task_id),
     };
 }
 export function anonymizeProject(cwd, pluginVersion) {

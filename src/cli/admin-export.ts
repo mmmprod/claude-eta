@@ -13,13 +13,14 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { getPluginDataDir, getActiveDir, getSessionsDir, getLegacyDataDir } from '../paths.js';
+import { getPluginDataDir, getActiveDir, getSessionsDir } from '../paths.js';
 import { loadCompletedTurns } from '../event-store.js';
 import { turnsToTaskEntries } from '../compat.js';
 import { computeAllInsights } from '../insights/index.js';
 import { median, groupBy } from '../insights/types.js';
 import { isoWeekLabel } from '../insights/temporal.js';
 import { fetchBaselines } from '../supabase.js';
+import { loadProjectMeta, type EtaAccuracyV2, type ProjectMeta } from '../project-meta.js';
 import type { CompletedTurn, TaskClassification, RunnerKind } from '../types.js';
 import type { InsightResult } from '../insights/types.js';
 
@@ -47,6 +48,7 @@ interface ActiveTurnSummary {
 interface ProjectInfo {
   fp: string;
   displayName: string;
+  meta: ProjectMeta | null;
   turns: CompletedTurn[];
   activeTurns: ActiveTurnSummary[];
   lastEventAt: string | null;
@@ -61,6 +63,7 @@ function discoverProjects(): ProjectInfo[] {
     for (const entry of entries) {
       if (!entry.isDirectory()) continue;
       const fp = entry.name;
+      const meta = loadProjectMeta(fp);
       const turns = loadCompletedTurns(fp);
       const activeTurns = scanActiveTurns(fp);
 
@@ -90,7 +93,7 @@ function discoverProjects(): ProjectInfo[] {
         if (!lastEventAt || at.started_at > lastEventAt) lastEventAt = at.started_at;
       }
 
-      projects.push({ fp, displayName, turns, activeTurns, lastEventAt });
+      projects.push({ fp, displayName, meta, turns, activeTurns, lastEventAt });
     }
   } catch {
     /* no projects dir */
@@ -178,8 +181,7 @@ function buildHealth(allTurns: CompletedTurn[], projects: ProjectInfo[], pluginV
 
 // ── Section 2: ETA Accuracy ──────────────────────────────────
 
-function buildEtaAccuracy() {
-  const legacyDir = getLegacyDataDir();
+function buildEtaAccuracy(projects: ProjectInfo[]) {
   const byProjectType: Array<{
     project: string;
     classification: string;
@@ -190,33 +192,22 @@ function buildEtaAccuracy() {
   }> = [];
   const autoDisabledTypes: string[] = [];
 
-  try {
-    const files = fs
-      .readdirSync(legacyDir)
-      .filter((f) => f.endsWith('.json') && !f.startsWith('_') && !f.startsWith('test-'));
+  for (const p of projects) {
+    const accuracy: EtaAccuracyV2 | null = p.meta?.eta_accuracy ?? null;
+    if (!accuracy) continue;
 
-    for (const file of files) {
-      try {
-        const data = JSON.parse(fs.readFileSync(path.join(legacyDir, file), 'utf-8'));
-        const accuracy: Record<string, { hits: number; misses: number }> = data.eta_accuracy ?? {};
-        const project: string = data.project ?? file.replace('.json', '');
+    for (const [cls, entry] of Object.entries(accuracy.by_classification)) {
+      const hits = entry.interval80_hits;
+      const misses = entry.interval80_total - entry.interval80_hits;
+      const total = entry.interval80_total;
+      if (total === 0) continue;
+      const rate = Math.round((hits / total) * 100);
+      byProjectType.push({ project: p.displayName, classification: cls, hits, misses, total, rate_pct: rate });
 
-        for (const [cls, { hits, misses }] of Object.entries(accuracy)) {
-          const total = hits + misses;
-          if (total === 0) continue;
-          const rate = Math.round((hits / total) * 100);
-          byProjectType.push({ project, classification: cls, hits, misses, total, rate_pct: rate });
-
-          if (total >= 10 && misses / total > 0.5) {
-            autoDisabledTypes.push(`${project}/${cls}`);
-          }
-        }
-      } catch {
-        /* skip */
+      if (total >= 10 && misses / total > 0.5) {
+        autoDisabledTypes.push(`${p.displayName}/${cls}`);
       }
     }
-  } catch {
-    /* no legacy dir */
   }
 
   // Global aggregation
@@ -381,7 +372,7 @@ export async function buildAdminExport(pluginVersion: string) {
     generated_at: new Date().toISOString(),
     plugin_version: pluginVersion,
     health: buildHealth(allTurns, projects, pluginVersion),
-    eta_accuracy: buildEtaAccuracy(),
+    eta_accuracy: buildEtaAccuracy(projects),
     data_quality: buildDataQuality(projects, allTurns),
     supabase,
     insights: computeAllInsights(allTasks) as InsightResult[],

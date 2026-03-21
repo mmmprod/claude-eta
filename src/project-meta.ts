@@ -32,10 +32,48 @@ export interface ProjectMeta {
   eta_accuracy: EtaAccuracyV2 | null;
 }
 
+/** Normalize eta_accuracy from v1 {type: {hits, misses}} or v2 EtaAccuracyV2 format.
+ *  Returns null for empty or unrecognizable input. */
+export function normalizeEtaAccuracy(raw: unknown): EtaAccuracyV2 | null {
+  if (!raw || typeof raw !== 'object') return null;
+
+  const obj = raw as Record<string, unknown>;
+
+  // Already v2 format
+  if ('by_classification' in obj && typeof obj.by_classification === 'object' && obj.by_classification !== null) {
+    return raw as EtaAccuracyV2;
+  }
+
+  // v1 format: { bugfix: { hits: N, misses: M }, ... }
+  const entries = Object.entries(obj);
+  if (entries.length === 0) return null;
+
+  const by_classification: EtaAccuracyV2['by_classification'] = {};
+  for (const [cls, val] of entries) {
+    if (val && typeof val === 'object' && 'hits' in (val as Record<string, unknown>)) {
+      const v1 = val as { hits: number; misses: number };
+      by_classification[cls] = {
+        interval80_hits: v1.hits,
+        interval80_total: v1.hits + v1.misses,
+      };
+    }
+  }
+
+  if (Object.keys(by_classification).length === 0) return null;
+
+  return {
+    by_classification,
+    updated_at: new Date().toISOString(),
+  };
+}
+
 export function loadProjectMeta(fp: string): ProjectMeta | null {
   try {
     const content = fs.readFileSync(getProjectMetaPath(fp), 'utf-8');
-    return JSON.parse(content) as ProjectMeta;
+    const raw = JSON.parse(content) as ProjectMeta;
+    // Normalize eta_accuracy in case v1 format persists from migration
+    raw.eta_accuracy = normalizeEtaAccuracy(raw.eta_accuracy);
+    return raw;
   } catch {
     return null;
   }

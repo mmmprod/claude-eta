@@ -18,6 +18,9 @@ export interface ProjectMeta {
     repo_metrics_updated_at: string | null;
     eta_accuracy: EtaAccuracyV2 | null;
 }
+/** Normalize eta_accuracy from v1 {type: {hits, misses}} or v2 EtaAccuracyV2 format.
+ *  Returns null for empty or unrecognizable input. */
+export declare function normalizeEtaAccuracy(raw: unknown): EtaAccuracyV2 | null;
 export declare function loadProjectMeta(fp: string): ProjectMeta | null;
 export declare function saveProjectMeta(fp: string, meta: ProjectMeta): void;
 /** Update ETA accuracy for a classification (hit or miss) */

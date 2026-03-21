@@ -42,7 +42,7 @@ export declare function estimateInitial(stats: ProjectStats | null, classificati
  * Refine an estimate with live trace data.
  * Uses elapsed time and phase to adjust remaining time.
  */
-export declare function estimateWithTrace(initial: EtaEstimate, _elapsedSeconds: number, phase: TaskPhase): EtaEstimate;
+export declare function estimateWithTrace(initial: EtaEstimate, elapsedSeconds: number, phase: TaskPhase): EtaEstimate;
 /** Convert EtaEstimate to the legacy TaskEstimate shape for existing consumers */
 export declare function toTaskEstimate(est: EtaEstimate, complexity: number): import('./stats.js').TaskEstimate;
 //# sourceMappingURL=estimator.d.ts.map

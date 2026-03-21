@@ -8,6 +8,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { findLegacyFile, getProjectDir, getCompletedDir, ensureDir, ensureProjectDirs, getProjectMetaPath, } from './paths.js';
 import { taskEntryToCompletedTurn } from './convert.js';
+import { normalizeEtaAccuracy } from './project-meta.js';
 const MIGRATION_MARKER = 'migrated-from-legacy.json';
 /** Return the legacy project path when migration is still pending. */
 function getPendingMigrationLegacyPath(projectFp, legacySlug) {
@@ -62,7 +63,7 @@ export function migrateLegacyProject(projectFp, legacySlug, displayName, cwdReal
         legacy_slug: legacySlug,
         file_count: data.file_count ?? null,
         loc_bucket: data.loc_bucket ?? null,
-        eta_accuracy: data.eta_accuracy ?? {},
+        eta_accuracy: normalizeEtaAccuracy(data.eta_accuracy),
     };
     fs.writeFileSync(metaPath, JSON.stringify(meta, null, 2));
     // Convert each completed task to a CompletedTurn JSONL line
