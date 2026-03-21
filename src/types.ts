@@ -189,7 +189,7 @@ export interface ActiveTurnState {
   // Live remaining estimate (updated on phase transitions in on-tool-use)
   live_remaining_p50: number | null;
   live_remaining_p80: number | null;
-  live_phase: string | null;
+  live_phase: import('./features.js').TaskPhase | null;
 }
 
 /** Single event in the append-only event log */

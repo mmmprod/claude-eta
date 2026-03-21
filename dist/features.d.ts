@@ -35,6 +35,9 @@ export declare function recomputeRemaining(cachedEta: {
     remaining_p50: number;
     remaining_p80: number;
 };
+/** Apply phase-transition ETA refinement to a mutable turn state.
+ *  Called by on-tool-use and on-tool-failure on every tool event. */
+export declare function applyPhaseTransition(state: ActiveTurnState, now: number): void;
 /**
  * Detect the current task phase from the tool usage sequence.
  *

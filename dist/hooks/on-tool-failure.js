@@ -2,7 +2,7 @@ import { readStdin } from '../stdin.js';
 import { getActiveTurn, setActiveTurn, appendEvent } from '../event-store.js';
 import { resolveProjectIdentity } from '../identity.js';
 import { buildErrorFingerprint } from '../loop-detector.js';
-import { detectPhase, recomputeRemaining } from '../features.js';
+import { applyPhaseTransition } from '../features.js';
 async function main() {
     const stdin = await readStdin();
     if (!stdin)
@@ -36,17 +36,7 @@ async function main() {
     if (toolName === 'Bash' && stdin.error && stdin.error.length > 0 && state.error_fingerprints.length < 50) {
         state.error_fingerprints.push(buildErrorFingerprint(stdin.error));
     }
-    // ── Phase-transition ETA refinement (pure arithmetic, <0.2ms) ──
-    if (state.cached_eta) {
-        const currentPhase = detectPhase(state);
-        if (currentPhase !== state.live_phase) {
-            const elapsed = Math.round((now - state.started_at_ms) / 1000);
-            const remaining = recomputeRemaining(state.cached_eta, elapsed, currentPhase);
-            state.live_remaining_p50 = remaining.remaining_p50;
-            state.live_remaining_p80 = remaining.remaining_p80;
-            state.live_phase = currentPhase;
-        }
-    }
+    applyPhaseTransition(state, now);
     setActiveTurn(state);
     try {
         appendEvent(fp, sessionId, agentKey, {
