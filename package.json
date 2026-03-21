@@ -7,7 +7,7 @@
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
-    "test": "SKIP_INTEGRATION=1 npm run build && SKIP_INTEGRATION=1 node --test --test-concurrency=1 tests",
+    "test": "SKIP_INTEGRATION=1 npm run build && SKIP_INTEGRATION=1 node --test --test-concurrency=1 tests/*.test.js",
     "test:integration": "npm run build && node --test tests/supabase-integration.test.js",
     "lint": "tsc --noEmit",
     "format": "prettier --write 'src/**/*.ts' 'tests/**/*.js'",
