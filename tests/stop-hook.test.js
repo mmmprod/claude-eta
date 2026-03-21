@@ -262,4 +262,73 @@ describe('Stop hook integration', () => {
 
     assert.ok(!output.includes('Repair loop detected'));
   });
+
+  it('records fast task (below p50) as coverage hit, not miss', () => {
+    const fp = getTestFp();
+    const turnId = 'turn-fast-finish';
+
+    // Seed active turn with a known turn_id and started_at ~5s ago (wall_seconds ≈ 5)
+    seedActiveTurn(fp, SESSION_ID, 'main', {
+      turn_id: turnId,
+      work_item_id: turnId,
+      classification: 'bugfix',
+      started_at: new Date(Date.now() - 5000).toISOString(),
+      started_at_ms: Date.now() - 5000,
+    });
+
+    // Seed project meta so updateEtaAccuracy has something to update
+    const metaDir = path.join(TEST_DATA_DIR, 'projects', fp);
+    fs.mkdirSync(metaDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(metaDir, 'meta.json'),
+      JSON.stringify({
+        project_fp: fp,
+        display_name: 'test-stop-hook-project',
+        cwd_realpath: TEST_CWD,
+        created: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        legacy_slug: null,
+        file_count: null,
+        file_count_bucket: null,
+        loc_bucket: null,
+        repo_metrics_updated_at: null,
+        eta_accuracy: null,
+      }),
+    );
+
+    // Seed ephemeral state with a LastEtaPrediction: p50=60, p80=120
+    // The task will finish in ~5s which is well below p50=60
+    const cacheDir = path.join(TEST_DATA_DIR, 'projects', fp, 'cache');
+    fs.mkdirSync(cacheDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(cacheDir, `ephemeral-${SESSION_ID}.json`),
+      JSON.stringify({
+        last_eta: {
+          low: 60,
+          high: 120,
+          classification: 'bugfix',
+          task_id: turnId,
+          timestamp: new Date().toISOString(),
+        },
+        last_completed: null,
+        updated_at: new Date().toISOString(),
+      }),
+    );
+
+    // Run the stop hook — task finishes in ~5s, well below p50=60
+    runStopHook({
+      last_assistant_message: 'Fixed the bug.',
+      stop_hook_active: false,
+      session_id: SESSION_ID,
+      cwd: TEST_CWD,
+    });
+
+    // Read project meta and check that the accuracy was recorded as a HIT
+    const meta = JSON.parse(fs.readFileSync(path.join(metaDir, 'meta.json'), 'utf-8'));
+    assert.ok(meta.eta_accuracy, 'eta_accuracy should be populated');
+    const bugfixAcc = meta.eta_accuracy.by_classification?.bugfix;
+    assert.ok(bugfixAcc, 'bugfix accuracy entry should exist');
+    assert.equal(bugfixAcc.interval80_total, 1, 'should have 1 total observation');
+    assert.equal(bugfixAcc.interval80_hits, 1, 'fast finish (below p50) should be a HIT, not a miss');
+  });
 });
