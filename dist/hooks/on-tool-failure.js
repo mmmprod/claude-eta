@@ -1,6 +1,7 @@
 import { readStdin } from '../stdin.js';
 import { getActiveTurn, setActiveTurn, appendEvent } from '../event-store.js';
 import { resolveProjectIdentity } from '../identity.js';
+import { buildErrorFingerprint } from '../loop-detector.js';
 async function main() {
     const stdin = await readStdin();
     if (!stdin)
@@ -29,6 +30,10 @@ async function main() {
         state.bash_failures += 1;
         if (state.first_bash_at_ms === null)
             state.first_bash_at_ms = now;
+    }
+    // Loop detector: fingerprint the error (capped to avoid unbounded growth)
+    if (stdin.error && stdin.error.length > 0 && state.error_fingerprints.length < 50) {
+        state.error_fingerprints.push(buildErrorFingerprint(stdin.error));
     }
     setActiveTurn(state);
     try {

@@ -17,6 +17,7 @@ import { checkDisableRequest, evaluateAutoEta } from '../auto-eta.js';
 import { loadProjectMeta } from '../project-meta.js';
 import { classifyPrompt, summarizePrompt, isContinuation } from '../classify.js';
 import { extractFeatures } from '../features.js';
+import { detectRepairLoop } from '../loop-detector.js';
 import { estimateInitial, estimateWithTrace, toTaskEstimate } from '../estimator.js';
 import { computeStats, formatStatsContext, estimateTask, scorePromptComplexity, getDefaultEstimate, formatColdStartContext, formatTaskRecap, fmtSec, } from '../stats.js';
 /** Output hook response with optional additionalContext */
@@ -115,12 +116,21 @@ async function main() {
         source: sessionMeta?.source ?? null,
         status: 'active',
         path_fps: [],
+        error_fingerprints: [],
     };
     startTurn(state);
     // ── Build context injection ────────────────────────────────
     const contextParts = [];
     if (lastCompleted) {
         contextParts.push(formatTaskRecap(lastCompleted));
+        // Loop detector: inject warning if previous turn had 3+ same errors
+        if (lastCompleted.loop_error_fingerprints?.length) {
+            const loopResult = detectRepairLoop(lastCompleted.loop_error_fingerprints, 3);
+            if (loopResult) {
+                contextParts.push(`[claude-eta] Warning: your previous attempt hit the same error ${loopResult.count} times: "${loopResult.preview}".\n` +
+                    `Before trying again, reconsider your approach. Don't retry the same strategy.`);
+            }
+        }
     }
     if (stats) {
         const estimate = estimateTask(stats, classification, complexity);

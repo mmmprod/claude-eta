@@ -37,6 +37,7 @@ describe('SessionStart hook onboarding', () => {
 
     assert.match(output, /Data is 100% local/);
     assert.match(output, /Privacy: local-only by default/);
+    assert.match(output, /`\/eta community off` to stay private/);
     assert.match(output, /`\/eta community on`/);
     assert.match(output, /`\/eta compare` is read-only/);
 

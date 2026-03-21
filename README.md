@@ -59,15 +59,16 @@ After ~5 tasks, Claude gets your real numbers instead of guessing. When it still
 | `/eta history` | Last 20 tasks with real durations |
 | `/eta stats` | Averages by task type |
 | `/eta insights` | Deep patterns in your task data (9 analyses) |
-| `/eta compare` | You vs community baselines |
+| `/eta compare` | Read-only comparison against community baselines |
 | `/eta contribute` | Preview anonymized data to share |
 | `/eta contribute --confirm` | Upload (opt-in) |
 | `/eta export` | Save anonymized data locally |
 | `/eta inspect` | See exactly what's stored |
 | `/eta auto` | Auto-ETA status and accuracy |
 | `/eta auto on/off` | Toggle automatic ETA injection |
-| `/eta community` | Community sharing status |
-| `/eta community on/off` | Allow or block anonymized uploads |
+| `/eta community` | Community sharing status and consent flow |
+| `/eta community on` | Explicitly allow manual anonymized uploads |
+| `/eta community off` | Explicitly stay local-only |
 | `/eta recap` | Today's daily journal |
 | `/eta help` | All commands |
 
@@ -87,7 +88,7 @@ Data lives under `${CLAUDE_PLUGIN_DATA}` (or `~/.claude/plugins/claude-eta/` for
 
 `/eta inspect` to see everything. `/eta export` to review before sharing.
 
-On first use, claude-eta makes the choice explicit: stay fully local, or later enable `/eta community on` if you want to allow manual anonymized uploads.
+On first use, claude-eta starts local-only. When community features become relevant, the CLI makes the choice explicit: run `/eta community off` to confirm you want to stay private, or `/eta community on` to allow manual anonymized uploads.
 
 Community features are split:
 
@@ -111,9 +112,9 @@ Community features are split:
 
 ## Community baselines
 
-`/eta compare` fetches anonymous community averages (read-only, no upload).
+`/eta compare` fetches anonymous community averages (read-only, no upload). The first time community features become relevant, the CLI also shows the local-only vs opt-in choice clearly, but the compare request itself never uploads anything.
 
-`/eta contribute` previews what would be sent. Nothing leaves your machine until you both enable sharing with `/eta community on` and run `/eta contribute --confirm`.
+`/eta contribute` previews what would be sent. Nothing leaves your machine until you both enable sharing with `/eta community on` and run `/eta contribute --confirm`. If you prefer to stay private, `/eta community off` makes that choice explicit and keeps uploads blocked.
 
 **Sent:** task type, duration, tool/file counts, normalized model name, project hash, contributor hash, dedup key, plugin version, error count. Run `/eta export` to see the exact payload.
 

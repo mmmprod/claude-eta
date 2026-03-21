@@ -43,7 +43,13 @@ export interface ActiveTask {
 /** Last completed task summary (ephemeral, for recap in next prompt) */
 export type LastCompleted = Pick<TaskEntry, 'classification' | 'tool_calls' | 'files_read' | 'files_edited' | 'files_created'> & {
     duration_seconds: number;
+    loop_error_fingerprints?: ErrorFingerprint[];
 };
+/** Error fingerprint for loop detection */
+export interface ErrorFingerprint {
+    fp: string;
+    preview: string;
+}
 /** User preferences for Auto-ETA (stored in _preferences.json) */
 export interface UserPreferences {
     auto_eta: boolean;
@@ -108,6 +114,7 @@ export interface ActiveTurnState {
     source: string | null;
     status: 'active' | 'stop_blocked';
     path_fps: string[];
+    error_fingerprints: ErrorFingerprint[];
 }
 /** Single event in the append-only event log */
 export interface EventRecord {

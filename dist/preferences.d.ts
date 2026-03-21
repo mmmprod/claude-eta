@@ -2,6 +2,8 @@ export interface UserPreferencesV2 {
     auto_eta: boolean;
     community_sharing: boolean;
     community_onboarding_seen: boolean;
+    community_choice_made: boolean;
+    community_consent_prompt_seen: boolean;
     prompts_since_last_eta: number;
     last_eta_task_id: string | null;
     updated_at: string;

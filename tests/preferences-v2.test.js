@@ -26,6 +26,8 @@ describe('preferences v2', () => {
     assert.equal(prefs.auto_eta, false);
     assert.equal(prefs.community_sharing, false);
     assert.equal(prefs.community_onboarding_seen, false);
+    assert.equal(prefs.community_choice_made, false);
+    assert.equal(prefs.community_consent_prompt_seen, false);
     assert.equal(prefs.prompts_since_last_eta, 0);
     assert.equal(prefs.last_eta_task_id, null);
   });
@@ -38,6 +40,8 @@ describe('preferences v2', () => {
       auto_eta: true,
       community_sharing: true,
       community_onboarding_seen: true,
+      community_choice_made: true,
+      community_consent_prompt_seen: true,
       prompts_since_last_eta: 2,
       last_eta_task_id: 'task-123',
       updated_at: '2026-03-21T12:00:00.000Z',
@@ -48,6 +52,8 @@ describe('preferences v2', () => {
     assert.equal(prefs.auto_eta, true);
     assert.equal(prefs.community_sharing, true);
     assert.equal(prefs.community_onboarding_seen, true);
+    assert.equal(prefs.community_choice_made, true);
+    assert.equal(prefs.community_consent_prompt_seen, true);
     assert.equal(prefs.prompts_since_last_eta, 2);
     assert.equal(prefs.last_eta_task_id, 'task-123');
   });
@@ -73,6 +79,8 @@ describe('preferences v2', () => {
     assert.equal(prefs.auto_eta, true);
     assert.equal(prefs.community_sharing, false);
     assert.equal(prefs.community_onboarding_seen, false);
+    assert.equal(prefs.community_choice_made, false);
+    assert.equal(prefs.community_consent_prompt_seen, false);
     assert.equal(prefs.prompts_since_last_eta, 4);
     assert.equal(prefs.last_eta_task_id, 'legacy-task');
   });

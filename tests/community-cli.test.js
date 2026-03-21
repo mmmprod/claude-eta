@@ -34,6 +34,9 @@ describe('/eta community CLI', () => {
   it('shows status and toggles the persistent sharing switch', () => {
     const initial = runEta(['community']);
     assert.match(initial, /Upload switch: \*\*disabled\*\*/);
+    assert.match(initial, /Choice: \*\*pending\*\*/);
+    assert.match(initial, /Keep everything private: `\/eta community off`/);
+    assert.match(initial, /Allow manual anonymized uploads: `\/eta community on`/);
 
     const enabled = runEta(['community', 'on']);
     assert.match(enabled, /Community sharing \*\*enabled\*\*/);
@@ -41,9 +44,11 @@ describe('/eta community CLI', () => {
     const prefsPath = path.join(TEST_DATA_DIR, 'config', 'preferences.json');
     const enabledPrefs = JSON.parse(fs.readFileSync(prefsPath, 'utf-8'));
     assert.equal(enabledPrefs.community_sharing, true);
+    assert.equal(enabledPrefs.community_choice_made, true);
 
     const status = runEta(['community']);
     assert.match(status, /Upload switch: \*\*enabled\*\*/);
+    assert.match(status, /Choice: \*\*manual uploads allowed\*\*/);
     assert.match(status, /manual `\/eta contribute --confirm`/);
 
     const disabled = runEta(['community', 'off']);
@@ -51,11 +56,12 @@ describe('/eta community CLI', () => {
 
     const disabledPrefs = JSON.parse(fs.readFileSync(prefsPath, 'utf-8'));
     assert.equal(disabledPrefs.community_sharing, false);
+    assert.equal(disabledPrefs.community_choice_made, true);
   });
 
   it('shows current sharing state in help output', () => {
     const disabledHelp = runEta(['help']);
-    assert.match(disabledHelp, /Community sharing: \*\*disabled\*\*/);
+    assert.match(disabledHelp, /Community sharing: \*\*choice pending \(currently local-only\)\*\*/);
 
     runEta(['community', 'on']);
 

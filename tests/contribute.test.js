@@ -88,6 +88,9 @@ function writePreferences(overrides = {}) {
       {
         auto_eta: false,
         community_sharing: false,
+        community_onboarding_seen: false,
+        community_choice_made: false,
+        community_consent_prompt_seen: false,
         prompts_since_last_eta: 0,
         last_eta_task_id: null,
         updated_at: new Date().toISOString(),
@@ -116,8 +119,36 @@ describe('showContribute', () => {
       console.log = originalLog;
     }
 
-    assert.ok(logs.some((line) => line.includes('Community sharing is disabled.')));
+    assert.ok(logs.some((line) => line.includes('Community sharing is disabled until you choose a mode.')));
+    assert.ok(logs.some((line) => line.includes('Choose your community mode:')));
+    assert.ok(logs.some((line) => line.includes('/eta community off')));
+    assert.ok(logs.some((line) => line.includes('/eta community on')));
     assert.ok(!logs.some((line) => line.includes('new anonymized records ready to contribute')));
+
+    const prefsPath = path.join(TEST_DATA_DIR, 'config', 'preferences.json');
+    const prefs = JSON.parse(fs.readFileSync(prefsPath, 'utf-8'));
+    assert.equal(prefs.community_consent_prompt_seen, true);
+  });
+
+  it('keeps local-only wording after the user explicitly opts out of community uploads', async () => {
+    writeCompletedTurns(TEST_CWD, [makeCompletedTurn()]);
+    writePreferences({ community_choice_made: true, community_sharing: false, community_consent_prompt_seen: true });
+
+    const logs = [];
+    const originalLog = console.log;
+    console.log = (...args) => logs.push(args.join(' '));
+
+    try {
+      const ts = Date.now() + Math.random();
+      const { showContribute } = await import(`../dist/cli/contribute.js?t=${ts}`);
+      await showContribute(TEST_CWD, '1.0.0');
+    } finally {
+      console.log = originalLog;
+    }
+
+    assert.ok(logs.some((line) => line.includes('Community sharing is disabled.')));
+    assert.ok(logs.some((line) => line.includes('You chose local-only mode.')));
+    assert.ok(!logs.some((line) => line.includes('Choose your community mode:')));
   });
 
   it('ignores malformed persisted contribution state', async () => {
@@ -177,6 +208,6 @@ describe('executeContribute', () => {
     }
 
     assert.equal(fetchCalled, false);
-    assert.ok(logs.some((line) => line.includes('Community sharing is disabled.')));
+    assert.ok(logs.some((line) => line.includes('Community sharing is disabled until you choose a mode.')));
   });
 });

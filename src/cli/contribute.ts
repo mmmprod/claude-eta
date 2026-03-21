@@ -7,6 +7,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
 import { loadCompletedTurnsCompat, turnsToTaskEntries } from '../compat.js';
+import { consumeCommunityConsentPrompt } from '../community-consent.js';
 import { resolveProjectIdentity } from '../identity.js';
 import { loadProjectMeta } from '../project-meta.js';
 import { getCommunityDir } from '../paths.js';
@@ -107,10 +108,22 @@ function getNewRecords(cwd: string, pluginVersion: string): { records: Anonymize
 function ensureCommunitySharingEnabled(): boolean {
   const prefs = loadPreferencesV2();
   if (prefs.community_sharing) return true;
+  const consentPrompt = consumeCommunityConsentPrompt();
 
-  console.log('Community sharing is disabled.');
+  if (prefs.community_choice_made) {
+    console.log('Community sharing is disabled.');
+    console.log('You chose local-only mode. Local estimates still learn from your private data only.');
+    console.log('Enable uploads later with `/eta community on`, then run `/eta contribute` to preview what would be sent.');
+    return false;
+  }
+
+  console.log('Community sharing is disabled until you choose a mode.');
   console.log('Local estimates still learn from your private data only.');
-  console.log('Enable uploads with `/eta community on`, then run `/eta contribute` to preview what would be sent.');
+  if (consentPrompt) {
+    console.log(`\n${consentPrompt}`);
+  } else {
+    console.log('Review your options with `/eta community`, then run `/eta contribute` to preview what would be sent.');
+  }
   return false;
 }
 

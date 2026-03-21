@@ -12,7 +12,7 @@ import { computeStats, formatStatsContext, CALIBRATION_THRESHOLD } from '../stat
 import { getRepoMetrics } from '../repo-metrics.js';
 import { upsertProjectMeta } from '../project-meta.js';
 import { loadPreferencesV2, savePreferencesV2 } from '../preferences.js';
-const COMMUNITY_ONBOARDING_NOTE = 'Privacy: local-only by default. Keep all data private, or run `/eta community on` later if you want to allow manual anonymized uploads. `/eta compare` is read-only.';
+const COMMUNITY_ONBOARDING_NOTE = 'Privacy: local-only by default. If community features matter later, choose `/eta community off` to stay private or `/eta community on` to allow manual anonymized uploads. `/eta compare` is read-only.';
 function consumeCommunityOnboardingNote() {
     const prefs = loadPreferencesV2();
     if (prefs.community_onboarding_seen)

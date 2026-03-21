@@ -9,6 +9,7 @@ import { readStdin } from '../stdin.js';
 import { getActiveTurn, setActiveTurn, appendEvent } from '../event-store.js';
 import { resolveProjectIdentity } from '../identity.js';
 import { hashWithLocalSalt } from '../identity.js';
+import { buildErrorFingerprint } from '../loop-detector.js';
 
 async function main(): Promise<void> {
   const stdin = await readStdin<PostToolUseStdin>();
@@ -88,6 +89,11 @@ async function main(): Promise<void> {
     if (typeof resp.exit_code === 'number' && resp.exit_code !== 0) {
       state.errors += 1;
       state.bash_failures += 1;
+      // Loop detector: fingerprint the error output (capped to avoid unbounded growth)
+      const stderr = String(resp.stderr ?? resp.stdout ?? '');
+      if (stderr.length > 0 && state.error_fingerprints.length < 50) {
+        state.error_fingerprints.push(buildErrorFingerprint(stderr));
+      }
     }
   }
 

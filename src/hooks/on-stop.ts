@@ -15,6 +15,8 @@ import { setLastCompletedV2, consumeLastEtaV2 } from '../ephemeral.js';
 import { computeStats, fmtSec } from '../stats.js';
 import { extractDurations, findBullshitEstimate, resolveDetectorReference } from '../detector.js';
 import { updateEtaAccuracy } from '../project-meta.js';
+import { detectRepairLoop } from '../loop-detector.js';
+import type { ErrorFingerprint } from '../types.js';
 
 function blockWithCorrection(reason: string): void {
   process.stdout.write(JSON.stringify({ decision: 'block', reason }));
@@ -42,9 +44,10 @@ async function main(): Promise<void> {
   // MUST NOT throw here — an exception would re-trigger Stop, causing infinite loop.
   if (stdin.stop_hook_active || active.status === 'stop_blocked') {
     try {
+      const savedFingerprints = active.error_fingerprints;
       const completed = closeTurn(fp, sessionId, agentKey, 'stop');
       if (completed) {
-        recordRecap(fp, sessionId, completed);
+        recordRecap(fp, sessionId, completed, savedFingerprints);
       }
       consumeLastEtaV2(fp, sessionId);
     } catch {
@@ -56,6 +59,20 @@ async function main(): Promise<void> {
   // Store last_assistant_message on the active state
   if (stdin.last_assistant_message) {
     active.last_assistant_message = stdin.last_assistant_message;
+  }
+
+  // ── Loop detector (≥5 same errors → block) ─────────────────
+  const loopResult = detectRepairLoop(active.error_fingerprints, 5);
+  if (loopResult) {
+    const reason =
+      `[claude-eta] Repair loop detected: same error ${loopResult.count} times.\n` +
+      `Error: "${loopResult.preview}"\n` +
+      `Step back. Try a fundamentally different approach.`;
+
+    active.status = 'stop_blocked';
+    setActiveTurn(active);
+    blockWithCorrection(reason);
+    return;
   }
 
   // ── Bullshit detector ──────────────────────────────────────
@@ -92,9 +109,10 @@ async function main(): Promise<void> {
   }
 
   // ── Normal close ───────────────────────────────────────────
+  const savedFingerprints = active.error_fingerprints;
   const completed = closeTurn(fp, sessionId, agentKey, 'stop');
   if (completed) {
-    recordRecap(fp, sessionId, completed);
+    recordRecap(fp, sessionId, completed, savedFingerprints);
   }
 
   // Self-check Auto-ETA accuracy
@@ -108,7 +126,12 @@ async function main(): Promise<void> {
 }
 
 /** Record a recap from the completed turn for the next prompt to pick up */
-function recordRecap(projectFp: string, sessionId: string, completed: import('../types.js').CompletedTurn): void {
+function recordRecap(
+  projectFp: string,
+  sessionId: string,
+  completed: import('../types.js').CompletedTurn,
+  errorFingerprints?: ErrorFingerprint[],
+): void {
   setLastCompletedV2(projectFp, sessionId, {
     classification: completed.classification,
     duration_seconds: completed.wall_seconds,
@@ -116,6 +139,7 @@ function recordRecap(projectFp: string, sessionId: string, completed: import('..
     files_read: completed.files_read,
     files_edited: completed.files_edited,
     files_created: completed.files_created,
+    loop_error_fingerprints: errorFingerprints?.length ? errorFingerprints : undefined,
   });
 }
 
