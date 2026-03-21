@@ -11,7 +11,21 @@ import { loadCompletedTurnsCompat, turnsToTaskEntries } from '../compat.js';
 import { computeStats, formatStatsContext, CALIBRATION_THRESHOLD } from '../stats.js';
 import { getRepoMetrics } from '../repo-metrics.js';
 import { upsertProjectMeta } from '../project-meta.js';
+import { loadPreferencesV2, savePreferencesV2 } from '../preferences.js';
 import type { SessionMeta, SessionStartStdin } from '../types.js';
+
+const COMMUNITY_ONBOARDING_NOTE =
+  'Privacy: local-only by default. If community features matter later, choose `/eta community off` to stay private or `/eta community on` to allow manual anonymized uploads. `/eta compare` is read-only.';
+
+function consumeCommunityOnboardingNote(): string | null {
+  const prefs = loadPreferencesV2();
+  if (prefs.community_onboarding_seen) return null;
+
+  prefs.community_onboarding_seen = true;
+  prefs.updated_at = new Date().toISOString();
+  savePreferencesV2(prefs);
+  return COMMUNITY_ONBOARDING_NOTE;
+}
 
 async function main(): Promise<void> {
   const stdin = await readStdin<SessionStartStdin>();
@@ -65,18 +79,21 @@ async function main(): Promise<void> {
     });
   }
 
+  const communityOnboardingNote = consumeCommunityOnboardingNote();
+
   if (completed === 0) {
-    process.stdout.write(
+    let message =
       `[claude-eta] Plugin active — tracking task durations. Data is 100% local.\n` +
-        `Calibration: 0/${CALIBRATION_THRESHOLD} tasks. Estimates unlock after a few completed tasks.`,
-    );
+      `Calibration: 0/${CALIBRATION_THRESHOLD} tasks. Estimates unlock after a few completed tasks.`;
+    if (communityOnboardingNote) message += `\n${communityOnboardingNote}`;
+    process.stdout.write(message);
     return;
   }
 
   if (completed < CALIBRATION_THRESHOLD) {
-    process.stdout.write(
-      `[claude-eta] Calibration: ${completed}/${CALIBRATION_THRESHOLD} tasks recorded. Estimates improving with each task.`,
-    );
+    let message = `[claude-eta] Calibration: ${completed}/${CALIBRATION_THRESHOLD} tasks recorded. Estimates improving with each task.`;
+    if (communityOnboardingNote) message += `\n${communityOnboardingNote}`;
+    process.stdout.write(message);
     return;
   }
 
@@ -86,6 +103,10 @@ async function main(): Promise<void> {
   if (!stats) return;
 
   let context = formatStatsContext(stats);
+
+  if (communityOnboardingNote) {
+    context += `\n${communityOnboardingNote}`;
+  }
 
   if (completed >= CALIBRATION_THRESHOLD && completed <= CALIBRATION_THRESHOLD + 2) {
     context +=

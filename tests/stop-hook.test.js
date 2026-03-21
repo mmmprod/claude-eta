@@ -70,6 +70,7 @@ function seedActiveTurn(projectFp, sessionId, agentKey, overrides = {}) {
     source: null,
     status: 'active',
     path_fps: [],
+    error_fingerprints: [],
     ...overrides,
   };
   fs.writeFileSync(path.join(activeDir, `${sessionId}__${agentKey}.json`), JSON.stringify(state));
@@ -225,5 +226,40 @@ describe('Stop hook integration', () => {
       const activePath = path.join(TEST_DATA_DIR, 'projects', fp, 'active', `${SESSION_ID}__main.json`);
       assert.ok(!fs.existsSync(activePath), 'active turn should be removed after stop');
     }
+  });
+
+  it('blocks on repair loop (5+ same error fingerprints)', () => {
+    const fp = getTestFp();
+    // Create fingerprints with the same normalized error
+    const sameFp = crypto.createHash('sha256').update('same error').digest('hex').slice(0, 8);
+    const fingerprints = Array.from({ length: 5 }, () => ({ fp: sameFp, preview: 'same error' }));
+    seedActiveTurn(fp, SESSION_ID, 'main', { error_fingerprints: fingerprints });
+
+    const output = runStopHook({
+      last_assistant_message: 'Done.',
+      stop_hook_active: false,
+      session_id: SESSION_ID,
+      cwd: TEST_CWD,
+    });
+
+    const result = JSON.parse(output);
+    assert.equal(result.decision, 'block');
+    assert.ok(result.reason.includes('Repair loop detected'));
+  });
+
+  it('does not block on fewer than 5 same fingerprints', () => {
+    const fp = getTestFp();
+    const sameFp = crypto.createHash('sha256').update('same error').digest('hex').slice(0, 8);
+    const fingerprints = Array.from({ length: 4 }, () => ({ fp: sameFp, preview: 'same error' }));
+    seedActiveTurn(fp, SESSION_ID, 'main', { error_fingerprints: fingerprints });
+
+    const output = runStopHook({
+      last_assistant_message: 'Done.',
+      stop_hook_active: false,
+      session_id: SESSION_ID,
+      cwd: TEST_CWD,
+    });
+
+    assert.ok(!output.includes('Repair loop detected'));
   });
 });

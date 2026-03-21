@@ -7,9 +7,11 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
 import { loadCompletedTurnsCompat, turnsToTaskEntries } from '../compat.js';
+import { consumeCommunityConsentPrompt } from '../community-consent.js';
 import { resolveProjectIdentity } from '../identity.js';
 import { loadProjectMeta } from '../project-meta.js';
 import { getCommunityDir } from '../paths.js';
+import { loadPreferencesV2 } from '../preferences.js';
 import { anonymizeTask } from './export.js';
 import { insertVelocityRecords } from '../supabase.js';
 const LEGACY_STATE_PATH = path.join(os.homedir(), '.claude', 'plugins', 'claude-eta', 'data', '_contribute_state.json');
@@ -90,7 +92,30 @@ function getNewRecords(cwd, pluginVersion) {
     }
     return { records, taskIds };
 }
+function ensureCommunitySharingEnabled() {
+    const prefs = loadPreferencesV2();
+    if (prefs.community_sharing)
+        return true;
+    const consentPrompt = consumeCommunityConsentPrompt();
+    if (prefs.community_choice_made) {
+        console.log('Community sharing is disabled.');
+        console.log('You chose local-only mode. Local estimates still learn from your private data only.');
+        console.log('Enable uploads later with `/eta community on`, then run `/eta contribute` to preview what would be sent.');
+        return false;
+    }
+    console.log('Community sharing is disabled until you choose a mode.');
+    console.log('Local estimates still learn from your private data only.');
+    if (consentPrompt) {
+        console.log(`\n${consentPrompt}`);
+    }
+    else {
+        console.log('Review your options with `/eta community`, then run `/eta contribute` to preview what would be sent.');
+    }
+    return false;
+}
 export async function showContribute(cwd, pluginVersion) {
+    if (!ensureCommunitySharingEnabled())
+        return;
     const { records } = getNewRecords(cwd, pluginVersion);
     if (records.length === 0) {
         console.log('No new tasks to contribute (all previously contributed or no completed tasks).');
@@ -98,6 +123,8 @@ export async function showContribute(cwd, pluginVersion) {
     }
     const state = loadState();
     console.log(`## Contribute to Community Baselines\n`);
+    console.log('Sharing status: enabled (manual upload mode).');
+    console.log('Disable uploads anytime with `/eta community off`.\n');
     console.log(`**${records.length}** new anonymized records ready to contribute.`);
     if (state && state.last_contributed_at) {
         console.log(`Last contribution: ${state.last_contributed_at} (${state.last_contributed_count} records)`);
@@ -114,6 +141,8 @@ export async function showContribute(cwd, pluginVersion) {
     console.log('\n**To confirm**, run this command again with `--confirm`:\n' + '`/eta contribute --confirm`');
 }
 export async function executeContribute(cwd, pluginVersion) {
+    if (!ensureCommunitySharingEnabled())
+        return;
     const { records, taskIds } = getNewRecords(cwd, pluginVersion);
     if (records.length === 0) {
         console.log('No new tasks to contribute (all previously contributed or no completed tasks).');

@@ -56,7 +56,13 @@ export interface ActiveTask {
 export type LastCompleted = Pick<
   TaskEntry,
   'classification' | 'tool_calls' | 'files_read' | 'files_edited' | 'files_created'
-> & { duration_seconds: number };
+> & { duration_seconds: number; loop_error_fingerprints?: ErrorFingerprint[] };
+
+/** Error fingerprint for loop detection */
+export interface ErrorFingerprint {
+  fp: string; // sha256 hash, 8 chars
+  preview: string; // first 100 chars of normalized error
+}
 
 /** User preferences for Auto-ETA (stored in _preferences.json) */
 export interface UserPreferences {
@@ -146,6 +152,7 @@ export interface ActiveTurnState {
   source: string | null;
   status: 'active' | 'stop_blocked';
   path_fps: string[];
+  error_fingerprints: ErrorFingerprint[];
 }
 
 /** Single event in the append-only event log */

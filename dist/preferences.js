@@ -9,6 +9,10 @@ import * as path from 'node:path';
 import { getConfigDir, ensureDir, atomicWrite, findLegacyFile } from './paths.js';
 const DEFAULTS = {
     auto_eta: false,
+    community_sharing: false,
+    community_onboarding_seen: false,
+    community_choice_made: false,
+    community_consent_prompt_seen: false,
     prompts_since_last_eta: 0,
     last_eta_task_id: null,
     updated_at: new Date().toISOString(),
@@ -26,6 +30,10 @@ function tryMigrateFromV1() {
         const v1 = JSON.parse(content);
         return {
             auto_eta: v1.auto_eta ?? false,
+            community_sharing: v1.community_sharing ?? false,
+            community_onboarding_seen: v1.community_onboarding_seen ?? false,
+            community_choice_made: v1.community_choice_made ?? false,
+            community_consent_prompt_seen: v1.community_consent_prompt_seen ?? false,
             prompts_since_last_eta: v1.prompts_since_last_eta ?? 0,
             last_eta_task_id: v1.last_eta_task_id ?? null,
             updated_at: new Date().toISOString(),
@@ -42,6 +50,10 @@ export function loadPreferencesV2() {
         const prefs = JSON.parse(content);
         return {
             auto_eta: prefs.auto_eta ?? DEFAULTS.auto_eta,
+            community_sharing: prefs.community_sharing ?? DEFAULTS.community_sharing,
+            community_onboarding_seen: prefs.community_onboarding_seen ?? DEFAULTS.community_onboarding_seen,
+            community_choice_made: prefs.community_choice_made ?? DEFAULTS.community_choice_made,
+            community_consent_prompt_seen: prefs.community_consent_prompt_seen ?? DEFAULTS.community_consent_prompt_seen,
             prompts_since_last_eta: prefs.prompts_since_last_eta ?? DEFAULTS.prompts_since_last_eta,
             last_eta_task_id: prefs.last_eta_task_id ?? DEFAULTS.last_eta_task_id,
             updated_at: prefs.updated_at ?? DEFAULTS.updated_at,

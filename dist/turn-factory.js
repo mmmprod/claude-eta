@@ -40,6 +40,7 @@ export function createActiveTurn(params) {
         source: params.source,
         status: 'active',
         path_fps: [],
+        error_fingerprints: [],
     };
 }
 //# sourceMappingURL=turn-factory.js.map
