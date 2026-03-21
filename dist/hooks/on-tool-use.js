@@ -3,6 +3,7 @@ import { getActiveTurn, setActiveTurn, appendEvent } from '../event-store.js';
 import { resolveProjectIdentity } from '../identity.js';
 import { hashWithLocalSalt } from '../identity.js';
 import { buildErrorFingerprint } from '../loop-detector.js';
+import { applyPhaseTransition } from '../features.js';
 async function main() {
     const stdin = await readStdin();
     if (!stdin)
@@ -84,6 +85,7 @@ async function main() {
             }
         }
     }
+    applyPhaseTransition(state, now);
     // ── Persist ────────────────────────────────────────────────
     setActiveTurn(state);
     // Append event (non-blocking for perf — errors are silent)

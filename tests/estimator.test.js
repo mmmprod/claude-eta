@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { estimateInitial, estimateWithTrace, toTaskEstimate } from '../dist/estimator.js';
-import { extractFeatures, detectPhase } from '../dist/features.js';
+import { extractFeatures, detectPhase, recomputeRemaining } from '../dist/features.js';
 
 function makeStats(clsName, clsCount, volatility = 'medium', overrides = {}) {
   return {
@@ -234,6 +234,11 @@ describe('detectPhase', () => {
       source: null,
       status: 'active',
       path_fps: [],
+      error_fingerprints: [],
+      cached_eta: null,
+      live_remaining_p50: null,
+      live_remaining_p80: null,
+      live_phase: null,
       ...overrides,
     };
   }
@@ -255,5 +260,55 @@ describe('detectPhase', () => {
       detectPhase(makeState({ first_edit_at_ms: Date.now(), bash_failures: 1, files_edited: 2 })),
       'repair_loop',
     );
+  });
+});
+
+// ── recomputeRemaining ───────────────────────────────────────
+
+describe('recomputeRemaining', () => {
+  const cached = { p50_wall: 120, p80_wall: 200 };
+
+  it('returns positive remaining when elapsed < estimate', () => {
+    const result = recomputeRemaining(cached, 30, 'edit');
+    assert.ok(result.remaining_p50 > 0);
+    assert.ok(result.remaining_p80 > result.remaining_p50);
+  });
+
+  it('returns zero remaining when elapsed exceeds estimate', () => {
+    const result = recomputeRemaining(cached, 300, 'edit');
+    assert.equal(result.remaining_p50, 0);
+    // p80 floor: when p50 is 0, p80 can also be 0
+    assert.ok(result.remaining_p80 >= 0);
+  });
+
+  it('explore phase gives higher remaining than validate (multiplier 1.05 vs 0.95)', () => {
+    const explore = recomputeRemaining(cached, 30, 'explore');
+    const validate = recomputeRemaining(cached, 30, 'validate');
+    assert.ok(explore.remaining_p50 > validate.remaining_p50);
+  });
+
+  it('repair_loop gives highest multiplier (1.15)', () => {
+    const repair = recomputeRemaining(cached, 30, 'repair_loop');
+    const edit = recomputeRemaining(cached, 30, 'edit');
+    assert.ok(repair.remaining_p50 > edit.remaining_p50);
+  });
+
+  it('edit phase applies multiplier of 1.0 (identity)', () => {
+    const result = recomputeRemaining(cached, 30, 'edit');
+    assert.equal(result.remaining_p50, Math.max(0, Math.round((120 - 30) * 1)));
+    assert.equal(result.remaining_p50, 90);
+  });
+
+  it('p80 is always >= p50 + 1 when p50 > 0', () => {
+    const result = recomputeRemaining(cached, 60, 'validate');
+    if (result.remaining_p50 > 0) {
+      assert.ok(result.remaining_p80 >= result.remaining_p50 + 1);
+    }
+  });
+
+  it('handles zero-second elapsed', () => {
+    const result = recomputeRemaining(cached, 0, 'explore');
+    assert.equal(result.remaining_p50, Math.round(120 * 1.05));
+    assert.ok(result.remaining_p80 >= result.remaining_p50 + 1);
   });
 });

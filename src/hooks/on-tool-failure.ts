@@ -7,6 +7,7 @@ import { readStdin } from '../stdin.js';
 import { getActiveTurn, setActiveTurn, appendEvent } from '../event-store.js';
 import { resolveProjectIdentity } from '../identity.js';
 import { buildErrorFingerprint } from '../loop-detector.js';
+import { applyPhaseTransition } from '../features.js';
 
 async function main(): Promise<void> {
   const stdin = await readStdin<PostToolUseFailureStdin>();
@@ -45,6 +46,8 @@ async function main(): Promise<void> {
   if (toolName === 'Bash' && stdin.error && stdin.error.length > 0 && state.error_fingerprints.length < 50) {
     state.error_fingerprints.push(buildErrorFingerprint(stdin.error));
   }
+
+  applyPhaseTransition(state, now);
 
   setActiveTurn(state);
 

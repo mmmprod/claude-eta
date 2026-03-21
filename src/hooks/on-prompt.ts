@@ -23,7 +23,6 @@ import { estimateInitial, estimateWithTrace, toTaskEstimate } from '../estimator
 import {
   computeStats,
   formatStatsContext,
-  estimateTask,
   scorePromptComplexity,
   getDefaultEstimate,
   formatColdStartContext,
@@ -152,7 +151,23 @@ async function main(): Promise<void> {
     status: 'active',
     path_fps: [],
     error_fingerprints: [],
+    cached_eta: null,
+    live_remaining_p50: null,
+    live_remaining_p80: null,
+    live_phase: null,
   };
+
+  // Cache ETA snapshot before startTurn so it's persisted in a single write
+  let initialEta: ReturnType<typeof estimateInitial> | null = null;
+  if (stats) {
+    initialEta = estimateInitial(stats, classification, complexity, { model });
+    state.cached_eta = {
+      p50_wall: initialEta.p50_wall,
+      p80_wall: initialEta.p80_wall,
+      basis: initialEta.basis,
+      calibration: initialEta.calibration,
+    };
+  }
 
   startTurn(state);
 
@@ -173,8 +188,8 @@ async function main(): Promise<void> {
     }
   }
 
-  if (stats) {
-    const estimate = estimateTask(stats, classification, complexity, { model });
+  if (initialEta && stats) {
+    const estimate = toTaskEstimate(initialEta, complexity);
     contextParts.push(formatStatsContext(stats, estimate));
   } else {
     const completedCount = turns.length;
