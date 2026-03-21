@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.0](https://github.com/mmmprod/claude-eta/compare/claude-eta-v0.11.0...claude-eta-v0.12.0) (2026-03-21)
+
+
+### Features
+
+* **estimator,dedup:** live phase-aware predictor + server-side dedup + P0/P1 fixes ([#60](https://github.com/mmmprod/claude-eta/issues/60)) ([9d01f9a](https://github.com/mmmprod/claude-eta/commit/9d01f9a0455d7e166bfe24584c159d88e7e157d1))
+
 ## [0.11.0](https://github.com/mmmprod/claude-eta/compare/claude-eta-v0.10.0...claude-eta-v0.11.0) (2026-03-21)
 
 
