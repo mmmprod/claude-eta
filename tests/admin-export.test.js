@@ -10,7 +10,7 @@ let turnSeq = 0;
 const TEST_ROOT = path.join(os.tmpdir(), `admin-export-test-${Date.now()}`);
 process.env.CLAUDE_PLUGIN_DATA = TEST_ROOT;
 
-const { buildAdminExport } = await import('../dist/cli/admin-export.js');
+const { buildAdminExport, showAdminExport } = await import('../dist/cli/admin-export.js');
 const { ensureDir } = await import('../dist/paths.js');
 
 // ── Helpers ──────────────────────────────────────────────────
@@ -262,6 +262,7 @@ before(() => {
       ended_at: '2026-03-18T14:01:35.000Z',
     }),
   );
+
 });
 
 after(() => {
@@ -420,6 +421,43 @@ describe('admin-export', () => {
     it('returns array of insight results', () => {
       assert.ok(Array.isArray(result.insights));
       // With 8 turns total, some insights may have enough data
+    });
+  });
+
+  describe('standalone html', () => {
+    it('escapes embedded bootstrap data before injecting it into the inline script', async () => {
+      writeSessionMeta('projC_fp00003', 'sess-c1', {
+        session_id: 'sess-c1',
+        project_fp: 'projC_fp00003',
+        project_display_name: '</script><script>boom()</script>',
+        cwd_realpath: '/tmp/gamma',
+        model: 'claude-sonnet-4',
+        source: 'cli',
+        session_agent_type: null,
+        started_at: '2026-03-19T10:00:00.000Z',
+        last_seen_at: '2026-03-19T10:00:00.000Z',
+      });
+      writeActiveTurn('projC_fp00003', 'sess-c1', 'main', {
+        session_id: 'sess-c1',
+        agent_key: 'main',
+        classification: 'other',
+        runner_kind: 'main',
+        started_at: '2026-03-19T10:00:00.000Z',
+        tool_calls: 0,
+      });
+
+      const originalLog = console.log;
+      console.log = () => {};
+      try {
+        await showAdminExport('0.7.0-test');
+      } finally {
+        console.log = originalLog;
+      }
+
+      const html = fs.readFileSync(path.join(TEST_ROOT, 'export', 'admin-export.html'), 'utf-8');
+      assert.match(html, /window\.__ADMIN_DATA__ = /);
+      assert.equal(html.includes('</script><script>boom()</script>'), false);
+      assert.ok(html.includes('\\u003C/script\\u003E\\u003Cscript\\u003Eboom()\\u003C/script\\u003E'));
     });
   });
 });

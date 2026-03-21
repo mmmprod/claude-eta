@@ -53,3 +53,9 @@
 - [x] Add a dedicated predictor calibration section to `admin/dashboard.html`.
 - [x] Align the admin GUI time-ratio table with the renamed proxy timing fields.
 - [x] Hide maintainer-only surfaces from normal `/eta help` and gate them behind `CLAUDE_ETA_INTERNAL=1`.
+
+## Senior Dev Cleanup
+
+- [x] Escape embedded `/eta admin-export` bootstrap JSON before inlining it into `admin-export.html`.
+- [x] Remove avoidable prefix-copy allocations from walk-forward `/eta eval`.
+- [x] Guarantee temp-dir cleanup for each perf-bench sample, even when a sample command throws.

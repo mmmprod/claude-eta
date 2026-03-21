@@ -145,13 +145,20 @@ export function evaluateTasks(tasks: AnalyticsTask[]): EvalReport {
   const overall = emptyBuckets();
   const byClassification = new Map<string, StageBuckets>();
   const byClassificationModel = new Map<string, StageBuckets>();
+  const history: AnalyticsTask[] = [];
 
-  for (let index = 0; index < ordered.length; index += 1) {
-    const task = ordered[index];
-    const actualDuration = task.duration_seconds as number;
-    const history = ordered.slice(0, index);
+  for (const task of ordered) {
+    const actualDuration = task.duration_seconds;
+    if (actualDuration == null || actualDuration <= 0) {
+      history.push(task);
+      continue;
+    }
+
     const stats = computeStats(history);
-    if (!stats) continue;
+    if (!stats) {
+      history.push(task);
+      continue;
+    }
     const initial = estimateInitial(stats, task.classification, task.prompt_complexity, {
       model: task.model,
     });
@@ -221,6 +228,8 @@ export function evaluateTasks(tasks: AnalyticsTask[]): EvalReport {
         );
       }
     }
+
+    history.push(task);
   }
 
   return {

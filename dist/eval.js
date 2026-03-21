@@ -105,13 +105,18 @@ export function evaluateTasks(tasks) {
     const overall = emptyBuckets();
     const byClassification = new Map();
     const byClassificationModel = new Map();
-    for (let index = 0; index < ordered.length; index += 1) {
-        const task = ordered[index];
+    const history = [];
+    for (const task of ordered) {
         const actualDuration = task.duration_seconds;
-        const history = ordered.slice(0, index);
-        const stats = computeStats(history);
-        if (!stats)
+        if (actualDuration == null || actualDuration <= 0) {
+            history.push(task);
             continue;
+        }
+        const stats = computeStats(history);
+        if (!stats) {
+            history.push(task);
+            continue;
+        }
         const initial = estimateInitial(stats, task.classification, task.prompt_complexity, {
             model: task.model,
         });
@@ -147,6 +152,7 @@ export function evaluateTasks(tasks) {
                 pushObservation(getBreakdownBuckets(byClassificationModel, `${task.classification} on ${normalizedModel}`), 'first_bash', refined.remaining_p50, refined.remaining_p80, remaining);
             }
         }
+        history.push(task);
     }
     return {
         total_tasks: ordered.length,

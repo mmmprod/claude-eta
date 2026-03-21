@@ -130,6 +130,25 @@ function scanActiveTurns(projectFp: string): ActiveTurnSummary[] {
   return results;
 }
 
+function serializeForInlineScript(value: unknown): string {
+  return JSON.stringify(value).replace(/[<>&\u2028\u2029]/g, (char) => {
+    switch (char) {
+      case '<':
+        return '\\u003C';
+      case '>':
+        return '\\u003E';
+      case '&':
+        return '\\u0026';
+      case '\u2028':
+        return '\\u2028';
+      case '\u2029':
+        return '\\u2029';
+      default:
+        return char;
+    }
+  });
+}
+
 // ── Section 1: Health ────────────────────────────────────────
 
 function buildHealth(allTurns: CompletedTurn[], projects: ProjectInfo[], pluginVersion: string) {
@@ -400,7 +419,7 @@ export async function showAdminExport(pluginVersion: string): Promise<void> {
     const moduleDir = path.dirname(fileURLToPath(import.meta.url));
     const templatePath = path.resolve(moduleDir, '..', '..', 'admin', 'dashboard.html');
     const template = fs.readFileSync(templatePath, 'utf-8');
-    const injection = `<script>window.__ADMIN_DATA__ = ${JSON.stringify(data)};</script>`;
+    const injection = `<script>window.__ADMIN_DATA__ = ${serializeForInlineScript(data)};</script>`;
     const standalone = template.replace('<!-- __ADMIN_DATA_INJECTION__ -->', injection);
     htmlPath = path.join(exportDir, 'admin-export.html');
     fs.writeFileSync(htmlPath, standalone);

@@ -82,16 +82,19 @@ async function benchCommand(args, options = {}) {
 
   for (let index = 0; index < SAMPLES; index += 1) {
     const setup = await beforeEach(index);
-    const runtime = {
-      cwd: setup.cwd ?? options.cwd ?? REPO_ROOT,
-      env: setup.env,
-      input: setup.input ?? options.input ?? '',
-    };
-    const baselineMs = overheadArgs ? runCommand(overheadArgs, runtime) : null;
-    const elapsedMs = runCommand(args, runtime);
-    samples.push(elapsedMs);
-    if (baselineMs != null) overheadSamples.push(Math.max(0, elapsedMs - baselineMs));
-    cleanupSetup(setup);
+    try {
+      const runtime = {
+        cwd: setup.cwd ?? options.cwd ?? REPO_ROOT,
+        env: setup.env,
+        input: setup.input ?? options.input ?? '',
+      };
+      const baselineMs = overheadArgs ? runCommand(overheadArgs, runtime) : null;
+      const elapsedMs = runCommand(args, runtime);
+      samples.push(elapsedMs);
+      if (baselineMs != null) overheadSamples.push(Math.max(0, elapsedMs - baselineMs));
+    } finally {
+      cleanupSetup(setup);
+    }
   }
   return {
     ...summarize(samples),
