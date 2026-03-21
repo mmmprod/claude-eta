@@ -4,6 +4,7 @@ import { resolveProjectIdentity } from '../identity.js';
 import { hashWithLocalSalt } from '../identity.js';
 import { buildErrorFingerprint } from '../loop-detector.js';
 import { applyPhaseTransition } from '../features.js';
+import { refineEtaOnTransition } from './refine-eta.js';
 async function main() {
     const stdin = await readStdin();
     if (!stdin)
@@ -85,7 +86,13 @@ async function main() {
             }
         }
     }
-    applyPhaseTransition(state, now);
+    // Phase transition: applyPhaseTransition updates live_* with lightweight multipliers
+    // and returns the new phase if a transition occurred.
+    // On transitions (2-3 per turn), refineEtaOnTransition runs the richer estimateWithTrace.
+    const transitioned = applyPhaseTransition(state, now);
+    if (transitioned) {
+        refineEtaOnTransition(state, cwd, transitioned, now);
+    }
     // ── Persist ────────────────────────────────────────────────
     setActiveTurn(state);
     // Append event (non-blocking for perf — errors are silent)

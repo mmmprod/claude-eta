@@ -72,16 +72,18 @@ async function main(): Promise<void> {
     const contextParts: string[] = [];
 
     if (stats) {
+      const features = extractFeatures(existing);
+      const elapsed = Math.round(features.elapsed_wall_ms / 1000);
       const initial = estimateInitial(stats, existing.classification, existing.prompt_complexity, {
         model: existing.model,
       });
-      const features = extractFeatures(existing);
-      const elapsed = Math.round(features.elapsed_wall_ms / 1000);
-      const refined = estimateWithTrace(initial, elapsed, features.phase, {
-        stats,
-        classification: existing.classification,
-        model: existing.model,
-      });
+
+      // Prefer refined_eta from phase-transition recalc (already computed by on-tool-use)
+      const hasRefinedEta = existing.refined_eta && existing.last_phase && existing.last_phase !== 'explore';
+      const refined = hasRefinedEta
+        ? { ...initial, remaining_p50: existing.refined_eta!.p50, remaining_p80: existing.refined_eta!.p80, calibration: 'project+trace' as const, phase: features.phase }
+        : estimateWithTrace(initial, elapsed, features.phase, { stats, classification: existing.classification, model: existing.model });
+
       const legacy = toTaskEstimate(refined, existing.prompt_complexity);
       contextParts.push(formatStatsContext(stats, legacy));
       if (features.phase !== 'explore') {
@@ -155,6 +157,8 @@ async function main(): Promise<void> {
     live_remaining_p50: null,
     live_remaining_p80: null,
     live_phase: null,
+    last_phase: null,
+    refined_eta: null,
   };
 
   // Cache ETA snapshot before startTurn so it's persisted in a single write

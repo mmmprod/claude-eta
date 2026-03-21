@@ -190,6 +190,10 @@ export interface ActiveTurnState {
   live_remaining_p50: number | null;
   live_remaining_p80: number | null;
   live_phase: import('./features.js').TaskPhase | null;
+
+  // Phase-transition refined ETA (set by on-tool-use/on-tool-failure, read by on-prompt continuation)
+  last_phase?: string | null;
+  refined_eta?: { p50: number; p80: number } | null;
 }
 
 /** Single event in the append-only event log */

@@ -75,16 +75,19 @@ export function recomputeRemaining(
 }
 
 /** Apply phase-transition ETA refinement to a mutable turn state.
- *  Called by on-tool-use and on-tool-failure on every tool event. */
-export function applyPhaseTransition(state: ActiveTurnState, now: number): void {
-  if (!state.cached_eta) return;
+ *  Called by on-tool-use and on-tool-failure on every tool event.
+ *  Returns the new phase if a transition occurred, or null if unchanged. */
+export function applyPhaseTransition(state: ActiveTurnState, now: number): TaskPhase | null {
   const currentPhase = detectPhase(state);
-  if (currentPhase === state.live_phase) return;
-  const elapsed = Math.round((now - state.started_at_ms) / 1000);
-  const remaining = recomputeRemaining(state.cached_eta, elapsed, currentPhase);
-  state.live_remaining_p50 = remaining.remaining_p50;
-  state.live_remaining_p80 = remaining.remaining_p80;
+  if (currentPhase === state.live_phase) return null;
   state.live_phase = currentPhase;
+  if (state.cached_eta) {
+    const elapsed = Math.round((now - state.started_at_ms) / 1000);
+    const remaining = recomputeRemaining(state.cached_eta, elapsed, currentPhase);
+    state.live_remaining_p50 = remaining.remaining_p50;
+    state.live_remaining_p80 = remaining.remaining_p80;
+  }
+  return currentPhase;
 }
 
 /**

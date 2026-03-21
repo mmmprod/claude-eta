@@ -1,6 +1,9 @@
 /**
  * PostToolUseFailure hook — tracks tool failures on the active turn.
  * Same structure as PostToolUse but always increments errors.
+ *
+ * Phase transitions (e.g. first bash failure triggering repair_loop)
+ * trigger a richer ETA recalculation via estimateWithTrace.
  */
 import type { PostToolUseFailureStdin } from '../types.js';
 import { readStdin } from '../stdin.js';
@@ -8,6 +11,7 @@ import { getActiveTurn, setActiveTurn, appendEvent } from '../event-store.js';
 import { resolveProjectIdentity } from '../identity.js';
 import { buildErrorFingerprint } from '../loop-detector.js';
 import { applyPhaseTransition } from '../features.js';
+import { refineEtaOnTransition } from './refine-eta.js';
 
 async function main(): Promise<void> {
   const stdin = await readStdin<PostToolUseFailureStdin>();
@@ -47,7 +51,10 @@ async function main(): Promise<void> {
     state.error_fingerprints.push(buildErrorFingerprint(stdin.error));
   }
 
-  applyPhaseTransition(state, now);
+  const transitioned = applyPhaseTransition(state, now);
+  if (transitioned) {
+    refineEtaOnTransition(state, cwd, transitioned, now);
+  }
 
   setActiveTurn(state);
 
