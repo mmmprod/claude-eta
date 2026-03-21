@@ -22,6 +22,14 @@ export declare function getLocksDir(projectFp: string): string;
 export declare function getCommunityDir(): string;
 /** Legacy data directory (v1 compat): <data>/data/ */
 export declare function getLegacyDataDir(): string;
+/** Hardcoded v1 data directory — the exact path v1 store.ts always wrote to */
+export declare function getV1HardcodedDataDir(): string;
+/**
+ * Search for a legacy file across both candidate directories.
+ * Returns the first path where the file exists, or null if not found.
+ * Uses try/catch fs.accessSync to check readability (avoids existsSync).
+ */
+export declare function findLegacyFile(filename: string): string | null;
 /** Active turn file for a specific (session, agent) pair */
 export declare function getActiveTurnPath(projectFp: string, sessionId: string, agentKey: string): string;
 /** Event log for a specific (session, agent) pair */

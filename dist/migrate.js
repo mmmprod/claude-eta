@@ -6,34 +6,33 @@
  */
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { getLegacyDataDir, getProjectDir, getCompletedDir, ensureDir, ensureProjectDirs, getProjectMetaPath, } from './paths.js';
+import { findLegacyFile, getProjectDir, getCompletedDir, ensureDir, ensureProjectDirs, getProjectMetaPath, } from './paths.js';
 import { taskEntryToCompletedTurn } from './convert.js';
 const MIGRATION_MARKER = 'migrated-from-legacy.json';
-/** Check if a legacy project file exists and hasn't been migrated yet */
-export function needsMigration(projectFp, legacySlug) {
-    const legacyPath = path.join(getLegacyDataDir(), `${legacySlug}.json`);
+/** Return the legacy project path when migration is still pending. */
+function getPendingMigrationLegacyPath(projectFp, legacySlug) {
+    const legacyPath = findLegacyFile(`${legacySlug}.json`);
+    if (!legacyPath)
+        return null; // No legacy file anywhere
     const markerPath = path.join(getProjectDir(projectFp), MIGRATION_MARKER);
     try {
-        fs.accessSync(legacyPath, fs.constants.R_OK);
-    }
-    catch {
-        return false; // No legacy file
-    }
-    try {
         fs.accessSync(markerPath, fs.constants.R_OK);
-        return false; // Already migrated
+        return null; // Already migrated
     }
     catch {
-        return true; // Legacy exists but not yet migrated
+        return legacyPath; // Legacy exists but not yet migrated
     }
+}
+/** Check if a legacy project file exists and hasn't been migrated yet. */
+export function needsMigration(projectFp, legacySlug) {
+    return getPendingMigrationLegacyPath(projectFp, legacySlug) !== null;
 }
 /** Migrate legacy project data to v2 format */
 export function migrateLegacyProject(projectFp, legacySlug, displayName, cwdRealpath) {
     // Idempotence: skip if already migrated
-    if (!needsMigration(projectFp, legacySlug)) {
+    const legacyPath = getPendingMigrationLegacyPath(projectFp, legacySlug);
+    if (!legacyPath)
         return { migratedCount: 0 };
-    }
-    const legacyPath = path.join(getLegacyDataDir(), `${legacySlug}.json`);
     let data;
     try {
         const content = fs.readFileSync(legacyPath, 'utf-8');

@@ -57,6 +57,42 @@ export function getCommunityDir() {
 export function getLegacyDataDir() {
     return path.join(getPluginDataDir(), 'data');
 }
+/** Hardcoded v1 data directory — the exact path v1 store.ts always wrote to */
+export function getV1HardcodedDataDir() {
+    return process.env.CLAUDE_ETA_V1_DATA_DIR || path.join(FALLBACK_DATA_DIR, 'data');
+}
+function isPlainLegacyFilename(filename) {
+    return (filename.length > 0 &&
+        filename !== '.' &&
+        filename !== '..' &&
+        path.basename(filename) === filename &&
+        path.posix.basename(filename) === filename &&
+        path.win32.basename(filename) === filename);
+}
+/**
+ * Search for a legacy file across both candidate directories.
+ * Returns the first path where the file exists, or null if not found.
+ * Uses try/catch fs.accessSync to check readability (avoids existsSync).
+ */
+export function findLegacyFile(filename) {
+    if (!isPlainLegacyFilename(filename)) {
+        return null;
+    }
+    const a = getLegacyDataDir();
+    const b = getV1HardcodedDataDir();
+    const candidates = a === b ? [a] : [a, b];
+    for (const dir of candidates) {
+        const candidate = path.join(dir, filename);
+        try {
+            fs.accessSync(candidate, fs.constants.R_OK);
+            return candidate;
+        }
+        catch {
+            // Not found here, try next
+        }
+    }
+    return null;
+}
 // ── File paths ───────────────────────────────────────────────
 /** Active turn file for a specific (session, agent) pair */
 export function getActiveTurnPath(projectFp, sessionId, agentKey) {

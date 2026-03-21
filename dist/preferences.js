@@ -6,7 +6,7 @@
  */
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { getConfigDir, getPluginDataDir, ensureDir, atomicWrite } from './paths.js';
+import { getConfigDir, ensureDir, atomicWrite, findLegacyFile } from './paths.js';
 const DEFAULTS = {
     auto_eta: false,
     prompts_since_last_eta: 0,
@@ -18,8 +18,10 @@ function getPrefsPath() {
 }
 /** Try to read v1 preferences for one-shot migration */
 function tryMigrateFromV1() {
+    const v1Path = findLegacyFile('_preferences.json');
+    if (!v1Path)
+        return null;
     try {
-        const v1Path = path.join(getPluginDataDir(), 'data', '_preferences.json');
         const content = fs.readFileSync(v1Path, 'utf-8');
         const v1 = JSON.parse(content);
         return {
