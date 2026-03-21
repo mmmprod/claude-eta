@@ -13,13 +13,14 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { getPluginDataDir, getActiveDir, getSessionsDir, getLegacyDataDir } from '../paths.js';
+import { getPluginDataDir, getActiveDir, getSessionsDir } from '../paths.js';
 import { loadCompletedTurns } from '../event-store.js';
 import { turnsToTaskEntries } from '../compat.js';
 import { computeAllInsights } from '../insights/index.js';
 import { median, groupBy } from '../insights/types.js';
 import { isoWeekLabel } from '../insights/temporal.js';
 import { fetchBaselines } from '../supabase.js';
+import { loadProjectMeta } from '../project-meta.js';
 // ── Helpers ──────────────────────────────────────────────────
 function sortedWallSeconds(turns) {
     return turns.map((t) => t.wall_seconds).sort((a, b) => a - b);
@@ -36,6 +37,7 @@ function discoverProjects() {
             if (!entry.isDirectory())
                 continue;
             const fp = entry.name;
+            const meta = loadProjectMeta(fp);
             const turns = loadCompletedTurns(fp);
             const activeTurns = scanActiveTurns(fp);
             // Display name from turns or session metadata
@@ -65,7 +67,7 @@ function discoverProjects() {
                 if (!lastEventAt || at.started_at > lastEventAt)
                     lastEventAt = at.started_at;
             }
-            projects.push({ fp, displayName, turns, activeTurns, lastEventAt });
+            projects.push({ fp, displayName, meta, turns, activeTurns, lastEventAt });
         }
     }
     catch {
@@ -146,37 +148,25 @@ function buildHealth(allTurns, projects, pluginVersion) {
     };
 }
 // ── Section 2: ETA Accuracy ──────────────────────────────────
-function buildEtaAccuracy() {
-    const legacyDir = getLegacyDataDir();
+function buildEtaAccuracy(projects) {
     const byProjectType = [];
     const autoDisabledTypes = [];
-    try {
-        const files = fs
-            .readdirSync(legacyDir)
-            .filter((f) => f.endsWith('.json') && !f.startsWith('_') && !f.startsWith('test-'));
-        for (const file of files) {
-            try {
-                const data = JSON.parse(fs.readFileSync(path.join(legacyDir, file), 'utf-8'));
-                const accuracy = data.eta_accuracy ?? {};
-                const project = data.project ?? file.replace('.json', '');
-                for (const [cls, { hits, misses }] of Object.entries(accuracy)) {
-                    const total = hits + misses;
-                    if (total === 0)
-                        continue;
-                    const rate = Math.round((hits / total) * 100);
-                    byProjectType.push({ project, classification: cls, hits, misses, total, rate_pct: rate });
-                    if (total >= 10 && misses / total > 0.5) {
-                        autoDisabledTypes.push(`${project}/${cls}`);
-                    }
-                }
-            }
-            catch {
-                /* skip */
+    for (const p of projects) {
+        const accuracy = p.meta?.eta_accuracy ?? null;
+        if (!accuracy)
+            continue;
+        for (const [cls, entry] of Object.entries(accuracy.by_classification)) {
+            const hits = entry.interval80_hits;
+            const misses = entry.interval80_total - entry.interval80_hits;
+            const total = entry.interval80_total;
+            if (total === 0)
+                continue;
+            const rate = Math.round((hits / total) * 100);
+            byProjectType.push({ project: p.displayName, classification: cls, hits, misses, total, rate_pct: rate });
+            if (total >= 10 && misses / total > 0.5) {
+                autoDisabledTypes.push(`${p.displayName}/${cls}`);
             }
         }
-    }
-    catch {
-        /* no legacy dir */
     }
     // Global aggregation
     const globalByType = new Map();
@@ -316,7 +306,7 @@ export async function buildAdminExport(pluginVersion) {
         generated_at: new Date().toISOString(),
         plugin_version: pluginVersion,
         health: buildHealth(allTurns, projects, pluginVersion),
-        eta_accuracy: buildEtaAccuracy(),
+        eta_accuracy: buildEtaAccuracy(projects),
         data_quality: buildDataQuality(projects, allTurns),
         supabase,
         insights: computeAllInsights(allTasks),

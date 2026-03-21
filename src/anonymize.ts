@@ -16,13 +16,18 @@ function getContributorIdPath(): string {
   return path.join(getCommunityDir(), '.contributor_id');
 }
 
+let _contributorId: string | undefined;
+
 /** Persistent random UUID, generated once per machine. No link to any PII. */
 function getContributorId(): string {
+  if (_contributorId) return _contributorId;
+
   const newPath = getContributorIdPath();
 
   // Try new location first
   try {
-    return fs.readFileSync(newPath, 'utf-8').trim();
+    _contributorId = fs.readFileSync(newPath, 'utf-8').trim();
+    return _contributorId;
   } catch {
     /* not found at new path */
   }
@@ -37,16 +42,17 @@ function getContributorId(): string {
     } catch {
       // Migration already succeeded once the new file exists.
     }
-    return id;
+    _contributorId = id;
+    return _contributorId;
   } catch {
     /* not found at old path either */
   }
 
   // Generate new
-  const id = crypto.randomUUID();
+  _contributorId = crypto.randomUUID();
   ensureDir(path.dirname(newPath));
-  atomicWrite(newPath, id);
-  return id;
+  atomicWrite(newPath, _contributorId);
+  return _contributorId;
 }
 
 /** One-way hash of the contributor UUID. */
@@ -63,6 +69,12 @@ export function projectHash(projectName: string): string {
 export function normalizeModel(model: string): string | null {
   const match = model.match(/^(claude-(?:opus|sonnet|haiku)-[\d.]+)/);
   return match ? match[1] : null;
+}
+
+/** Deterministic dedup key: sha256(contributorHash + ":" + taskId), truncated to 32 hex chars.
+ *  Stable across retries for the same task. Not linkable across contributors. */
+export function dedupKey(contribHash: string, taskId: string): string {
+  return crypto.createHash('sha256').update(`${contribHash}:${taskId}`).digest('hex').slice(0, 32);
 }
 
 /** Map lines of code to a privacy-safe bucket. */

@@ -13,6 +13,7 @@ export interface AnonymizedRecord {
     project_loc_bucket: string | null;
     plugin_version: string;
     contributor_hash: string;
+    dedup_key: string;
 }
 export declare function anonymizeTask(task: TaskEntry, projIdentifier: string, pluginVersion: string, projectMeta?: {
     file_count?: number;

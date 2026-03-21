@@ -16,6 +16,7 @@ import {
   getProjectMetaPath,
 } from './paths.js';
 import { taskEntryToCompletedTurn } from './convert.js';
+import { normalizeEtaAccuracy } from './project-meta.js';
 
 const MIGRATION_MARKER = 'migrated-from-legacy.json';
 
@@ -82,7 +83,7 @@ export function migrateLegacyProject(
     legacy_slug: legacySlug,
     file_count: data.file_count ?? null,
     loc_bucket: data.loc_bucket ?? null,
-    eta_accuracy: data.eta_accuracy ?? {},
+    eta_accuracy: normalizeEtaAccuracy(data.eta_accuracy),
   };
   fs.writeFileSync(metaPath, JSON.stringify(meta, null, 2));
 

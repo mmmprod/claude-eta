@@ -18,7 +18,6 @@ function headers(): Record<string, string> {
     apikey: SUPABASE_ANON_KEY,
     Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
     'Content-Type': 'application/json',
-    Prefer: 'return=minimal',
   };
 }
 
@@ -29,7 +28,7 @@ export async function insertVelocityRecords(records: object[]): Promise<Supabase
   try {
     const res = await fetch(`${SUPABASE_URL}/rest/v1/velocity_records`, {
       method: 'POST',
-      headers: headers(),
+      headers: { ...headers(), Prefer: 'return=minimal' },
       body: JSON.stringify(records),
       signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
     });
@@ -64,9 +63,7 @@ export interface BaselineRecord {
 /** SELECT all rows from baselines_cache. */
 export async function fetchBaselines(): Promise<SupabaseResponse<BaselineRecord[]>> {
   try {
-    const h = headers();
-    delete h['Prefer'];
-    h['Accept'] = 'application/json';
+    const h = { ...headers(), Accept: 'application/json' };
 
     const res = await fetch(`${SUPABASE_URL}/rest/v1/baselines_cache?select=*`, {
       method: 'GET',

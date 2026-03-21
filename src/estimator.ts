@@ -101,7 +101,7 @@ export function estimateInitial(
  * Refine an estimate with live trace data.
  * Uses elapsed time and phase to adjust remaining time.
  */
-export function estimateWithTrace(initial: EtaEstimate, _elapsedSeconds: number, phase: TaskPhase): EtaEstimate {
+export function estimateWithTrace(initial: EtaEstimate, elapsedSeconds: number, phase: TaskPhase): EtaEstimate {
   // Phase multipliers: how much of the total time is typically remaining
   const phaseRemaining: Record<TaskPhase, number> = {
     explore: 0.7, // 70% of work remaining
@@ -112,9 +112,9 @@ export function estimateWithTrace(initial: EtaEstimate, _elapsedSeconds: number,
 
   const factor = phaseRemaining[phase];
 
-  // Remaining = max(0, initial estimate * phase factor - already elapsed adjustment)
-  const remainP50 = Math.max(0, Math.round(initial.p50_wall * factor));
-  const remainP80 = Math.max(0, Math.round(initial.p80_wall * factor));
+  // Remaining = max(0, initial estimate * phase factor - elapsed time)
+  const remainP50 = Math.max(0, Math.round(initial.p50_wall * factor - elapsedSeconds));
+  const remainP80 = Math.max(0, Math.round(initial.p80_wall * factor - elapsedSeconds));
 
   return {
     ...initial,

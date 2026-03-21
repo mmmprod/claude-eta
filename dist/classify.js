@@ -39,6 +39,24 @@ export function classifyPrompt(prompt) {
     }
     return 'other';
 }
+/** Conversational / continuation patterns — short acknowledgements, not new tasks.
+ *  Also used by auto-eta.ts to skip ETA injection on conversational prompts. */
+export const CONTINUATION_PATTERNS = /^(merci|thanks|thank you|ok|oui|yes|non|no|continue|go|go ahead|sure|d'accord|parfait|cool|nice|got it|understood|proceed|do it|vas-?y|c'est bon|exactement|exactly|right|correct|yep|yup|ouais|ça marche|good|great|bien|super|entendu|compris|allez|let's go|on y va|fais[- ]le|make it so|ship it|lgtm)[\s!.]*$/i;
+/** Detect if a prompt is a continuation of the current work item (not a new task).
+ *  Returns true only when there's an existing active turn AND the prompt looks
+ *  like an acknowledgement / clarification rather than a new instruction. */
+export function isContinuation(prompt, classification, existingActive) {
+    if (!existingActive)
+        return false;
+    const trimmed = prompt.trim();
+    // Short conversational acknowledgements
+    if (CONTINUATION_PATTERNS.test(trimmed))
+        return true;
+    // Very short prompt classified as 'other' — likely a clarification, not a new task
+    if (classification === 'other' && trimmed.length < 40)
+        return true;
+    return false;
+}
 export function summarizePrompt(prompt, maxLength = 80) {
     const firstLine = prompt.split('\n')[0].trim();
     if (!firstLine)

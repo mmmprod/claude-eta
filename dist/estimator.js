@@ -50,7 +50,7 @@ export function estimateInitial(stats, classification, complexity) {
  * Refine an estimate with live trace data.
  * Uses elapsed time and phase to adjust remaining time.
  */
-export function estimateWithTrace(initial, _elapsedSeconds, phase) {
+export function estimateWithTrace(initial, elapsedSeconds, phase) {
     // Phase multipliers: how much of the total time is typically remaining
     const phaseRemaining = {
         explore: 0.7, // 70% of work remaining
@@ -59,9 +59,9 @@ export function estimateWithTrace(initial, _elapsedSeconds, phase) {
         repair_loop: 0.5, // 50% remaining (back to editing)
     };
     const factor = phaseRemaining[phase];
-    // Remaining = max(0, initial estimate * phase factor - already elapsed adjustment)
-    const remainP50 = Math.max(0, Math.round(initial.p50_wall * factor));
-    const remainP80 = Math.max(0, Math.round(initial.p80_wall * factor));
+    // Remaining = max(0, initial estimate * phase factor - elapsed time)
+    const remainP50 = Math.max(0, Math.round(initial.p50_wall * factor - elapsedSeconds));
+    const remainP80 = Math.max(0, Math.round(initial.p80_wall * factor - elapsedSeconds));
     return {
         ...initial,
         remaining_p50: remainP50,

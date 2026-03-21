@@ -12,6 +12,9 @@ export declare const MAX_INTERVAL_RATIO = 5;
 export declare const COOLDOWN_INTERVAL = 5;
 export declare const ACCURACY_MIN_PREDICTIONS = 10;
 export declare const ACCURACY_MIN_RATE = 0.5;
+/** Loose conversational pattern — matches prompts starting with acknowledgements.
+ *  Permissive (prefix match): used to skip ETA injection, where false positives are cheap.
+ *  See also CONTINUATION_PATTERNS in classify.ts (strict end-anchored, for turn continuation). */
 export declare const CONVERSATIONAL_PATTERNS: RegExp;
 export declare const DISABLE_PATTERNS: RegExp;
 export type AutoEtaDecision = {

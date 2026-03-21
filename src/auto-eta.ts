@@ -15,6 +15,9 @@ export const COOLDOWN_INTERVAL = 5;
 export const ACCURACY_MIN_PREDICTIONS = 10;
 export const ACCURACY_MIN_RATE = 0.5;
 
+/** Loose conversational pattern — matches prompts starting with acknowledgements.
+ *  Permissive (prefix match): used to skip ETA injection, where false positives are cheap.
+ *  See also CONTINUATION_PATTERNS in classify.ts (strict end-anchored, for turn continuation). */
 export const CONVERSATIONAL_PATTERNS =
   /^(merci|thanks|ok|oui|yes|non|no|continue|go|sure|d'accord|parfait|cool|nice|got it|understood|tell me about|what is a |how does .{0,10} work)/i;
 
