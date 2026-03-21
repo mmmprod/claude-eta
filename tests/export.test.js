@@ -5,7 +5,7 @@ import * as os from 'node:os';
 import * as fs from 'node:fs';
 import * as crypto from 'node:crypto';
 
-const PII_FIELDS = ['prompt_summary', 'session_id', 'task_id', 'timestamp_start', 'timestamp_end'];
+const PII_FIELDS = ['prompt_summary', 'session_id', 'analytics_id', 'work_item_id', 'timestamp_start', 'timestamp_end'];
 
 let TEST_DATA_DIR;
 let TEST_CWD;
@@ -113,13 +113,15 @@ describe('anonymizeTask', () => {
     const ts = Date.now() + Math.random();
     const { anonymizeTask } = await import(`../dist/cli/export.js?t=${ts}`);
     const task = {
-      task_id: 'task-1',
+      analytics_id: 'work-1',
+      work_item_id: 'work-1',
       session_id: 'sess-1',
       project: 'test',
       timestamp_start: new Date().toISOString(),
       timestamp_end: new Date().toISOString(),
       duration_seconds: 120,
       prompt_summary: 'fix the secret auth bug in /home/user/code',
+      prompt_complexity: 2,
       classification: 'bugfix',
       tool_calls: 10,
       files_read: 3,
@@ -127,6 +129,10 @@ describe('anonymizeTask', () => {
       files_created: 0,
       errors: 0,
       model: 'claude-sonnet-4-20250514',
+      first_edit_offset_seconds: null,
+      first_bash_offset_seconds: null,
+      runner_kind: 'main',
+      source_turn_count: 1,
     };
 
     const record = anonymizeTask(task, 'test-project', '1.0.0');
@@ -146,13 +152,15 @@ describe('anonymizeTask', () => {
     const ts = Date.now() + Math.random();
     const { anonymizeTask } = await import(`../dist/cli/export.js?t=${ts}`);
     const task = {
-      task_id: 'task-1',
+      analytics_id: 'work-1',
+      work_item_id: 'work-1',
       session_id: 'sess-1',
       project: 'test',
       timestamp_start: new Date().toISOString(),
       timestamp_end: new Date().toISOString(),
       duration_seconds: null,
       prompt_summary: 'test',
+      prompt_complexity: 1,
       classification: 'bugfix',
       tool_calls: 0,
       files_read: 0,
@@ -160,6 +168,10 @@ describe('anonymizeTask', () => {
       files_created: 0,
       errors: 0,
       model: 'claude-sonnet-4-20250514',
+      first_edit_offset_seconds: null,
+      first_bash_offset_seconds: null,
+      runner_kind: 'main',
+      source_turn_count: 1,
     };
 
     const record = anonymizeTask(task, 'test-project', '1.0.0');
@@ -170,13 +182,15 @@ describe('anonymizeTask', () => {
     const ts = Date.now() + Math.random();
     const { anonymizeTask } = await import(`../dist/cli/export.js?t=${ts}`);
     const task = {
-      task_id: 'task-1',
+      analytics_id: 'work-1',
+      work_item_id: 'work-1',
       session_id: 'sess-1',
       project: 'test',
       timestamp_start: new Date().toISOString(),
       timestamp_end: new Date().toISOString(),
       duration_seconds: 60,
       prompt_summary: 'test',
+      prompt_complexity: 1,
       classification: 'bugfix',
       tool_calls: 0,
       files_read: 0,
@@ -184,6 +198,10 @@ describe('anonymizeTask', () => {
       files_created: 0,
       errors: 0,
       model: 'claude-sonnet-4-20250514',
+      first_edit_offset_seconds: null,
+      first_bash_offset_seconds: null,
+      runner_kind: 'main',
+      source_turn_count: 1,
     };
 
     const record = anonymizeTask(task, 'test-project', '1.0.0');
