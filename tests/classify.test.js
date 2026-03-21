@@ -184,11 +184,7 @@ describe('decidePromptTransition', () => {
   it('same classification defaults to same_work_item', () => {
     const existing = makeActiveTurn({ classification: 'bugfix' });
     assert.equal(
-      decidePromptTransition(
-        'tu peux aussi couvrir le cas où session_id manque dans Stop ?',
-        'bugfix',
-        existing,
-      ),
+      decidePromptTransition('tu peux aussi couvrir le cas où session_id manque dans Stop ?', 'bugfix', existing),
       'same_work_item',
     );
   });
@@ -204,11 +200,7 @@ describe('decidePromptTransition', () => {
   it('follow-up with SQL migration stays same work item', () => {
     const existing = makeActiveTurn({ classification: 'bugfix' });
     assert.equal(
-      decidePromptTransition(
-        'ensuite fais la migration SQL correspondante pour ce fix',
-        'bugfix',
-        existing,
-      ),
+      decidePromptTransition('ensuite fais la migration SQL correspondante pour ce fix', 'bugfix', existing),
       'same_work_item',
     );
   });
@@ -223,17 +215,11 @@ describe('decidePromptTransition', () => {
 
   it('explicit reset overrides same classification', () => {
     const existing = makeActiveTurn({ classification: 'bugfix' });
-    assert.equal(
-      decidePromptTransition('new task: fix the other unrelated bug', 'bugfix', existing),
-      'new_work_item',
-    );
+    assert.equal(decidePromptTransition('new task: fix the other unrelated bug', 'bugfix', existing), 'new_work_item');
   });
 
   it('same classification works across non-bugfix types', () => {
     const existing = makeActiveTurn({ classification: 'feature' });
-    assert.equal(
-      decidePromptTransition('also add a sidebar to the dashboard', 'feature', existing),
-      'same_work_item',
-    );
+    assert.equal(decidePromptTransition('also add a sidebar to the dashboard', 'feature', existing), 'same_work_item');
   });
 });

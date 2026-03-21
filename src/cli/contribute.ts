@@ -78,10 +78,16 @@ function saveState(count: number, newWorkItemIds: string[]): void {
   const seen = new Set(existingIds);
   const merged = [...existingIds];
   for (const id of legacyIds) {
-    if (!seen.has(id)) { seen.add(id); merged.push(id); }
+    if (!seen.has(id)) {
+      seen.add(id);
+      merged.push(id);
+    }
   }
   for (const id of newWorkItemIds) {
-    if (!seen.has(id)) { seen.add(id); merged.push(id); }
+    if (!seen.has(id)) {
+      seen.add(id);
+      merged.push(id);
+    }
   }
   const allIds = merged;
   // Cap to prevent unbounded growth; oldest IDs dropped (re-contribute is harmless)

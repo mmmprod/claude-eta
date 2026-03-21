@@ -62,7 +62,10 @@ describe('computeStats', () => {
     ];
     const stats = computeStats(tasks);
     assert.ok(stats);
-    assert.ok(stats.overall.p80 > stats.overall.p75, `p80 (${stats.overall.p80}) should be > p75 (${stats.overall.p75})`);
+    assert.ok(
+      stats.overall.p80 > stats.overall.p75,
+      `p80 (${stats.overall.p80}) should be > p75 (${stats.overall.p75})`,
+    );
     assert.ok('p80' in stats.overall);
   });
 
