@@ -43,7 +43,9 @@ function normalizeActiveTurnState(raw: ActiveTurnState): ActiveTurnState {
   return {
     ...raw,
     status: raw.status === 'stop_blocked' ? 'stop_blocked' : 'active',
-    path_fps: Array.isArray(raw.path_fps) ? raw.path_fps.filter((value): value is string => typeof value === 'string') : [],
+    path_fps: Array.isArray(raw.path_fps)
+      ? raw.path_fps.filter((value): value is string => typeof value === 'string')
+      : [],
     error_fingerprints: Array.isArray(raw.error_fingerprints)
       ? raw.error_fingerprints.filter(
           (value): value is ActiveTurnState['error_fingerprints'][number] =>
@@ -73,7 +75,7 @@ function normalizeCompletedTurn(raw: CompletedTurn): CompletedTurn {
   );
   const tailAfterLastEventSeconds = Math.min(
     Math.max(0, wallSeconds - spanUntilLastEventSeconds),
-    Math.max(0, raw.tail_after_last_event_seconds ?? raw.wait_seconds ?? (wallSeconds - spanUntilLastEventSeconds)),
+    Math.max(0, raw.tail_after_last_event_seconds ?? raw.wait_seconds ?? wallSeconds - spanUntilLastEventSeconds),
   );
 
   return {

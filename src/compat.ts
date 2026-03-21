@@ -153,7 +153,8 @@ export function turnsToAnalyticsTasks(turns: CompletedTurn[]): AnalyticsTask[] {
       };
     })
     .sort((left, right) => {
-      if (left.timestamp_start !== right.timestamp_start) return left.timestamp_start.localeCompare(right.timestamp_start);
+      if (left.timestamp_start !== right.timestamp_start)
+        return left.timestamp_start.localeCompare(right.timestamp_start);
       return left.analytics_id.localeCompare(right.analytics_id);
     });
 }

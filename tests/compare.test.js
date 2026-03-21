@@ -99,7 +99,10 @@ describe('selectBestBaseline', () => {
   });
 
   it('falls back to type+loc when model-specific matching is not available', () => {
-    const baselines = [makeBaseline({ median_seconds: 70 }), makeBaseline({ project_loc_bucket: 'small', median_seconds: 60 })];
+    const baselines = [
+      makeBaseline({ median_seconds: 70 }),
+      makeBaseline({ project_loc_bucket: 'small', median_seconds: 60 }),
+    ];
 
     const match = selectBestBaseline(baselines, 'bugfix', 'small', null);
 

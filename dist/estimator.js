@@ -82,9 +82,7 @@ export function estimateWithTrace(initial, elapsedSeconds, phase, context) {
     if (stats && classification && phaseBucket) {
         const phaseStats = stats.byClassificationPhase.find((entry) => entry.phase === phaseBucket && entry.classification === classification);
         const phaseModelStats = normalizedModel != null
-            ? stats.byClassificationModelPhase.find((entry) => entry.phase === phaseBucket &&
-                entry.classification === classification &&
-                entry.model === normalizedModel)
+            ? stats.byClassificationModelPhase.find((entry) => entry.phase === phaseBucket && entry.classification === classification && entry.model === normalizedModel)
             : undefined;
         if (phaseStats && phaseStats.count >= 2) {
             let learnedP50 = phaseStats.median;

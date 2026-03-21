@@ -25,7 +25,9 @@ function normalizeActiveTurnState(raw) {
     return {
         ...raw,
         status: raw.status === 'stop_blocked' ? 'stop_blocked' : 'active',
-        path_fps: Array.isArray(raw.path_fps) ? raw.path_fps.filter((value) => typeof value === 'string') : [],
+        path_fps: Array.isArray(raw.path_fps)
+            ? raw.path_fps.filter((value) => typeof value === 'string')
+            : [],
         error_fingerprints: Array.isArray(raw.error_fingerprints)
             ? raw.error_fingerprints.filter((value) => value != null &&
                 typeof value === 'object' &&
@@ -44,7 +46,7 @@ function normalizeCompletedTurn(raw) {
         ? Math.min(wallSeconds, Math.max(0, raw.first_bash_offset_seconds))
         : null;
     const spanUntilLastEventSeconds = Math.min(wallSeconds, Math.max(0, raw.span_until_last_event_seconds ?? raw.active_seconds ?? wallSeconds));
-    const tailAfterLastEventSeconds = Math.min(Math.max(0, wallSeconds - spanUntilLastEventSeconds), Math.max(0, raw.tail_after_last_event_seconds ?? raw.wait_seconds ?? (wallSeconds - spanUntilLastEventSeconds)));
+    const tailAfterLastEventSeconds = Math.min(Math.max(0, wallSeconds - spanUntilLastEventSeconds), Math.max(0, raw.tail_after_last_event_seconds ?? raw.wait_seconds ?? wallSeconds - spanUntilLastEventSeconds));
     return {
         ...raw,
         prompt_complexity: promptComplexity,

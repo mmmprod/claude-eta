@@ -120,7 +120,9 @@ describe('computeStats', () => {
     const stats = computeStats(tasks);
     assert.ok(stats);
 
-    const sonnet = stats.byClassificationModel.find((s) => s.classification === 'bugfix' && s.model === 'claude-sonnet-4');
+    const sonnet = stats.byClassificationModel.find(
+      (s) => s.classification === 'bugfix' && s.model === 'claude-sonnet-4',
+    );
     assert.ok(sonnet);
     assert.equal(sonnet.count, 2);
 
@@ -131,11 +133,36 @@ describe('computeStats', () => {
 
   it('builds phase-specific remaining-time stats', () => {
     const tasks = [
-      makeTask({ classification: 'bugfix', duration_seconds: 100, first_edit_offset_seconds: 20, first_bash_offset_seconds: 60 }),
-      makeTask({ classification: 'bugfix', duration_seconds: 110, first_edit_offset_seconds: 25, first_bash_offset_seconds: 65 }),
-      makeTask({ classification: 'bugfix', duration_seconds: 120, first_edit_offset_seconds: 30, first_bash_offset_seconds: 70 }),
-      makeTask({ classification: 'bugfix', duration_seconds: 130, first_edit_offset_seconds: 35, first_bash_offset_seconds: 75 }),
-      makeTask({ classification: 'bugfix', duration_seconds: 140, first_edit_offset_seconds: 40, first_bash_offset_seconds: 80 }),
+      makeTask({
+        classification: 'bugfix',
+        duration_seconds: 100,
+        first_edit_offset_seconds: 20,
+        first_bash_offset_seconds: 60,
+      }),
+      makeTask({
+        classification: 'bugfix',
+        duration_seconds: 110,
+        first_edit_offset_seconds: 25,
+        first_bash_offset_seconds: 65,
+      }),
+      makeTask({
+        classification: 'bugfix',
+        duration_seconds: 120,
+        first_edit_offset_seconds: 30,
+        first_bash_offset_seconds: 70,
+      }),
+      makeTask({
+        classification: 'bugfix',
+        duration_seconds: 130,
+        first_edit_offset_seconds: 35,
+        first_bash_offset_seconds: 75,
+      }),
+      makeTask({
+        classification: 'bugfix',
+        duration_seconds: 140,
+        first_edit_offset_seconds: 40,
+        first_bash_offset_seconds: 80,
+      }),
     ];
     const stats = computeStats(tasks);
     assert.ok(stats);

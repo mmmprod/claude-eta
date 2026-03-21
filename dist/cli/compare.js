@@ -87,9 +87,7 @@ export function selectDominantModel(tasks) {
     return topCount / tasks.length >= DOMINANT_MODEL_MIN_SHARE ? topModel : null;
 }
 export function selectBestBaseline(baselines, taskType, projectLocBucket, model) {
-    const exact = (loc, candidateModel) => baselines.find((baseline) => baseline.task_type === taskType &&
-        baseline.project_loc_bucket === loc &&
-        baseline.model === candidateModel) ?? null;
+    const exact = (loc, candidateModel) => baselines.find((baseline) => baseline.task_type === taskType && baseline.project_loc_bucket === loc && baseline.model === candidateModel) ?? null;
     if (projectLocBucket && model) {
         const hit = exact(projectLocBucket, model);
         if (hit)
@@ -144,7 +142,9 @@ function scopeLabel(match) {
     }
 }
 function pickCommunityOnlyBaselines(baselines, localTypes, projectLocBucket) {
-    const taskTypes = [...new Set(baselines.map((baseline) => baseline.task_type).filter((taskType) => !localTypes.has(taskType)))].sort();
+    const taskTypes = [
+        ...new Set(baselines.map((baseline) => baseline.task_type).filter((taskType) => !localTypes.has(taskType))),
+    ].sort();
     return taskTypes
         .map((taskType) => {
         const match = selectBestBaseline(baselines, taskType, projectLocBucket, null);

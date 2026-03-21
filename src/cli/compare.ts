@@ -128,9 +128,7 @@ export function selectBestBaseline(
   const exact = (loc: string | null, candidateModel: string | null) =>
     baselines.find(
       (baseline) =>
-        baseline.task_type === taskType &&
-        baseline.project_loc_bucket === loc &&
-        baseline.model === candidateModel,
+        baseline.task_type === taskType && baseline.project_loc_bucket === loc && baseline.model === candidateModel,
     ) ?? null;
 
   if (projectLocBucket && model) {
@@ -198,7 +196,9 @@ function pickCommunityOnlyBaselines(
   localTypes: Set<string>,
   projectLocBucket: string | null,
 ): CommunityOnlyBaseline[] {
-  const taskTypes = [...new Set(baselines.map((baseline) => baseline.task_type).filter((taskType) => !localTypes.has(taskType)))].sort();
+  const taskTypes = [
+    ...new Set(baselines.map((baseline) => baseline.task_type).filter((taskType) => !localTypes.has(taskType))),
+  ].sort();
   return taskTypes
     .map((taskType) => {
       const match = selectBestBaseline(baselines, taskType, projectLocBucket, null);

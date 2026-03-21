@@ -100,7 +100,13 @@ function summarizeBuckets(buckets: StageBuckets): Record<EvalStage, EvalMetrics>
   };
 }
 
-function pushObservation(target: StageBuckets, stage: EvalStage, predictedP50: number, predictedP80: number, actual: number): void {
+function pushObservation(
+  target: StageBuckets,
+  stage: EvalStage,
+  predictedP50: number,
+  predictedP80: number,
+  actual: number,
+): void {
   if (!Number.isFinite(actual) || actual <= 0) return;
   const apePct = (Math.abs(predictedP50 - actual) / Math.max(1, actual)) * 100;
   target[stage].push({
@@ -164,7 +170,13 @@ export function evaluateTasks(tasks: AnalyticsTask[]): EvalReport {
     });
 
     pushObservation(overall, 'prompt', initial.p50_wall, initial.p80_wall, actualDuration);
-    pushObservation(getBreakdownBuckets(byClassification, task.classification), 'prompt', initial.p50_wall, initial.p80_wall, actualDuration);
+    pushObservation(
+      getBreakdownBuckets(byClassification, task.classification),
+      'prompt',
+      initial.p50_wall,
+      initial.p80_wall,
+      actualDuration,
+    );
 
     const normalizedModel = normalizeModel(task.model);
     if (normalizedModel) {
@@ -177,7 +189,11 @@ export function evaluateTasks(tasks: AnalyticsTask[]): EvalReport {
       );
     }
 
-    if (task.first_edit_offset_seconds != null && task.first_edit_offset_seconds >= 0 && task.first_edit_offset_seconds < actualDuration) {
+    if (
+      task.first_edit_offset_seconds != null &&
+      task.first_edit_offset_seconds >= 0 &&
+      task.first_edit_offset_seconds < actualDuration
+    ) {
       const remaining = actualDuration - task.first_edit_offset_seconds;
       const refined = estimateWithTrace(initial, task.first_edit_offset_seconds, 'edit', {
         stats,
@@ -203,7 +219,11 @@ export function evaluateTasks(tasks: AnalyticsTask[]): EvalReport {
       }
     }
 
-    if (task.first_bash_offset_seconds != null && task.first_bash_offset_seconds >= 0 && task.first_bash_offset_seconds < actualDuration) {
+    if (
+      task.first_bash_offset_seconds != null &&
+      task.first_bash_offset_seconds >= 0 &&
+      task.first_bash_offset_seconds < actualDuration
+    ) {
       const remaining = actualDuration - task.first_bash_offset_seconds;
       const refined = estimateWithTrace(initial, task.first_bash_offset_seconds, 'validate', {
         stats,

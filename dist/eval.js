@@ -126,7 +126,9 @@ export function evaluateTasks(tasks) {
         if (normalizedModel) {
             pushObservation(getBreakdownBuckets(byClassificationModel, `${task.classification} on ${normalizedModel}`), 'prompt', initial.p50_wall, initial.p80_wall, actualDuration);
         }
-        if (task.first_edit_offset_seconds != null && task.first_edit_offset_seconds >= 0 && task.first_edit_offset_seconds < actualDuration) {
+        if (task.first_edit_offset_seconds != null &&
+            task.first_edit_offset_seconds >= 0 &&
+            task.first_edit_offset_seconds < actualDuration) {
             const remaining = actualDuration - task.first_edit_offset_seconds;
             const refined = estimateWithTrace(initial, task.first_edit_offset_seconds, 'edit', {
                 stats,
@@ -139,7 +141,9 @@ export function evaluateTasks(tasks) {
                 pushObservation(getBreakdownBuckets(byClassificationModel, `${task.classification} on ${normalizedModel}`), 'first_edit', refined.remaining_p50, refined.remaining_p80, remaining);
             }
         }
-        if (task.first_bash_offset_seconds != null && task.first_bash_offset_seconds >= 0 && task.first_bash_offset_seconds < actualDuration) {
+        if (task.first_bash_offset_seconds != null &&
+            task.first_bash_offset_seconds >= 0 &&
+            task.first_bash_offset_seconds < actualDuration) {
             const remaining = actualDuration - task.first_bash_offset_seconds;
             const refined = estimateWithTrace(initial, task.first_bash_offset_seconds, 'validate', {
                 stats,

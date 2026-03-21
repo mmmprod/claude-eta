@@ -154,9 +154,7 @@ export function estimateWithTrace(
       normalizedModel != null
         ? stats.byClassificationModelPhase.find(
             (entry) =>
-              entry.phase === phaseBucket &&
-              entry.classification === classification &&
-              entry.model === normalizedModel,
+              entry.phase === phaseBucket && entry.classification === classification && entry.model === normalizedModel,
           )
         : undefined;
 
