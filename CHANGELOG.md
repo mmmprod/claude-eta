@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.14.1](https://github.com/mmmprod/claude-eta/compare/claude-eta-v0.14.0...claude-eta-v0.14.1) (2026-03-21)
+
+
+### Bug Fixes
+
+* **predictor:** mature predictor — unified work_item, correct model normalization, real p80, live runtime, hardened transitions ([#71](https://github.com/mmmprod/claude-eta/issues/71)) ([f5e9c12](https://github.com/mmmprod/claude-eta/commit/f5e9c12b90d78d24456e84fdd2f2ae40d015b349))
+
 ## [0.14.0](https://github.com/mmmprod/claude-eta/compare/claude-eta-v0.13.0...claude-eta-v0.14.0) (2026-03-21)
 
 
