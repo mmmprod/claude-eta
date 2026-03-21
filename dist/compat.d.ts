@@ -1,4 +1,4 @@
-import type { CompletedTurn, TaskEntry } from './types.js';
+import type { AnalyticsTask, CompletedTurn, TaskEntry } from './types.js';
 export { taskEntryToCompletedTurn } from './convert.js';
 /**
  * Load completed turns from the best available source.
@@ -9,4 +9,10 @@ export { taskEntryToCompletedTurn } from './convert.js';
 export declare function loadCompletedTurnsCompat(cwd: string): CompletedTurn[];
 /** Convert CompletedTurn[] to TaskEntry[] for legacy modules (stats, insights, etc.) */
 export declare function turnsToTaskEntries(turns: CompletedTurn[]): TaskEntry[];
+export declare function mainTurns(turns: CompletedTurn[]): CompletedTurn[];
+export declare function mainTurnsToTaskEntries(turns: CompletedTurn[]): TaskEntry[];
+/** Aggregate main-runner turns into logical work items for analytics and ETA. */
+export declare function turnsToAnalyticsTasks(turns: CompletedTurn[]): AnalyticsTask[];
+/** @deprecated Use turnsToAnalyticsTasks() in v2 analytics code. */
+export declare function turnsToAnalyticsTaskEntries(turns: CompletedTurn[]): TaskEntry[];
 //# sourceMappingURL=compat.d.ts.map

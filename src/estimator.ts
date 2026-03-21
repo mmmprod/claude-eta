@@ -10,6 +10,7 @@ import type { TaskClassification } from './types.js';
 import type { ProjectStats } from './stats.js';
 import type { TaskPhase } from './features.js';
 import { DEFAULT_BASELINES, CALIBRATION_THRESHOLD } from './stats.js';
+import { normalizeModel } from './anonymize.js';
 
 export type CalibrationLevel = 'cold' | 'warming' | 'project' | 'project+trace';
 
@@ -36,6 +37,9 @@ export interface EtaEstimate {
 
 const W_CLS = 8; // Weight denominator for classification-specific data
 const W_GLOBAL = 5; // Weight denominator for global data
+const W_MODEL = 5; // Weight denominator for classification+model data
+const W_PHASE = 6; // Weight denominator for phase-specific remaining-time data
+const W_PHASE_MODEL = 4; // Weight denominator for classification+model+phase data
 
 /**
  * Estimate task duration using shrinkage quantile blending.
@@ -52,6 +56,7 @@ export function estimateInitial(
   stats: ProjectStats | null,
   classification: TaskClassification,
   complexity: number,
+  context?: { model?: string | null },
 ): EtaEstimate {
   // Default baselines (cold start)
   const baseline = DEFAULT_BASELINES[classification] ?? DEFAULT_BASELINES.other;
@@ -75,6 +80,11 @@ export function estimateInitial(
 
   // Classification-specific stats
   const clsStats = stats.byClassification.find((s) => s.classification === classification);
+  const normalizedModel = context?.model ? normalizeModel(context.model) : null;
+  const clsModelStats =
+    normalizedModel != null
+      ? stats.byClassificationModel.find((s) => s.classification === classification && s.model === normalizedModel)
+      : undefined;
 
   if (!clsStats || clsStats.count < 2) {
     // No classification data — use blended global
@@ -94,6 +104,18 @@ export function estimateInitial(
   const p50 = wCls * clsStats.median + (1 - wCls) * blendedGlobalP50;
   const p80 = wCls * clsStats.p75 + (1 - wCls) * blendedGlobalP80;
 
+  if (clsModelStats && clsModelStats.count >= 2) {
+    const nModel = clsModelStats.count;
+    const wModel = nModel / (nModel + W_MODEL);
+    return makeEstimate(
+      wModel * clsModelStats.median + (1 - wModel) * p50,
+      wModel * clsModelStats.p75 + (1 - wModel) * p80,
+      `${nModel} similar ${classification} tasks on ${normalizedModel}`,
+      'project',
+      complexity,
+    );
+  }
+
   return makeEstimate(p50, p80, `${nCls} similar ${classification} tasks`, 'project', complexity);
 }
 
@@ -101,20 +123,74 @@ export function estimateInitial(
  * Refine an estimate with live trace data.
  * Uses elapsed time and phase to adjust remaining time.
  */
-export function estimateWithTrace(initial: EtaEstimate, elapsedSeconds: number, phase: TaskPhase): EtaEstimate {
-  // Phase multipliers: how much of the total time is typically remaining
-  const phaseRemaining: Record<TaskPhase, number> = {
-    explore: 0.7, // 70% of work remaining
-    edit: 0.4, // 40% remaining
-    validate: 0.2, // 20% remaining
-    repair_loop: 0.5, // 50% remaining (back to editing)
+export function estimateWithTrace(
+  initial: EtaEstimate,
+  elapsedSeconds: number,
+  phase: TaskPhase,
+  context?: { stats?: ProjectStats | null; classification?: TaskClassification; model?: string | null },
+): EtaEstimate {
+  const phaseMultipliers: Record<TaskPhase, number> = {
+    explore: 1.05,
+    edit: 1,
+    validate: 0.95,
+    repair_loop: 1.15,
   };
+  const baselineP50 = Math.max(0, initial.p50_wall - elapsedSeconds);
+  const baselineP80 = Math.max(0, initial.p80_wall - elapsedSeconds);
+  let remainP50 = Math.max(0, Math.round(baselineP50 * phaseMultipliers[phase]));
+  let remainP80 = Math.max(remainP50 + (remainP50 === 0 ? 0 : 1), Math.round(baselineP80 * phaseMultipliers[phase]));
+  let basis = initial.basis;
 
-  const factor = phaseRemaining[phase];
+  const phaseBucket = phase === 'validate' ? 'validate' : phase === 'edit' || phase === 'repair_loop' ? 'edit' : null;
+  const stats = context?.stats ?? null;
+  const classification = context?.classification;
+  const normalizedModel = context?.model ? normalizeModel(context.model) : null;
 
-  // Remaining = max(0, initial estimate * phase factor - elapsed time)
-  const remainP50 = Math.max(0, Math.round(initial.p50_wall * factor - elapsedSeconds));
-  const remainP80 = Math.max(0, Math.round(initial.p80_wall * factor - elapsedSeconds));
+  if (stats && classification && phaseBucket) {
+    const phaseStats = stats.byClassificationPhase.find(
+      (entry) => entry.phase === phaseBucket && entry.classification === classification,
+    );
+    const phaseModelStats =
+      normalizedModel != null
+        ? stats.byClassificationModelPhase.find(
+            (entry) =>
+              entry.phase === phaseBucket && entry.classification === classification && entry.model === normalizedModel,
+          )
+        : undefined;
+
+    if (phaseStats && phaseStats.count >= 2) {
+      let learnedP50 = phaseStats.median;
+      let learnedP80 = phaseStats.p75;
+      let detail = `${phaseStats.count} ${classification} ${phaseBucket} traces`;
+      let trustedCount = phaseStats.count;
+
+      if (phaseModelStats && phaseModelStats.count >= 2) {
+        if (phaseModelStats.count >= CALIBRATION_THRESHOLD) {
+          learnedP50 = phaseModelStats.median;
+          learnedP80 = phaseModelStats.p75;
+        } else {
+          const wModel = phaseModelStats.count / (phaseModelStats.count + W_PHASE_MODEL);
+          learnedP50 = Math.round(wModel * phaseModelStats.median + (1 - wModel) * learnedP50);
+          learnedP80 = Math.round(wModel * phaseModelStats.p75 + (1 - wModel) * learnedP80);
+        }
+        detail = `${phaseModelStats.count} ${classification} ${phaseBucket} traces on ${normalizedModel}`;
+        trustedCount = phaseModelStats.count;
+      }
+
+      if (trustedCount >= CALIBRATION_THRESHOLD) {
+        remainP50 = learnedP50;
+        remainP80 = Math.max(learnedP50 + (learnedP50 === 0 ? 0 : 1), learnedP80);
+      } else {
+        const wPhase = phaseStats.count / (phaseStats.count + W_PHASE);
+        remainP50 = Math.round(wPhase * learnedP50 + (1 - wPhase) * remainP50);
+        remainP80 = Math.max(
+          remainP50 + (remainP50 === 0 ? 0 : 1),
+          Math.round(wPhase * learnedP80 + (1 - wPhase) * remainP80),
+        );
+      }
+      basis = `${initial.basis}, ${detail}`;
+    }
+  }
 
   return {
     ...initial,
@@ -122,6 +198,7 @@ export function estimateWithTrace(initial: EtaEstimate, elapsedSeconds: number, 
     remaining_p80: remainP80,
     calibration: 'project+trace',
     phase,
+    basis,
   };
 }
 

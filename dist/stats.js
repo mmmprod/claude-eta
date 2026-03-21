@@ -1,3 +1,4 @@
+import { normalizeModel } from './anonymize.js';
 import { estimateInitial, toTaskEstimate } from './estimator.js';
 // ── Constants ─────────────────────────────────────────────────
 /** Minimum completed tasks before real stats kick in */
@@ -15,9 +16,12 @@ export const DEFAULT_BASELINES = {
     other: { low: 30, median: 60, high: 180 }, // 30s–3min
 };
 function sortedDurations(tasks) {
-    return tasks
-        .filter((t) => t.duration_seconds != null && t.duration_seconds > 0)
-        .map((t) => t.duration_seconds)
+    return sortedValues(tasks.filter((t) => t.duration_seconds != null && t.duration_seconds > 0).map((t) => t.duration_seconds));
+}
+function sortedValues(values) {
+    return values
+        .filter((value) => Number.isFinite(value) && value > 0)
+        .map((value) => Math.max(1, Math.round(value)))
         .sort((a, b) => a - b);
 }
 function percentile(sorted, p) {
@@ -79,7 +83,133 @@ export function computeStats(tasks) {
     }
     // Sort by count descending
     byClassification.sort((a, b) => b.count - a.count);
-    return { totalCompleted: durations.length, overall, byClassification };
+    const modelGroups = new Map();
+    for (const task of tasks) {
+        if (task.duration_seconds == null || task.duration_seconds <= 0)
+            continue;
+        const normalizedModel = normalizeModel(task.model);
+        if (!normalizedModel)
+            continue;
+        const key = `${task.classification}:${normalizedModel}`;
+        const list = modelGroups.get(key) ?? [];
+        list.push(task);
+        modelGroups.set(key, list);
+    }
+    const byClassificationModel = [];
+    for (const [key, entries] of modelGroups) {
+        if (entries.length < 2)
+            continue;
+        const sorted = sortedDurations(entries);
+        const med = percentile(sorted, 50);
+        const p25 = percentile(sorted, 25);
+        const p75 = percentile(sorted, 75);
+        const [classification, model] = key.split(':', 2);
+        byClassificationModel.push({
+            classification,
+            model,
+            count: entries.length,
+            median: med,
+            p25,
+            p75,
+            volatility: volatility(med, p75 - p25),
+        });
+    }
+    byClassificationModel.sort((a, b) => {
+        if (b.count !== a.count)
+            return b.count - a.count;
+        if (a.classification !== b.classification)
+            return a.classification.localeCompare(b.classification);
+        return a.model.localeCompare(b.model);
+    });
+    const phaseGroups = new Map();
+    const phaseModelGroups = new Map();
+    for (const task of tasks) {
+        if (task.duration_seconds == null || task.duration_seconds <= 0)
+            continue;
+        const phaseSamples = [
+            ['edit', task.first_edit_offset_seconds],
+            ['validate', task.first_bash_offset_seconds],
+        ];
+        const normalizedModel = normalizeModel(task.model);
+        for (const [phase, offset] of phaseSamples) {
+            if (offset == null || offset < 0 || offset >= task.duration_seconds)
+                continue;
+            const remaining = task.duration_seconds - offset;
+            const phaseKey = `${phase}|${task.classification}`;
+            const phaseList = phaseGroups.get(phaseKey) ?? [];
+            phaseList.push(remaining);
+            phaseGroups.set(phaseKey, phaseList);
+            if (normalizedModel) {
+                const modelKey = `${phase}|${task.classification}|${normalizedModel}`;
+                const modelList = phaseModelGroups.get(modelKey) ?? [];
+                modelList.push(remaining);
+                phaseModelGroups.set(modelKey, modelList);
+            }
+        }
+    }
+    const byClassificationPhase = [];
+    for (const [key, values] of phaseGroups) {
+        if (values.length < 2)
+            continue;
+        const sorted = sortedValues(values);
+        const med = percentile(sorted, 50);
+        const p25 = percentile(sorted, 25);
+        const p75 = percentile(sorted, 75);
+        const [phase, classification] = key.split('|', 2);
+        byClassificationPhase.push({
+            phase,
+            classification,
+            count: values.length,
+            median: med,
+            p25,
+            p75,
+            volatility: volatility(med, p75 - p25),
+        });
+    }
+    byClassificationPhase.sort((a, b) => {
+        if (b.count !== a.count)
+            return b.count - a.count;
+        if (a.phase !== b.phase)
+            return a.phase.localeCompare(b.phase);
+        return a.classification.localeCompare(b.classification);
+    });
+    const byClassificationModelPhase = [];
+    for (const [key, values] of phaseModelGroups) {
+        if (values.length < 2)
+            continue;
+        const sorted = sortedValues(values);
+        const med = percentile(sorted, 50);
+        const p25 = percentile(sorted, 25);
+        const p75 = percentile(sorted, 75);
+        const [phase, classification, model] = key.split('|', 3);
+        byClassificationModelPhase.push({
+            phase,
+            classification,
+            model,
+            count: values.length,
+            median: med,
+            p25,
+            p75,
+            volatility: volatility(med, p75 - p25),
+        });
+    }
+    byClassificationModelPhase.sort((a, b) => {
+        if (b.count !== a.count)
+            return b.count - a.count;
+        if (a.phase !== b.phase)
+            return a.phase.localeCompare(b.phase);
+        if (a.classification !== b.classification)
+            return a.classification.localeCompare(b.classification);
+        return a.model.localeCompare(b.model);
+    });
+    return {
+        totalCompleted: durations.length,
+        overall,
+        byClassification,
+        byClassificationModel,
+        byClassificationPhase,
+        byClassificationModelPhase,
+    };
 }
 // ── Task estimation ───────────────────────────────────────────
 /** Score prompt complexity 1-5 based on length, file mentions, and scope */
@@ -103,8 +233,8 @@ export function scorePromptComplexity(prompt) {
     return Math.min(score, 5);
 }
 /** Estimate duration using shrinkage quantile blending (v2 estimator) */
-export function estimateTask(stats, classification, complexity) {
-    const est = estimateInitial(stats, classification, complexity);
+export function estimateTask(stats, classification, complexity, context) {
+    const est = estimateInitial(stats, classification, complexity, context);
     return toTaskEstimate(est, complexity);
 }
 /** Estimate from generic baselines (cold start, before real data exists) */

@@ -11,12 +11,12 @@ import type { UserPromptSubmitStdin } from '../types.js';
 import { readStdin } from '../stdin.js';
 import { resolveProjectIdentity } from '../identity.js';
 import { getSession, getActiveTurn, startTurn, closeTurn } from '../event-store.js';
-import { loadCompletedTurnsCompat, turnsToTaskEntries } from '../compat.js';
+import { loadCompletedTurnsCompat, turnsToAnalyticsTasks } from '../compat.js';
 import { loadPreferencesV2, savePreferencesV2 } from '../preferences.js';
 import { setLastEtaV2, consumeLastCompletedV2 } from '../ephemeral.js';
 import { checkDisableRequest, evaluateAutoEta } from '../auto-eta.js';
 import { loadProjectMeta } from '../project-meta.js';
-import { classifyPrompt, summarizePrompt, isContinuation } from '../classify.js';
+import { classifyPrompt, summarizePrompt, decidePromptTransition } from '../classify.js';
 import { extractFeatures } from '../features.js';
 import { detectRepairLoop } from '../loop-detector.js';
 import { estimateInitial, estimateWithTrace, toTaskEstimate } from '../estimator.js';
@@ -63,20 +63,26 @@ async function main(): Promise<void> {
   // Load stats once — used by both continuation and new-task branches
   const existing = getActiveTurn(fp, sessionId, agentKey);
   const turns = loadCompletedTurnsCompat(cwd);
-  const tasks = turnsToTaskEntries(turns);
+  const tasks = turnsToAnalyticsTasks(turns);
   const stats = computeStats(tasks);
 
-  const continuation = isContinuation(prompt, classification, existing);
+  const transition = decidePromptTransition(prompt, classification, existing);
 
-  if (continuation && existing) {
+  if (transition === 'continuation' && existing) {
     // ── Continuation: keep the active turn, inject phase-aware estimate ──
     const contextParts: string[] = [];
 
     if (stats) {
-      const initial = estimateInitial(stats, existing.classification, existing.prompt_complexity);
+      const initial = estimateInitial(stats, existing.classification, existing.prompt_complexity, {
+        model: existing.model,
+      });
       const features = extractFeatures(existing);
       const elapsed = Math.round(features.elapsed_wall_ms / 1000);
-      const refined = estimateWithTrace(initial, elapsed, features.phase);
+      const refined = estimateWithTrace(initial, elapsed, features.phase, {
+        stats,
+        classification: existing.classification,
+        model: existing.model,
+      });
       const legacy = toTaskEstimate(refined, existing.prompt_complexity);
       contextParts.push(formatStatsContext(stats, legacy));
       if (features.phase !== 'explore') {
@@ -91,7 +97,12 @@ async function main(): Promise<void> {
   }
 
   // ── New task: close previous turn, start fresh ──
+  const turnId = crypto.randomUUID();
+  let workItemId: ActiveTurnState['work_item_id'] = turnId;
   if (existing) {
+    if (transition === 'same_work_item') {
+      workItemId = existing.work_item_id;
+    }
     closeTurn(fp, sessionId, agentKey, 'replaced_by_new_prompt');
   }
 
@@ -106,10 +117,9 @@ async function main(): Promise<void> {
 
   // Create new turn via event-store
   const now = Date.now();
-  const turnId = crypto.randomUUID();
   const state: ActiveTurnState = {
     turn_id: turnId,
-    work_item_id: turnId,
+    work_item_id: workItemId,
     session_id: sessionId,
     agent_key: agentKey,
     agent_id: agentKey === 'main' ? null : agentKey,
@@ -164,7 +174,7 @@ async function main(): Promise<void> {
   }
 
   if (stats) {
-    const estimate = estimateTask(stats, classification, complexity);
+    const estimate = estimateTask(stats, classification, complexity, { model });
     contextParts.push(formatStatsContext(stats, estimate));
   } else {
     const completedCount = turns.length;

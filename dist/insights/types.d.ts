@@ -1,14 +1,14 @@
 /**
  * Shared types for insight modules.
  */
-import type { TaskEntry, TaskClassification } from '../types.js';
-export type { TaskEntry, TaskClassification };
-/** A TaskEntry with a guaranteed positive duration */
-export type CompletedTask = TaskEntry & {
+import type { AnalyticsTask, TaskClassification } from '../types.js';
+export type { AnalyticsTask, TaskClassification };
+/** An AnalyticsTask with a guaranteed positive duration */
+export type CompletedTask = AnalyticsTask & {
     duration_seconds: number;
 };
 /** Filter tasks with valid positive duration */
-export declare function completed(tasks: TaskEntry[]): CompletedTask[];
+export declare function completed(tasks: AnalyticsTask[]): CompletedTask[];
 /** Median of a pre-sorted numeric array */
 export declare function median(sorted: number[]): number;
 /** Group items by a string key */

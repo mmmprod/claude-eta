@@ -4,14 +4,18 @@
  */
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { loadCompletedTurnsCompat, turnsToTaskEntries } from '../compat.js';
+import { normalizeModel } from '../anonymize.js';
+import { loadCompletedTurnsCompat, turnsToAnalyticsTasks } from '../compat.js';
 import { consumeCommunityConsentPrompt } from '../community-consent.js';
+import { resolveProjectIdentity } from '../identity.js';
 import { getPluginDataDir } from '../paths.js';
 import { loadPreferencesV2 } from '../preferences.js';
+import { loadProjectMeta } from '../project-meta.js';
 import { computeStats, fmtSec } from '../stats.js';
 import { fetchBaselines } from '../supabase.js';
 const CACHE_PATH = path.join(getPluginDataDir(), 'cache', 'baselines.json');
 const CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours
+const DOMINANT_MODEL_MIN_SHARE = 0.75;
 function loadCache() {
     try {
         return JSON.parse(fs.readFileSync(CACHE_PATH, 'utf-8'));
@@ -51,12 +55,111 @@ function ratio(local, community) {
         return `${r.toFixed(2)}x slower`;
     return '~same';
 }
+function groupTasksByClassification(tasks) {
+    const groups = new Map();
+    for (const task of tasks) {
+        if (task.duration_seconds == null || task.duration_seconds <= 0)
+            continue;
+        const list = groups.get(task.classification) ?? [];
+        list.push(task);
+        groups.set(task.classification, list);
+    }
+    return groups;
+}
+export function selectDominantModel(tasks) {
+    if (tasks.length === 0)
+        return null;
+    const counts = new Map();
+    for (const task of tasks) {
+        const normalized = normalizeModel(task.model);
+        if (!normalized)
+            continue;
+        counts.set(normalized, (counts.get(normalized) ?? 0) + 1);
+    }
+    if (counts.size === 0)
+        return null;
+    const ranked = [...counts.entries()].sort((left, right) => {
+        if (right[1] !== left[1])
+            return right[1] - left[1];
+        return left[0].localeCompare(right[0]);
+    });
+    const [topModel, topCount] = ranked[0];
+    return topCount / tasks.length >= DOMINANT_MODEL_MIN_SHARE ? topModel : null;
+}
+export function selectBestBaseline(baselines, taskType, projectLocBucket, model) {
+    const exact = (loc, candidateModel) => baselines.find((baseline) => baseline.task_type === taskType && baseline.project_loc_bucket === loc && baseline.model === candidateModel) ?? null;
+    if (projectLocBucket && model) {
+        const hit = exact(projectLocBucket, model);
+        if (hit)
+            return { kind: 'type+loc+model', record: hit };
+    }
+    if (model) {
+        const hit = exact(null, model);
+        if (hit)
+            return { kind: 'type+model', record: hit };
+    }
+    if (projectLocBucket) {
+        const hit = exact(projectLocBucket, null);
+        if (hit)
+            return { kind: 'type+loc', record: hit };
+    }
+    const hit = exact(null, null);
+    return hit ? { kind: 'global', record: hit } : null;
+}
+export function buildCompareRows(tasks, baselines, projectLocBucket) {
+    const stats = computeStats(tasks);
+    if (!stats)
+        return [];
+    const byClassification = groupTasksByClassification(tasks);
+    return stats.byClassification
+        .map((local) => {
+        const group = byClassification.get(local.classification) ?? [];
+        const dominantModel = selectDominantModel(group);
+        const match = selectBestBaseline(baselines, local.classification, projectLocBucket, dominantModel);
+        if (!match)
+            return null;
+        return {
+            task_type: local.classification,
+            local_median_seconds: local.median,
+            local_count: local.count,
+            community_median_seconds: match.record.median_seconds,
+            community_sample_count: match.record.sample_count,
+            baseline_match: match,
+        };
+    })
+        .filter((row) => row !== null);
+}
+function scopeLabel(match) {
+    switch (match.kind) {
+        case 'type+loc+model':
+            return `${match.record.project_loc_bucket} + ${match.record.model}`;
+        case 'type+model':
+            return match.record.model ?? 'model';
+        case 'type+loc':
+            return match.record.project_loc_bucket ?? 'loc';
+        case 'global':
+            return 'global';
+    }
+}
+function pickCommunityOnlyBaselines(baselines, localTypes, projectLocBucket) {
+    const taskTypes = [
+        ...new Set(baselines.map((baseline) => baseline.task_type).filter((taskType) => !localTypes.has(taskType))),
+    ].sort();
+    return taskTypes
+        .map((taskType) => {
+        const match = selectBestBaseline(baselines, taskType, projectLocBucket, null);
+        return match ? { task_type: taskType, match } : null;
+    })
+        .filter((row) => row !== null);
+}
 export async function showCompare(cwd) {
     const turns = loadCompletedTurnsCompat(cwd);
-    const tasks = turnsToTaskEntries(turns);
+    const tasks = turnsToAnalyticsTasks(turns);
     const localStats = computeStats(tasks);
     const prefs = loadPreferencesV2();
     const consentPrompt = consumeCommunityConsentPrompt();
+    const { fp } = resolveProjectIdentity(cwd);
+    const projectLocBucket = loadProjectMeta(fp)?.loc_bucket ?? null;
     if (!localStats) {
         console.log('Not enough local data yet (need 5+ completed tasks).');
         console.log('`/eta compare` is read-only and never uploads your task data.');
@@ -69,28 +172,28 @@ export async function showCompare(cwd) {
         console.log('Community baselines unavailable. Try again later.');
         return;
     }
-    const global = baselines.filter((b) => b.project_loc_bucket === null && b.model === null);
-    if (global.length === 0) {
-        console.log('Community baselines available but no global aggregates yet.');
+    const rows = buildCompareRows(tasks, baselines, projectLocBucket);
+    const localTypes = new Set(rows.map((row) => row.task_type));
+    const communityOnly = pickCommunityOnlyBaselines(baselines, localTypes, projectLocBucket);
+    if (rows.length === 0 && communityOnly.length === 0) {
+        console.log('Community baselines available but no compatible aggregates yet.');
         return;
     }
     console.log(`## Your Stats vs Community\n`);
     console.log('Read-only fetch: this command never uploads your task data.');
-    console.log(`Community upload switch: **${prefs.community_sharing ? 'enabled' : 'disabled'}**.\n`);
-    console.log(`| Type      | Your Median | Community | Ratio           | Community N |`);
-    console.log(`|-----------|-------------|-----------|-----------------|-------------|`);
-    for (const b of global) {
-        const local = localStats.byClassification.find((s) => s.classification === b.task_type);
-        if (!local)
-            continue;
-        console.log(`| ${b.task_type.padEnd(9)} | ${fmtSec(local.median).padEnd(11)} | ${fmtSec(b.median_seconds).padEnd(9)} | ${ratio(local.median, b.median_seconds).padEnd(15)} | ${String(b.sample_count).padEnd(11)} |`);
+    console.log(`Community upload switch: **${prefs.community_sharing ? 'enabled' : 'disabled'}**.`);
+    console.log(`Matching order: \`type+loc+model\` → \`type+model\` → \`type+loc\` → \`global\`${projectLocBucket ? ` (local repo bucket: \`${projectLocBucket}\`)` : ''}.\n`);
+    if (rows.length > 0) {
+        console.log(`| Type      | Your Median | Community | Ratio           | Baseline              | Community N |`);
+        console.log(`|-----------|-------------|-----------|-----------------|-----------------------|-------------|`);
+        for (const row of rows) {
+            console.log(`| ${row.task_type.padEnd(9)} | ${fmtSec(row.local_median_seconds).padEnd(11)} | ${fmtSec(row.community_median_seconds).padEnd(9)} | ${ratio(row.local_median_seconds, row.community_median_seconds).padEnd(15)} | ${scopeLabel(row.baseline_match).padEnd(21)} | ${String(row.community_sample_count).padEnd(11)} |`);
+        }
     }
-    const localTypes = new Set(localStats.byClassification.map((s) => s.classification));
-    const communityOnly = global.filter((b) => !localTypes.has(b.task_type));
     if (communityOnly.length > 0) {
-        console.log(`\n### Community baselines (no local data)`);
-        for (const b of communityOnly) {
-            console.log(`- **${b.task_type}**: median ${fmtSec(b.median_seconds)} (${b.sample_count} samples)`);
+        console.log(`\n### Community baselines (no robust local baseline)`);
+        for (const baseline of communityOnly) {
+            console.log(`- **${baseline.task_type}**: median ${fmtSec(baseline.match.record.median_seconds)} (${baseline.match.record.sample_count} samples, ${scopeLabel(baseline.match)})`);
         }
     }
     if (consentPrompt) {

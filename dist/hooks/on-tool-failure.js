@@ -31,8 +31,8 @@ async function main() {
         if (state.first_bash_at_ms === null)
             state.first_bash_at_ms = now;
     }
-    // Loop detector: fingerprint the error (capped to avoid unbounded growth)
-    if (stdin.error && stdin.error.length > 0 && state.error_fingerprints.length < 50) {
+    // Repair-loop tracking is intentionally scoped to Bash failures.
+    if (toolName === 'Bash' && stdin.error && stdin.error.length > 0 && state.error_fingerprints.length < 50) {
         state.error_fingerprints.push(buildErrorFingerprint(stdin.error));
     }
     setActiveTurn(state);

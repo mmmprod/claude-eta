@@ -2,20 +2,22 @@
  * /eta admin-export — Full admin dashboard data as a single JSON.
  * Output: <plugin_data>/export/admin-export.json
  *
- * 6 sections:
+ * 7 sections:
  * 1. Health: uptime, active turns, last events, stop_reason distribution
  * 2. ETA Accuracy: hits/misses by project×type, auto-disabled types
  * 3. Data Quality: turns by project/week, classification distribution, coverage, time ratios
  * 4. Supabase: baselines availability, last refresh
- * 5. Insights: 9 deep analyses (reuse existing)
- * 6. Subagents: main vs subagent breakdown
+ * 5. Predictor Eval: walk-forward calibration metrics for prompt/edit/bash stages
+ * 6. Insights: 9 deep analyses (reuse existing)
+ * 7. Subagents: main vs subagent breakdown
  */
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { getPluginDataDir, getActiveDir, getSessionsDir } from '../paths.js';
 import { loadCompletedTurns } from '../event-store.js';
-import { turnsToTaskEntries } from '../compat.js';
+import { turnsToAnalyticsTasks } from '../compat.js';
+import { evaluateTasks } from '../eval.js';
 import { computeAllInsights } from '../insights/index.js';
 import { median, groupBy } from '../insights/types.js';
 import { isoWeekLabel } from '../insights/temporal.js';
@@ -126,6 +128,25 @@ function scanActiveTurns(projectFp: string): ActiveTurnSummary[] {
     /* no active dir */
   }
   return results;
+}
+
+function serializeForInlineScript(value: unknown): string {
+  return JSON.stringify(value).replace(/[<>&\u2028\u2029]/g, (char) => {
+    switch (char) {
+      case '<':
+        return '\\u003C';
+      case '>':
+        return '\\u003E';
+      case '&':
+        return '\\u0026';
+      case '\u2028':
+        return '\\u2028';
+      case '\u2029':
+        return '\\u2029';
+      default:
+        return char;
+    }
+  });
 }
 
 // ── Section 1: Health ────────────────────────────────────────
@@ -270,16 +291,16 @@ function buildDataQuality(projects: ProjectInfo[], allTurns: CompletedTurn[]) {
         sumWait = 0;
       for (const t of p.turns) {
         sumWall += t.wall_seconds;
-        sumActive += t.active_seconds;
-        sumWait += t.wait_seconds;
+        sumActive += t.span_until_last_event_seconds;
+        sumWait += t.tail_after_last_event_seconds;
       }
       const n = p.turns.length;
       return {
         project: p.displayName,
         avg_wall_seconds: Math.round(sumWall / n),
-        avg_active_seconds: Math.round(sumActive / n),
-        avg_wait_seconds: Math.round(sumWait / n),
-        wait_ratio_pct: sumWall > 0 ? Math.round((sumWait / sumWall) * 100) : 0,
+        avg_span_until_last_event_seconds: Math.round(sumActive / n),
+        avg_tail_after_last_event_seconds: Math.round(sumWait / n),
+        tail_after_last_event_ratio_pct: sumWall > 0 ? Math.round((sumWait / sumWall) * 100) : 0,
       };
     });
 
@@ -364,7 +385,7 @@ export async function buildAdminExport(pluginVersion: string) {
 
   const projects = discoverProjects();
   const allTurns = projects.flatMap((p) => p.turns);
-  const allTasks = turnsToTaskEntries(allTurns);
+  const allTasks = turnsToAnalyticsTasks(allTurns);
 
   const supabase = await supabasePromise;
 
@@ -375,6 +396,7 @@ export async function buildAdminExport(pluginVersion: string) {
     eta_accuracy: buildEtaAccuracy(projects),
     data_quality: buildDataQuality(projects, allTurns),
     supabase,
+    predictor_eval: evaluateTasks(allTasks),
     insights: computeAllInsights(allTasks) as InsightResult[],
     subagents: buildSubagents(allTurns),
   };
@@ -397,7 +419,7 @@ export async function showAdminExport(pluginVersion: string): Promise<void> {
     const moduleDir = path.dirname(fileURLToPath(import.meta.url));
     const templatePath = path.resolve(moduleDir, '..', '..', 'admin', 'dashboard.html');
     const template = fs.readFileSync(templatePath, 'utf-8');
-    const injection = `<script>window.__ADMIN_DATA__ = ${JSON.stringify(data)};</script>`;
+    const injection = `<script>window.__ADMIN_DATA__ = ${serializeForInlineScript(data)};</script>`;
     const standalone = template.replace('<!-- __ADMIN_DATA_INJECTION__ -->', injection);
     htmlPath = path.join(exportDir, 'admin-export.html');
     fs.writeFileSync(htmlPath, standalone);
@@ -419,6 +441,7 @@ export async function showAdminExport(pluginVersion: string): Promise<void> {
   console.log(
     `| Uptime | ${data.health.uptime_days} days (since ${data.health.uptime_since?.slice(0, 10) ?? 'n/a'}) |`,
   );
+  console.log(`| Predictor eval tasks | ${data.predictor_eval.total_tasks} |`);
   console.log(`| Insights computed | ${data.insights.length}/9 |`);
   console.log(`| Supabase | ${data.supabase.available ? 'connected' : 'offline'} |`);
   console.log(

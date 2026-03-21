@@ -2,7 +2,7 @@
  * Project velocity statistics — computes medians, IQR, and volatility
  * per task classification from historical data.
  */
-import type { TaskEntry, TaskClassification, LastCompleted } from './types.js';
+import type { AnalyticsTask, TaskClassification, LastCompleted } from './types.js';
 interface ClassificationStats {
     classification: TaskClassification;
     count: number;
@@ -10,6 +10,16 @@ interface ClassificationStats {
     p25: number;
     p75: number;
     volatility: 'low' | 'medium' | 'high';
+}
+interface ClassificationModelStats extends ClassificationStats {
+    model: string;
+}
+export type PhaseCalibrationPoint = 'edit' | 'validate';
+interface ClassificationPhaseStats extends ClassificationStats {
+    phase: PhaseCalibrationPoint;
+}
+interface ClassificationModelPhaseStats extends ClassificationPhaseStats {
+    model: string;
 }
 export interface ProjectStats {
     totalCompleted: number;
@@ -19,6 +29,9 @@ export interface ProjectStats {
         p75: number;
     };
     byClassification: ClassificationStats[];
+    byClassificationModel: ClassificationModelStats[];
+    byClassificationPhase: ClassificationPhaseStats[];
+    byClassificationModelPhase: ClassificationModelPhaseStats[];
 }
 export interface TaskEstimate {
     low: number;
@@ -37,11 +50,13 @@ export declare const DEFAULT_BASELINES: Record<TaskClassification, {
     median: number;
     high: number;
 }>;
-export declare function computeStats(tasks: TaskEntry[]): ProjectStats | null;
+export declare function computeStats(tasks: AnalyticsTask[]): ProjectStats | null;
 /** Score prompt complexity 1-5 based on length, file mentions, and scope */
 export declare function scorePromptComplexity(prompt: string): number;
 /** Estimate duration using shrinkage quantile blending (v2 estimator) */
-export declare function estimateTask(stats: ProjectStats, classification: string, complexity: number): TaskEstimate;
+export declare function estimateTask(stats: ProjectStats, classification: string, complexity: number, context?: {
+    model?: string | null;
+}): TaskEstimate;
 /** Estimate from generic baselines (cold start, before real data exists) */
 export declare function getDefaultEstimate(classification: TaskClassification, complexity: number): TaskEstimate;
 export declare function fmtSec(seconds: number): string;

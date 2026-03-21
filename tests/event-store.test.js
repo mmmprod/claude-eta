@@ -125,6 +125,7 @@ function makeActiveTurn(overrides = {}) {
     source: null,
     status: 'active',
     path_fps: [],
+    error_fingerprints: [],
     ...overrides,
   };
 }
@@ -214,6 +215,34 @@ describe('startTurn / getActiveTurn / setActiveTurn', () => {
     setActiveTurn(state);
     const loaded = getActiveTurn(state.project_fp, state.session_id, state.agent_key);
     assert.equal(loaded.tool_calls, 42);
+  });
+
+  it('normalizes missing array fields when reading a legacy active turn', async () => {
+    const { getActiveTurn } = await loadModule();
+    const { getActiveTurnPath, ensureDir } = await import('../dist/paths.js');
+
+    const state = makeActiveTurn();
+    const activePath = getActiveTurnPath(state.project_fp, state.session_id, state.agent_key);
+    ensureDir(path.dirname(activePath));
+
+    const { error_fingerprints, ...legacyState } = state;
+    fs.writeFileSync(activePath, JSON.stringify(legacyState), 'utf8');
+
+    const loaded = getActiveTurn(state.project_fp, state.session_id, state.agent_key);
+    assert.deepEqual(loaded.path_fps, []);
+    assert.deepEqual(loaded.error_fingerprints, []);
+  });
+
+  it('persists normalized array fields on write', async () => {
+    const { startTurn, getActiveTurn } = await loadModule();
+    const state = makeActiveTurn();
+
+    delete state.error_fingerprints;
+
+    startTurn(state);
+
+    const loaded = getActiveTurn(state.project_fp, state.session_id, state.agent_key);
+    assert.deepEqual(loaded.error_fingerprints, []);
   });
 
   it('creates turn_started event on startTurn', async () => {
@@ -309,8 +338,31 @@ describe('closeTurn', () => {
 
     const completed = closeTurn(state.project_fp, state.session_id, state.agent_key, 'stop');
     assert.ok(completed);
+    assert.equal(completed.span_until_last_event_seconds, 3);
+    assert.ok(completed.tail_after_last_event_seconds >= 7);
     assert.equal(completed.active_seconds, 3);
     assert.ok(completed.wait_seconds >= 7);
+  });
+
+  it('records first edit and first bash offsets on completion', async () => {
+    const { startTurn, setActiveTurn, closeTurn } = await loadModule();
+
+    const startMs = Date.now() - 10000;
+    const state = makeActiveTurn({
+      started_at_ms: startMs,
+      started_at: new Date(startMs).toISOString(),
+      first_edit_at_ms: startMs + 2000,
+      first_bash_at_ms: startMs + 6000,
+      tool_calls: 2,
+      last_event_at_ms: startMs + 6000,
+    });
+    startTurn(state);
+    setActiveTurn(state);
+
+    const completed = closeTurn(state.project_fp, state.session_id, state.agent_key, 'stop');
+    assert.ok(completed);
+    assert.equal(completed.first_edit_offset_seconds, 2);
+    assert.equal(completed.first_bash_offset_seconds, 6);
   });
 });
 
@@ -555,6 +607,61 @@ describe('loadCompletedTurns / loadRecentCompletedTurns', () => {
         ['sess-b', 'main', 'turn-b'],
       ],
     );
+  });
+
+  it('normalizes legacy completed turns missing proxy timing fields on read', async () => {
+    const { loadCompletedTurns } = await loadModule();
+    const { getCompletedLogPath } = await import('../dist/paths.js');
+
+    const fp = 'legacycompleted123';
+    const completedPath = getCompletedLogPath(fp, 'sess-legacy', 'main');
+    fs.mkdirSync(path.dirname(completedPath), { recursive: true });
+    fs.writeFileSync(
+      completedPath,
+      JSON.stringify({
+        turn_id: 'turn-legacy',
+        work_item_id: 'wi-legacy',
+        session_id: 'sess-legacy',
+        agent_key: 'main',
+        agent_id: null,
+        agent_type: null,
+        runner_kind: 'main',
+        project_fp: fp,
+        project_display_name: 'legacy-project',
+        classification: 'bugfix',
+        prompt_summary: 'legacy fix',
+        prompt_complexity: 1,
+        started_at: '2026-03-21T10:00:00.000Z',
+        ended_at: '2026-03-21T10:00:10.000Z',
+        wall_seconds: 10,
+        first_edit_offset_seconds: null,
+        first_bash_offset_seconds: null,
+        active_seconds: 6,
+        wait_seconds: 4,
+        tool_calls: 1,
+        files_read: 1,
+        files_edited: 0,
+        files_created: 0,
+        unique_files: 1,
+        bash_calls: 0,
+        bash_failures: 0,
+        grep_calls: 0,
+        glob_calls: 0,
+        errors: 0,
+        model: 'claude-sonnet-4',
+        source: null,
+        stop_reason: 'stop',
+        repo_loc_bucket: null,
+        repo_file_count_bucket: null,
+      }) + '\n',
+    );
+
+    const turns = loadCompletedTurns(fp);
+    assert.equal(turns.length, 1);
+    assert.equal(turns[0].span_until_last_event_seconds, 6);
+    assert.equal(turns[0].tail_after_last_event_seconds, 4);
+    assert.equal(turns[0].active_seconds, 6);
+    assert.equal(turns[0].wait_seconds, 4);
   });
 });
 

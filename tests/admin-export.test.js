@@ -4,11 +4,13 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
 
+let turnSeq = 0;
+
 // Point plugin data dir to a temp dir for isolation
 const TEST_ROOT = path.join(os.tmpdir(), `admin-export-test-${Date.now()}`);
 process.env.CLAUDE_PLUGIN_DATA = TEST_ROOT;
 
-const { buildAdminExport } = await import('../dist/cli/admin-export.js');
+const { buildAdminExport, showAdminExport } = await import('../dist/cli/admin-export.js');
 const { ensureDir } = await import('../dist/paths.js');
 
 // ── Helpers ──────────────────────────────────────────────────
@@ -33,9 +35,10 @@ function writeSessionMeta(projectFp, sessionId, meta) {
 }
 
 function makeTurn(overrides = {}) {
+  turnSeq += 1;
   return {
-    turn_id: `turn-${Math.random().toString(36).slice(2)}`,
-    work_item_id: 'wi-1',
+    turn_id: `turn-${turnSeq}`,
+    work_item_id: `wi-${turnSeq}`,
     session_id: 'sess-1',
     agent_key: 'main',
     agent_id: null,
@@ -282,6 +285,7 @@ describe('admin-export', () => {
     assert.ok(result.eta_accuracy);
     assert.ok(result.data_quality);
     assert.ok(result.supabase);
+    assert.ok(result.predictor_eval);
     assert.ok(Array.isArray(result.insights));
     assert.ok(result.subagents);
   });
@@ -361,8 +365,8 @@ describe('admin-export', () => {
       const ratios = result.data_quality.time_ratios;
       assert.ok(ratios.length >= 2);
       for (const r of ratios) {
-        assert.ok(r.avg_wall_seconds >= r.avg_active_seconds);
-        assert.ok(r.wait_ratio_pct >= 0 && r.wait_ratio_pct <= 100);
+        assert.ok(r.avg_wall_seconds >= r.avg_span_until_last_event_seconds);
+        assert.ok(r.tail_after_last_event_ratio_pct >= 0 && r.tail_after_last_event_ratio_pct <= 100);
       }
     });
 
@@ -404,10 +408,55 @@ describe('admin-export', () => {
     });
   });
 
+  describe('predictor_eval', () => {
+    it('includes walk-forward evaluation data in the admin export', () => {
+      assert.equal(result.predictor_eval.total_tasks, 6);
+      assert.ok(result.predictor_eval.overall);
+      assert.ok(result.predictor_eval.overall.prompt.sample_count >= 1);
+    });
+  });
+
   describe('insights', () => {
     it('returns array of insight results', () => {
       assert.ok(Array.isArray(result.insights));
       // With 8 turns total, some insights may have enough data
+    });
+  });
+
+  describe('standalone html', () => {
+    it('escapes embedded bootstrap data before injecting it into the inline script', async () => {
+      writeSessionMeta('projC_fp00003', 'sess-c1', {
+        session_id: 'sess-c1',
+        project_fp: 'projC_fp00003',
+        project_display_name: '</script><script>boom()</script>',
+        cwd_realpath: '/tmp/gamma',
+        model: 'claude-sonnet-4',
+        source: 'cli',
+        session_agent_type: null,
+        started_at: '2026-03-19T10:00:00.000Z',
+        last_seen_at: '2026-03-19T10:00:00.000Z',
+      });
+      writeActiveTurn('projC_fp00003', 'sess-c1', 'main', {
+        session_id: 'sess-c1',
+        agent_key: 'main',
+        classification: 'other',
+        runner_kind: 'main',
+        started_at: '2026-03-19T10:00:00.000Z',
+        tool_calls: 0,
+      });
+
+      const originalLog = console.log;
+      console.log = () => {};
+      try {
+        await showAdminExport('0.7.0-test');
+      } finally {
+        console.log = originalLog;
+      }
+
+      const html = fs.readFileSync(path.join(TEST_ROOT, 'export', 'admin-export.html'), 'utf-8');
+      assert.match(html, /window\.__ADMIN_DATA__ = /);
+      assert.equal(html.includes('</script><script>boom()</script>'), false);
+      assert.ok(html.includes('\\u003C/script\\u003E\\u003Cscript\\u003Eboom()\\u003C/script\\u003E'));
     });
   });
 });

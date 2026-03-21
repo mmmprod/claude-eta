@@ -92,7 +92,8 @@ body {
 .stat-value.error { color: var(--error); }
 .stat-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-top: 8px; }
 
-.table-wrap { overflow-x: auto; }
+.table-wrap { overflow-x: visible; }
+@media (max-width: 900px) { .table-wrap { overflow-x: auto; } }
 table { width: 100%; border-collapse: collapse; font-size: 12px; }
 th { text-align: left; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted); padding: 8px 12px; border-bottom: 1px solid var(--border); font-weight: 600; }
 td { padding: 8px 12px; border-bottom: 1px solid var(--border); color: var(--text-dim); }
@@ -109,6 +110,24 @@ td.mono { font-family: var(--mono); }
 .section-num { font-size: 12px; color: var(--accent); font-family: var(--mono); font-weight: 700; }
 .chart-container { position: relative; height: 200px; width: 100%; }
 .chart-container.small { height: 120px; }
+
+[data-tip] { position: relative; cursor: help; border-bottom: 1px dotted var(--text-muted); }
+[data-tip]::after {
+  content: attr(data-tip);
+  position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%);
+  background: var(--surface-3); color: var(--text); border: 1px solid var(--border-active);
+  padding: 6px 10px; border-radius: 6px; font-size: 11px; font-family: var(--mono);
+  white-space: normal; width: max-content; max-width: 280px; line-height: 1.5;
+  pointer-events: none; opacity: 0; transition: opacity 0.15s;
+  z-index: 100; text-transform: none; letter-spacing: 0; font-weight: 400;
+}
+[data-tip]:hover::after { opacity: 1; }
+.stat-label[data-tip] { border-bottom: none; }
+.stat-label[data-tip]::after { bottom: auto; top: calc(100% + 4px); }
+.section-num[data-tip] { border-bottom: none; cursor: help; }
+.section-num[data-tip]::after { left: 0; transform: none; }
+.card-header [data-tip] { border-bottom: 1px dotted var(--border-active); }
+th[data-tip] { border-bottom-style: dotted; border-bottom-color: var(--text-muted); }
 </style>
 </head>
 <body>
@@ -159,8 +178,14 @@ function loadFile(file) {
 
 function fmtDur(s) { if (!s) return '0s'; if (s < 60) return Math.round(s) + 's'; const m = Math.floor(s/60), sec = Math.round(s%60); if (m < 60) return sec ? m+'m '+sec+'s' : m+'m'; const h = Math.floor(m/60), rm = m%60; return rm ? h+'h '+rm+'m' : h+'h'; }
 function fmtDate(iso) { if (!iso) return 'n/a'; return new Date(iso).toLocaleString('en-GB', {month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}); }
+function fmtPct(value) { return value == null ? '—' : value.toFixed(1) + '%'; }
 function esc(s) { const d = document.createElement('div'); d.textContent = String(s); return d.innerHTML; }
 function badge(text, type) { return '<span class="badge badge-' + type + '">' + esc(text) + '</span>'; }
+function tip(text) { return ' data-tip="' + esc(text) + '"'; }
+function sectionTitle(num, label, tipText) { return '<div class="section-title"><span class="section-num"' + tip(tipText) + '>' + esc(num) + '</span> ' + esc(label) + '</div>'; }
+function cardHeader(title, tipText, dotClass) { return '<div class="card-header"><span class="dot' + (dotClass ? ' ' + dotClass : '') + '"></span> <span' + tip(tipText) + '>' + esc(title) + '</span></div>'; }
+function statCard(value, label, tipText, cls) { return '<div class="card stat"><div class="stat-value' + (cls ? ' ' + cls : '') + '">' + value + '</div><div class="stat-label"' + tip(tipText) + '>' + esc(label) + '</div></div>'; }
+function evalCell(metrics) { if (!metrics || metrics.sample_count === 0) return '—'; return esc(fmtPct(metrics.mdape_pct) + ' / ' + fmtPct(metrics.p80_coverage_pct)); }
 
 Chart.defaults.color = '#8888a0';
 Chart.defaults.borderColor = '#2a2a32';
@@ -179,6 +204,7 @@ function render(data) {
   renderEtaAccuracy(root, data.eta_accuracy);
   renderDataQuality(root, data.data_quality);
   renderSupabase(root, data.supabase);
+  renderPredictorEval(root, data.predictor_eval);
   renderInsights(root, data.insights);
   renderSubagents(root, data.subagents);
 }
@@ -192,16 +218,16 @@ function renderHealth(root, h) {
     '<tr><td>' + esc(p.display_name) + '</td><td class="mono">' + fmtDate(p.last_event_at) + '</td><td>' + (p.stale ? badge('stale','error') : badge('active','ok')) + '</td></tr>'
   ).join('');
   root.appendChild(createEl(
-    '<div class="section-title"><span class="section-num">01</span> Health</div>' +
+    sectionTitle('01', 'Health', 'Plugin health: turns, uptime, failure rates, project activity') +
     '<div class="grid grid-4">' +
-      '<div class="card stat"><div class="stat-value accent">' + h.total_turns_alltime + '</div><div class="stat-label">Total Turns</div></div>' +
-      '<div class="card stat"><div class="stat-value">' + h.uptime_days + '</div><div class="stat-label">Uptime (days)</div></div>' +
-      '<div class="card stat"><div class="stat-value ' + (h.active_turns_count > 0 ? 'warn' : '') + '">' + h.active_turns_count + '</div><div class="stat-label">Active Turns</div></div>' +
-      '<div class="card stat"><div class="stat-value ' + fc + '">' + h.stop_failure_rate_pct + '%</div><div class="stat-label">Stop Failure Rate</div></div>' +
+      statCard(h.total_turns_alltime, 'Total Turns', 'Completed prompt→stop cycles across all projects', 'accent') +
+      statCard(h.uptime_days, 'Uptime (days)', 'Days since first recorded event') +
+      statCard(h.active_turns_count, 'Active Turns', 'Currently running turns — >0 may indicate orphaned sessions', h.active_turns_count > 0 ? 'warn' : '') +
+      statCard(h.stop_failure_rate_pct + '%', 'Stop Failure Rate', 'Turns that ended with a hook error instead of a normal stop', fc) +
     '</div>' +
     '<div class="grid grid-2">' +
-      '<div class="card"><div class="card-header"><span class="dot"></span> Stop Reasons</div><div class="chart-container"><canvas id="chart-stop-reasons"></canvas></div></div>' +
-      '<div class="card"><div class="card-header"><span class="dot ' + (h.last_event_by_project.some(p => p.stale) ? 'warn' : '') + '"></span> Projects</div><div class="table-wrap"><table><tr><th>Project</th><th>Last Event</th><th>Status</th></tr>' + projRows + '</table></div></div>' +
+      '<div class="card">' + cardHeader('Stop Reasons', 'Why turns ended — normal, stop_blocked (loop prevention), or stop_failure (hook error)') + '<div class="chart-container"><canvas id="chart-stop-reasons"></canvas></div></div>' +
+      '<div class="card">' + cardHeader('Projects', 'Last activity per project — stale = no events in 7 days', h.last_event_by_project.some(p => p.stale) ? 'warn' : '') + '<div class="table-wrap"><table><tr><th>Project</th><th>Last Event</th><th>Status</th></tr>' + projRows + '</table></div></div>' +
     '</div>'
   ));
   const reasons = Object.entries(h.stop_reasons);
@@ -214,7 +240,7 @@ function renderHealth(root, h) {
 function renderEtaAccuracy(root, acc) {
   const hasData = acc.global && acc.global.length > 0;
   if (!hasData) {
-    root.appendChild(createEl('<div class="section-title"><span class="section-num">02</span> ETA Accuracy</div><div class="card" style="margin-bottom:32px"><p style="color:var(--text-muted);padding:12px">No ETA predictions recorded yet.</p></div>'));
+    root.appendChild(createEl(sectionTitle('02', 'ETA Accuracy', 'How well predicted intervals match actual task durations') + '<div class="card" style="margin-bottom:32px"><p style="color:var(--text-muted);padding:12px">No ETA predictions recorded yet.</p></div>'));
     return;
   }
   const rows = acc.by_project_type.map(r =>
@@ -222,10 +248,10 @@ function renderEtaAccuracy(root, acc) {
   ).join('');
   const disabledNote = acc.auto_disabled_types.length > 0 ? '<div style="margin-top:12px;font-size:11px;color:var(--error)">Auto-disabled: ' + esc(acc.auto_disabled_types.join(', ')) + '</div>' : '';
   root.appendChild(createEl(
-    '<div class="section-title"><span class="section-num">02</span> ETA Accuracy</div>' +
+    sectionTitle('02', 'ETA Accuracy', 'How well predicted intervals match actual task durations') +
     '<div class="grid grid-2">' +
-      '<div class="card"><div class="card-header"><span class="dot"></span> Global Accuracy by Type</div><div class="chart-container"><canvas id="chart-eta-global"></canvas></div></div>' +
-      '<div class="card"><div class="card-header"><span class="dot ' + (acc.auto_disabled_types.length > 0 ? 'error' : '') + '"></span> Per Project</div><div class="table-wrap"><table><tr><th>Project</th><th>Type</th><th>Hits</th><th>Misses</th><th>Rate</th></tr>' + rows + '</table></div>' + disabledNote + '</div>' +
+      '<div class="card">' + cardHeader('Global Accuracy by Type', 'Hit/miss ratio aggregated across all projects per classification') + '<div class="chart-container"><canvas id="chart-eta-global"></canvas></div></div>' +
+      '<div class="card">' + cardHeader('Per Project', 'Hit/miss breakdown per project and classification type', acc.auto_disabled_types.length > 0 ? 'error' : '') + '<div class="table-wrap"><table><tr><th>Project</th><th>Type</th><th' + tip('Actual duration fell within the predicted interval') + '>Hits</th><th' + tip('Actual duration was outside the predicted interval') + '>Misses</th><th' + tip('Hit rate — above 50% is good, auto-disabled below threshold') + '>Rate</th></tr>' + rows + '</table></div>' + disabledNote + '</div>' +
     '</div>'
   ));
   new Chart(document.getElementById('chart-eta-global'), { type:'bar', data:{labels:acc.global.map(g=>g.classification), datasets:[{label:'Hits',data:acc.global.map(g=>g.hits),backgroundColor:'#6ee7b7'},{label:'Misses',data:acc.global.map(g=>g.misses),backgroundColor:'#f87171'}]}, options:{responsive:true,maintainAspectRatio:false,scales:{x:{stacked:true},y:{stacked:true,beginAtZero:true}},plugins:{legend:{labels:{usePointStyle:true,pointStyle:'circle'}}}} });
@@ -235,20 +261,20 @@ function renderEtaAccuracy(root, acc) {
 function renderDataQuality(root, dq) {
   const covRows = dq.type_coverage.map(c => '<tr><td class="mono">'+esc(c.classification)+'</td><td>'+c.count+'</td><td>'+(c.auto_eta_eligible?badge('yes','ok'):badge('no','warn'))+'</td><td>'+(c.robust?badge('yes','ok'):badge('<10','info'))+'</td></tr>').join('');
   const projRows = dq.by_project.map(p => '<tr><td>'+esc(p.project)+'</td><td style="color:var(--accent)">'+p.total+'</td><td>'+p.this_week+'</td></tr>').join('');
-  const ratioRows = dq.time_ratios.map(r => '<tr><td>'+esc(r.project)+'</td><td class="mono">'+fmtDur(r.avg_wall_seconds)+'</td><td class="mono" style="color:var(--accent)">'+fmtDur(r.avg_active_seconds)+'</td><td class="mono">'+fmtDur(r.avg_wait_seconds)+'</td><td>'+(r.wait_ratio_pct>30?'<span style="color:var(--warn)">'+r.wait_ratio_pct+'%</span>':r.wait_ratio_pct+'%')+'</td></tr>').join('');
+  const ratioRows = dq.time_ratios.map(r => '<tr><td>'+esc(r.project)+'</td><td class="mono">'+fmtDur(r.avg_wall_seconds)+'</td><td class="mono" style="color:var(--accent)">'+fmtDur(r.avg_span_until_last_event_seconds)+'</td><td class="mono">'+fmtDur(r.avg_tail_after_last_event_seconds)+'</td><td>'+(r.tail_after_last_event_ratio_pct>30?'<span style="color:var(--warn)">'+r.tail_after_last_event_ratio_pct+'%</span>':r.tail_after_last_event_ratio_pct+'%')+'</td></tr>').join('');
 
   root.appendChild(createEl(
-    '<div class="section-title"><span class="section-num">03</span> Data Quality</div>' +
+    sectionTitle('03', 'Data Quality', 'Volume, coverage, and time distribution of collected data') +
     '<div class="grid grid-3">' +
-      '<div class="card"><div class="card-header"><span class="dot"></span> Classification Distribution</div><div class="chart-container"><canvas id="chart-cls-dist"></canvas></div></div>' +
-      '<div class="card"><div class="card-header"><span class="dot"></span> Weekly Volume</div><div class="chart-container"><canvas id="chart-weekly"></canvas></div></div>' +
-      '<div class="card"><div class="card-header"><span class="dot"></span> Type Coverage</div><div class="table-wrap"><table><tr><th>Type</th><th>Count</th><th>Auto-ETA</th><th>Robust</th></tr>'+covRows+'</table></div></div>' +
+      '<div class="card">' + cardHeader('Classification Distribution', 'How prompts are categorized (other, bugfix, feature, etc.)') + '<div class="chart-container"><canvas id="chart-cls-dist"></canvas></div></div>' +
+      '<div class="card">' + cardHeader('Weekly Volume', 'Completed turns per ISO week — shows usage trends') + '<div class="chart-container"><canvas id="chart-weekly"></canvas></div></div>' +
+      '<div class="card">' + cardHeader('Type Coverage', 'Which classifications have enough data for reliable estimates') + '<div class="table-wrap"><table><tr><th>Type</th><th>Count</th><th' + tip('Enough data to generate automatic time estimates') + '>Auto-ETA</th><th' + tip('10+ samples — estimates are statistically reliable') + '>Robust</th></tr>'+covRows+'</table></div></div>' +
     '</div>' +
-    '<div class="grid grid-2">' +
-      '<div class="card"><div class="card-header"><span class="dot"></span> Turns by Project</div><div class="table-wrap"><table><tr><th>Project</th><th>Total</th><th>This Week</th></tr>'+projRows+'</table></div></div>' +
-      '<div class="card"><div class="card-header"><span class="dot"></span> Time Ratios</div><div class="table-wrap"><table><tr><th>Project</th><th>Wall</th><th>Active</th><th>Wait</th><th>Wait %</th></tr>'+ratioRows+'</table></div></div>' +
-    '</div>'
-  ));
+	    '<div class="grid grid-2">' +
+	      '<div class="card">' + cardHeader('Turns by Project', 'Total and recent turn counts per project') + '<div class="table-wrap"><table><tr><th>Project</th><th>Total</th><th' + tip('Completed turns in the current ISO week') + '>This Week</th></tr>'+projRows+'</table></div></div>' +
+	      '<div class="card">' + cardHeader('Time Ratios', 'Proxy split between prompt-to-last-event span and trailing idle tail') + '<div class="table-wrap"><table><tr><th>Project</th><th' + tip('Total elapsed time from prompt to stop') + '>Wall</th><th' + tip('Proxy span from prompt start until the last observed event') + '>Span</th><th' + tip('Proxy tail after the last observed event until stop') + '>Tail</th><th' + tip('Tail as % of wall time — high values suggest more idle/approval time') + '>Tail %</th></tr>'+ratioRows+'</table></div></div>' +
+	    '</div>'
+	  ));
 
   if (dq.classification_distribution.length > 0) {
     new Chart(document.getElementById('chart-cls-dist'), { type:'doughnut', data:{labels:dq.classification_distribution.map(d=>d.classification+' ('+d.pct+'%)'), datasets:[{data:dq.classification_distribution.map(d=>d.count),backgroundColor:CC,borderWidth:0}]}, options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{padding:8,usePointStyle:true,pointStyle:'circle',font:{size:10}}}},cutout:'55%'} });
@@ -262,24 +288,70 @@ function renderDataQuality(root, dq) {
 function renderSupabase(root, sb) {
   const typeBadges = sb.types_with_baselines ? sb.types_with_baselines.map(t => badge(t,'ok')).join(' ') : '';
   root.appendChild(createEl(
-    '<div class="section-title"><span class="section-num">04</span> Supabase Layer</div>' +
+    sectionTitle('04', 'Supabase Layer', 'Community baseline data from anonymized contributions') +
     '<div class="grid grid-4">' +
-      '<div class="card stat"><div class="stat-value '+(sb.available?'accent':'error')+'">'+(sb.available?'ON':'OFF')+'</div><div class="stat-label">Connection</div></div>' +
-      '<div class="card stat"><div class="stat-value">'+(sb.baselines_count??'—')+'</div><div class="stat-label">Baselines</div></div>' +
-      '<div class="card stat"><div class="stat-value">'+(sb.total_community_samples??'—')+'</div><div class="stat-label">Community Samples</div></div>' +
-      '<div class="card stat"><div class="stat-value" style="font-size:14px">'+(sb.last_baseline_refresh?fmtDate(sb.last_baseline_refresh):'—')+'</div><div class="stat-label">Last Refresh</div></div>' +
+      statCard(sb.available ? 'ON' : 'OFF', 'Connection', 'Whether the Supabase backend for community baselines is reachable', sb.available ? 'accent' : 'error') +
+      statCard(sb.baselines_count ?? '—', 'Baselines', 'Classification types with community baseline data available') +
+      statCard(sb.total_community_samples ?? '—', 'Community Samples', 'Total anonymized records in the community pool') +
+      '<div class="card stat"><div class="stat-value" style="font-size:14px">'+(sb.last_baseline_refresh?fmtDate(sb.last_baseline_refresh):'—')+'</div><div class="stat-label"' + tip('When baselines were last fetched — cached for 6 hours') + '>Last Refresh</div></div>' +
     '</div>' +
-    (typeBadges ? '<div class="card" style="margin-bottom:32px"><div class="card-header"><span class="dot"></span> Types with Baselines</div><div style="display:flex;gap:8px;flex-wrap:wrap">'+typeBadges+'</div></div>' : '')
+    (typeBadges ? '<div class="card" style="margin-bottom:32px">' + cardHeader('Types with Baselines', 'Classifications that have community comparison data') + '<div style="display:flex;gap:8px;flex-wrap:wrap">'+typeBadges+'</div></div>' : '')
   ));
 }
 
-// ── Section 5: Insights ──────────────────────────────────────
-function renderInsights(root, insights) {
-  if (!insights || insights.length === 0) {
-    root.appendChild(createEl('<div class="section-title"><span class="section-num">05</span> Insights</div><div class="card" style="margin-bottom:32px"><p style="color:var(--text-muted);padding:12px">Not enough data for insights (need 5+ completed tasks).</p></div>'));
+// ── Section 5: Predictor Eval ─────────────────────────────────
+function renderPredictorEval(root, pe) {
+  if (!pe || pe.total_tasks === 0) {
+    root.appendChild(createEl(sectionTitle('05', 'Predictor Eval', 'Walk-forward calibration of prompt/edit/bash ETA stages') + '<div class="card" style="margin-bottom:32px"><p style="color:var(--text-muted);padding:12px">No completed main work items yet.</p></div>'));
     return;
   }
-  const kindLabels = {'error-duration':'Error Overhead','context-switch':'Context Switch Cost','volatility-causes':'Volatility Causes','file-ops':'File Operations','model-comparison':'Model Comparison','efficiency':'Efficiency','session-fatigue':'Session Fatigue','time-of-day':'Time of Day','trends':'Weekly Trends'};
+
+  const overallRows = ['prompt','first_edit','first_bash'].map(stage => {
+    const metrics = pe.overall[stage];
+    return '<tr><td class="mono">'+esc(stage)+'</td><td>'+metrics.sample_count+'</td><td>' + esc(fmtPct(metrics.mdape_pct)) + '</td><td>' + esc(fmtPct(metrics.p80_coverage_pct)) + '</td></tr>';
+  }).join('');
+
+  const clsRows = (pe.byClassification || []).slice(0, 8).map(row =>
+    '<tr><td class="mono">'+esc(row.key)+'</td><td>'+row.sample_count+'</td><td>'+evalCell(row.prompt)+'</td><td>'+evalCell(row.first_edit)+'</td><td>'+evalCell(row.first_bash)+'</td></tr>'
+  ).join('');
+
+  const modelRows = (pe.byClassificationModel || []).slice(0, 8).map(row =>
+    '<tr><td class="mono">'+esc(row.key)+'</td><td>'+row.sample_count+'</td><td>'+evalCell(row.prompt)+'</td><td>'+evalCell(row.first_edit)+'</td><td>'+evalCell(row.first_bash)+'</td></tr>'
+  ).join('');
+
+  root.appendChild(createEl(
+    sectionTitle('05', 'Predictor Eval', 'Walk-forward calibration of prompt/edit/bash ETA stages') +
+    '<div class="grid grid-4">' +
+      statCard(pe.total_tasks, 'Main Work Items', 'Completed logical main tasks used as evaluation corpus') +
+      statCard(fmtPct(pe.overall.prompt.mdape_pct), 'Prompt MdAPE', 'Median absolute percentage error before any trace signal', pe.overall.prompt.mdape_pct != null && pe.overall.prompt.mdape_pct <= 30 ? 'accent' : '') +
+      statCard(fmtPct(pe.overall.first_edit.mdape_pct), 'First Edit MdAPE', 'Error after the first observed edit signal', pe.overall.first_edit.mdape_pct != null && pe.overall.first_edit.mdape_pct <= (pe.overall.prompt.mdape_pct ?? Infinity) ? 'accent' : '') +
+      statCard(fmtPct(pe.overall.first_bash.mdape_pct), 'First Bash MdAPE', 'Error after the first observed bash/validation signal', pe.overall.first_bash.mdape_pct != null && pe.overall.first_bash.mdape_pct <= (pe.overall.first_edit.mdape_pct ?? Infinity) ? 'accent' : '') +
+    '</div>' +
+    '<div class="grid grid-3">' +
+      '<div class="card">' + cardHeader('Overall Stages', 'MdAPE and P80 coverage by predictor stage') + '<div class="table-wrap"><table><tr><th>Stage</th><th>Samples</th><th' + tip('Median absolute percentage error — lower is better') + '>MdAPE</th><th' + tip('Share of actual durations below the predicted P80 bound') + '>P80 Coverage</th></tr>' + overallRows + '</table></div></div>' +
+      '<div class="card">' + cardHeader('By Classification', 'Top calibration buckets by task type. Cell format: MdAPE / P80 coverage') + '<div class="table-wrap"><table><tr><th>Bucket</th><th>N</th><th>Prompt</th><th>Edit</th><th>Bash</th></tr>' + (clsRows || '<tr><td colspan="5" style="color:var(--text-muted)">Need at least 3 calibrated samples per classification.</td></tr>') + '</table></div></div>' +
+      '<div class="card">' + cardHeader('By Classification + Model', 'Top calibration buckets by task type and model family. Cell format: MdAPE / P80 coverage') + '<div class="table-wrap"><table><tr><th>Bucket</th><th>N</th><th>Prompt</th><th>Edit</th><th>Bash</th></tr>' + (modelRows || '<tr><td colspan="5" style="color:var(--text-muted)">Need at least 3 calibrated samples per type/model bucket.</td></tr>') + '</table></div></div>' +
+    '</div>'
+  ));
+}
+
+// ── Section 6: Insights ──────────────────────────────────────
+function renderInsights(root, insights) {
+  if (!insights || insights.length === 0) {
+    root.appendChild(createEl(sectionTitle('06', 'Insights', 'Deep analysis patterns derived from your task history') + '<div class="card" style="margin-bottom:32px"><p style="color:var(--text-muted);padding:12px">Not enough data for insights (need 5+ completed tasks).</p></div>'));
+    return;
+  }
+  const kindMeta = {
+    'error-duration':   { label: 'Error Overhead',       tip: 'How much longer tasks take when errors occur' },
+    'context-switch':   { label: 'Context Switch Cost',  tip: 'Time penalty when switching between task types' },
+    'volatility-causes':{ label: 'Volatility Causes',    tip: 'Factors that drive duration variance' },
+    'file-ops':         { label: 'File Operations',      tip: 'Correlation between file count and task duration' },
+    'model-comparison': { label: 'Model Comparison',     tip: 'Duration differences between AI models' },
+    'efficiency':       { label: 'Efficiency',           tip: 'Tool calls per second and active time ratio' },
+    'session-fatigue':  { label: 'Session Fatigue',      tip: 'Whether later tasks in a session take longer (>1.5x = fatigue)' },
+    'time-of-day':      { label: 'Time of Day',          tip: 'Duration variation by morning, afternoon, evening, night' },
+    'trends':           { label: 'Weekly Trends',        tip: 'Week-over-week direction of task durations' }
+  };
   let cards = '';
   for (const ins of insights) {
     let body = '';
@@ -292,23 +364,24 @@ function renderInsights(root, insights) {
       case 'model-comparison': body='<p>Fastest: <strong style="color:var(--accent)">'+esc(ins.fastestModel)+'</strong></p>'+ins.byModel.map(m=>'<p>'+esc(m.model)+': '+fmtDur(m.medianDuration)+' ('+m.count+')</p>').join(''); break;
       default: body='<p style="color:var(--text-muted)">Sample size: '+ins.sampleSize+'</p>';
     }
-    cards += '<div class="card"><div class="card-header"><span class="dot"></span> '+(kindLabels[ins.kind]||esc(ins.kind))+'</div><div style="font-size:12px;line-height:1.8">'+body+'</div></div>';
+    const meta = kindMeta[ins.kind] || { label: ins.kind, tip: '' };
+    cards += '<div class="card">' + cardHeader(meta.label, meta.tip) + '<div style="font-size:12px;line-height:1.8">'+body+'</div></div>';
   }
-  root.appendChild(createEl('<div class="section-title"><span class="section-num">05</span> Insights <span style="font-size:12px;color:var(--text-muted);font-family:var(--mono)">'+insights.length+'/9</span></div><div class="grid grid-3">'+cards+'</div>'));
+  root.appendChild(createEl(sectionTitle('06', 'Insights', 'Deep analysis patterns derived from your task history') + '<span style="font-size:12px;color:var(--text-muted);font-family:var(--mono)">'+insights.length+'/9</span><div class="grid grid-3">'+cards+'</div>'));
 }
 
-// ── Section 6: Subagents ─────────────────────────────────────
+// ── Section 7: Subagents ─────────────────────────────────────
 function renderSubagents(root, sub) {
   const rows = sub.by_agent_type.map(a => '<tr><td class="mono">'+esc(a.agent_type)+'</td><td style="color:var(--accent)">'+a.count+'</td><td class="mono">'+fmtDur(a.median_seconds)+'</td></tr>').join('');
   root.appendChild(createEl(
-    '<div class="section-title"><span class="section-num">06</span> Subagents</div>' +
+    sectionTitle('07', 'Subagents', 'Breakdown of main agent vs spawned subagent activity') +
     '<div class="grid grid-4">' +
-      '<div class="card stat"><div class="stat-value">'+sub.main_turns+'</div><div class="stat-label">Main Turns</div></div>' +
-      '<div class="card stat"><div class="stat-value accent">'+sub.subagent_turns+'</div><div class="stat-label">Subagent Turns</div></div>' +
-      '<div class="card stat"><div class="stat-value">'+sub.ratio+'</div><div class="stat-label">Sub/Main Ratio</div></div>' +
-      '<div class="card stat"><div class="stat-value">'+fmtDur(sub.median_subagent_seconds)+'</div><div class="stat-label">Median Sub Duration</div></div>' +
+      statCard(sub.main_turns, 'Main Turns', 'Turns from the main Claude agent') +
+      statCard(sub.subagent_turns, 'Subagent Turns', 'Turns from spawned subagents (Task tool)', 'accent') +
+      statCard(sub.ratio, 'Sub/Main Ratio', 'Proportion of subagent turns vs main turns') +
+      statCard(fmtDur(sub.median_subagent_seconds), 'Median Sub Duration', 'Typical subagent turn duration (p50)') +
     '</div>' +
-    (sub.by_agent_type.length > 0 ? '<div class="card" style="margin-bottom:32px"><div class="card-header"><span class="dot"></span> By Agent Type</div><div class="table-wrap"><table><tr><th>Agent Type</th><th>Count</th><th>Median Duration</th></tr>'+rows+'</table></div></div>' : '')
+    (sub.by_agent_type.length > 0 ? '<div class="card" style="margin-bottom:32px">' + cardHeader('By Agent Type', 'Duration breakdown by subagent type') + '<div class="table-wrap"><table><tr><th' + tip('Subagent runner type (e.g. task, explore)') + '>Agent Type</th><th' + tip('Number of completed subagent turns') + '>Count</th><th' + tip('Typical duration for this agent type (p50)') + '>Median Duration</th></tr>'+rows+'</table></div></div>' : '')
   ));
 }
 

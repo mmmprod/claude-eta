@@ -249,4 +249,25 @@ describe('anonymizeProject (v2 compat)', () => {
     assert.equal(records[0].project_file_count, null);
     assert.equal(records[0].project_loc_bucket, null);
   });
+
+  it('excludes subagent turns from anonymized export', async () => {
+    writeCompletedTurns(TEST_CWD, [
+      makeCompletedTurn({ turn_id: 'turn-main', work_item_id: 'wi-main', runner_kind: 'main' }),
+      makeCompletedTurn({
+        turn_id: 'turn-sub',
+        work_item_id: 'wi-sub',
+        runner_kind: 'subagent',
+        agent_key: 'agent-1',
+        agent_id: 'agent-1',
+        agent_type: 'Explore',
+      }),
+    ]);
+
+    const ts = Date.now() + Math.random();
+    const { anonymizeProject } = await import(`../dist/cli/export.js?t=${ts}`);
+    const records = anonymizeProject(TEST_CWD, '1.0.0');
+
+    assert.equal(records.length, 1);
+    assert.equal(records[0].dedup_key.length, 32);
+  });
 });

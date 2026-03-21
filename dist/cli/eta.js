@@ -13,7 +13,8 @@ import { getPluginDataDir } from '../paths.js';
 import { loadPreferencesV2, savePreferencesV2 } from '../preferences.js';
 import { loadProjectMeta } from '../project-meta.js';
 import { resolveProjectIdentity } from '../identity.js';
-import { loadCompletedTurnsCompat, turnsToTaskEntries } from '../compat.js';
+import { loadCompletedTurnsCompat, turnsToAnalyticsTasks, turnsToTaskEntries } from '../compat.js';
+import { evaluateTasks, formatEvaluationReport } from '../eval.js';
 import { showExport } from './export.js';
 import { showContribute, executeContribute } from './contribute.js';
 import { showCompare } from './compare.js';
@@ -21,6 +22,10 @@ import { showAdminExport } from './admin-export.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const EXPORT_DIR = path.join(getPluginDataDir(), 'export');
+const INTERNAL_ONLY_MODES = new Set(['eval', 'admin-export']);
+function internalToolsEnabled() {
+    return /^(1|true|yes)$/i.test(process.env.CLAUDE_ETA_INTERNAL ?? '');
+}
 // ── Formatting helpers ────────────────────────────────────────
 function fmtDuration(seconds) {
     if (seconds < 60)
@@ -107,7 +112,7 @@ function showStats(tasks) {
         console.log(`| ${col(cls, 9)} | ${col(String(count), 5, 'right')} | ${col(fmtDuration(avgDur), 12)} | ${col(String(avgTools), 9, 'right')} | ${col(String(avgFiles), 9, 'right')} |`);
     }
 }
-function showInspect(cwd, tasks) {
+function showInspect(cwd, tasks, turns) {
     const { fp, displayName } = resolveProjectIdentity(cwd);
     const meta = loadProjectMeta(fp);
     const completed = tasks.filter((t) => t.duration_seconds !== null);
@@ -141,10 +146,10 @@ function showInspect(cwd, tasks) {
         }
     }
     console.log(`\n### What is stored per turn\n`);
-    console.log('Each completed turn contains: `turn_id`, `work_item_id`, `session_id`, `agent_key`, `classification`, `prompt_summary`, `wall_seconds`, `active_seconds`, `tool_calls`, `files_read`, `files_edited`, `files_created`, `errors`, `model`, `stop_reason`.');
+    console.log('Each completed turn contains: `turn_id`, `work_item_id`, `session_id`, `agent_key`, `classification`, `prompt_summary`, `wall_seconds`, `span_until_last_event_seconds`, `tail_after_last_event_seconds`, `tool_calls`, `files_read`, `files_edited`, `files_created`, `errors`, `model`, `stop_reason`. Legacy `active_seconds` / `wait_seconds` are compatibility aliases for those proxy fields.');
     console.log('\n**Not stored**: full prompt text, file contents, conversation content, code.');
-    if (tasks.length > 0) {
-        const last = tasks[tasks.length - 1];
+    if (turns.length > 0) {
+        const last = turns[turns.length - 1];
         console.log(`\n### Latest turn (raw)\n`);
         console.log('```json');
         console.log(JSON.stringify(last, null, 2));
@@ -208,7 +213,7 @@ function showRecap(tasks) {
     const sorted = [...byType.entries()].sort((a, b) => b[1].length - a[1].length);
     const dayLabel = dayTasks[0].timestamp_start.slice(0, 10) === todayStr ? 'Today' : dayTasks[0].timestamp_start.slice(0, 10);
     console.log(`## ${dayLabel}'s Recap\n`);
-    console.log(`**${dayTasks.length} tasks** completed in **${fmtDuration(totalSec)}** of active work.\n`);
+    console.log(`**${dayTasks.length} tasks** completed in **${fmtDuration(totalSec)}** of tracked wall time.\n`);
     console.log(`### By type\n`);
     for (const [cls, entries] of sorted) {
         const dur = entries.reduce((s, t) => s + (t.duration_seconds ?? 0), 0);
@@ -290,6 +295,11 @@ async function main() {
     const confirm = process.argv.includes('--confirm');
     const pluginVersion = getPluginVersion();
     const prefs = loadPreferencesV2();
+    const internalMode = internalToolsEnabled();
+    if (INTERNAL_ONLY_MODES.has(mode) && !internalMode) {
+        console.log('Unknown command. Run `/eta help` for the public command list.');
+        return;
+    }
     // Help
     if (mode === 'help') {
         console.log(`## claude-eta commands\n`);
@@ -311,8 +321,14 @@ async function main() {
         console.log(`| \`/eta auto off\`              | Disable Auto-ETA injection                 |`);
         console.log(`| \`/eta insights\`              | Deep patterns in your task data             |`);
         console.log(`| \`/eta recap\`                 | Today's activity summary                    |`);
-        console.log(`| \`/eta admin-export\`          | Full admin dashboard JSON export            |`);
         console.log(`| \`/eta help\`                  | This help                                      |`);
+        if (internalMode) {
+            console.log(`\nMaintainer-only tools (enabled via \`CLAUDE_ETA_INTERNAL=1\`):\n`);
+            console.log(`| Command                      | Description                                    |`);
+            console.log(`|------------------------------|------------------------------------------------|`);
+            console.log(`| \`/eta eval\`                  | Walk-forward ETA calibration report         |`);
+            console.log(`| \`/eta admin-export\`          | Internal admin dashboard JSON/HTML export   |`);
+        }
         console.log(`\nCommunity sharing: **${getCommunityHelpStatus(prefs)}**.`);
         console.log('\nAll data is 100% local by default. Community uploads stay blocked until the user enables them with `/eta community on`.');
         if (!prefs.community_choice_made) {
@@ -376,7 +392,8 @@ async function main() {
     }
     // Sync commands — load data via compat layer (v2 or legacy)
     const turns = loadCompletedTurnsCompat(cwd);
-    const tasks = turnsToTaskEntries(turns);
+    const rawTasks = turnsToTaskEntries(turns);
+    const tasks = turnsToAnalyticsTasks(turns);
     // auto and inspect work even with zero completed turns
     if (mode === 'auto') {
         showAuto(cwd);
@@ -384,7 +401,7 @@ async function main() {
         return;
     }
     if (mode === 'inspect') {
-        showInspect(cwd, tasks);
+        showInspect(cwd, rawTasks, turns);
         console.log(FEEDBACK_LINE);
         return;
     }
@@ -409,6 +426,9 @@ async function main() {
             console.log(formatInsightsReport(results));
             break;
         }
+        case 'eval':
+            console.log(formatEvaluationReport(evaluateTasks(tasks)));
+            break;
         default:
             showSession(tasks);
             break;

@@ -1,6 +1,46 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { classifyPrompt, summarizePrompt } from '../dist/classify.js';
+import { classifyPrompt, summarizePrompt, decidePromptTransition } from '../dist/classify.js';
+
+function makeActiveTurn() {
+  const now = Date.now();
+  return {
+    turn_id: 'turn-1',
+    work_item_id: 'wi-1',
+    session_id: 'sess-1',
+    agent_key: 'main',
+    agent_id: null,
+    agent_type: null,
+    runner_kind: 'main',
+    project_fp: 'fp-1',
+    project_display_name: 'test-project',
+    classification: 'bugfix',
+    prompt_summary: 'fix auth bug',
+    prompt_complexity: 2,
+    started_at: new Date(now).toISOString(),
+    started_at_ms: now,
+    tool_calls: 0,
+    files_read: 0,
+    files_edited: 0,
+    files_created: 0,
+    unique_files: 0,
+    bash_calls: 0,
+    bash_failures: 0,
+    grep_calls: 0,
+    glob_calls: 0,
+    errors: 0,
+    first_tool_at_ms: null,
+    first_edit_at_ms: null,
+    first_bash_at_ms: null,
+    last_event_at_ms: null,
+    last_assistant_message: null,
+    model: null,
+    source: null,
+    status: 'active',
+    path_fps: [],
+    error_fingerprints: [],
+  };
+}
 
 describe('classifyPrompt', () => {
   it('classifies bugfix prompts', () => {
@@ -108,5 +148,35 @@ describe('summarizePrompt', () => {
     const result = summarizePrompt('a'.repeat(50), 20);
     assert.equal(result.length, 20);
     assert.ok(result.endsWith('...'));
+  });
+});
+
+describe('decidePromptTransition', () => {
+  it('returns continuation for short acknowledgements', () => {
+    const existing = makeActiveTurn();
+    assert.equal(decidePromptTransition('ok', classifyPrompt('ok'), existing), 'continuation');
+  });
+
+  it('reuses the same work item for long additive continuations', () => {
+    const existing = makeActiveTurn();
+    const prompt = 'continue et gere aussi les cas limites du parser sans casser les hooks existants';
+    assert.equal(decidePromptTransition(prompt, classifyPrompt(prompt), existing), 'same_work_item');
+  });
+
+  it('reuses the same work item for same-fix follow-ups', () => {
+    const existing = makeActiveTurn();
+    const prompt = 'ajoute aussi les tests pour le meme fix sans changer le scope';
+    assert.equal(decidePromptTransition(prompt, classifyPrompt(prompt), existing), 'same_work_item');
+  });
+
+  it('starts a new work item for explicit topic switches', () => {
+    const existing = makeActiveTurn();
+    const prompt = 'switch to the billing issue';
+    assert.equal(decidePromptTransition(prompt, classifyPrompt(prompt), existing), 'new_work_item');
+  });
+
+  it('starts a new work item when no active turn exists', () => {
+    const prompt = 'continue et gere aussi les cas limites';
+    assert.equal(decidePromptTransition(prompt, classifyPrompt(prompt), null), 'new_work_item');
   });
 });

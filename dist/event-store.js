@@ -21,6 +21,45 @@ const STOP_REASON_TO_EVENT = {
     subagent_stop: 'subagent_stopped',
     migrated: 'turn_migrated',
 };
+function normalizeActiveTurnState(raw) {
+    return {
+        ...raw,
+        status: raw.status === 'stop_blocked' ? 'stop_blocked' : 'active',
+        path_fps: Array.isArray(raw.path_fps)
+            ? raw.path_fps.filter((value) => typeof value === 'string')
+            : [],
+        error_fingerprints: Array.isArray(raw.error_fingerprints)
+            ? raw.error_fingerprints.filter((value) => value != null &&
+                typeof value === 'object' &&
+                typeof value.fp === 'string' &&
+                typeof value.preview === 'string')
+            : [],
+    };
+}
+function normalizeCompletedTurn(raw) {
+    const wallSeconds = Math.max(0, raw.wall_seconds ?? 0);
+    const promptComplexity = Number.isFinite(raw.prompt_complexity) ? Math.max(0, Math.min(5, raw.prompt_complexity)) : 0;
+    const firstEditOffsetSeconds = typeof raw.first_edit_offset_seconds === 'number' && Number.isFinite(raw.first_edit_offset_seconds)
+        ? Math.min(wallSeconds, Math.max(0, raw.first_edit_offset_seconds))
+        : null;
+    const firstBashOffsetSeconds = typeof raw.first_bash_offset_seconds === 'number' && Number.isFinite(raw.first_bash_offset_seconds)
+        ? Math.min(wallSeconds, Math.max(0, raw.first_bash_offset_seconds))
+        : null;
+    const spanUntilLastEventSeconds = Math.min(wallSeconds, Math.max(0, raw.span_until_last_event_seconds ?? raw.active_seconds ?? wallSeconds));
+    const tailAfterLastEventSeconds = Math.min(Math.max(0, wallSeconds - spanUntilLastEventSeconds), Math.max(0, raw.tail_after_last_event_seconds ?? raw.wait_seconds ?? wallSeconds - spanUntilLastEventSeconds));
+    return {
+        ...raw,
+        prompt_complexity: promptComplexity,
+        wall_seconds: wallSeconds,
+        first_edit_offset_seconds: firstEditOffsetSeconds,
+        first_bash_offset_seconds: firstBashOffsetSeconds,
+        span_until_last_event_seconds: spanUntilLastEventSeconds,
+        tail_after_last_event_seconds: tailAfterLastEventSeconds,
+        // Legacy aliases kept for backward compatibility with existing exports and fixtures.
+        active_seconds: spanUntilLastEventSeconds,
+        wait_seconds: tailAfterLastEventSeconds,
+    };
+}
 // ── Session management ───────────────────────────────────────
 /** Create or update session metadata */
 export function upsertSession(meta) {
@@ -62,7 +101,7 @@ export function startTurn(state) {
 export function getActiveTurn(projectFp, sessionId, agentKey) {
     try {
         const raw = fs.readFileSync(getActiveTurnPath(projectFp, sessionId, agentKey), 'utf-8');
-        return JSON.parse(raw);
+        return normalizeActiveTurnState(JSON.parse(raw));
     }
     catch {
         return null;
@@ -72,7 +111,7 @@ export function getActiveTurn(projectFp, sessionId, agentKey) {
  *  Directories must already exist (created by startTurn → ensureProjectDirs). */
 export function setActiveTurn(state, options = {}) {
     const filePath = getActiveTurnPath(state.project_fp, state.session_id, state.agent_key);
-    const payload = JSON.stringify(state);
+    const payload = JSON.stringify(normalizeActiveTurnState(state));
     if (options.createIfAbsent)
         return atomicWriteIfAbsent(filePath, payload);
     atomicWrite(filePath, payload);
@@ -109,11 +148,11 @@ function buildCompletedTurn(active, reason, extras) {
     const now = Date.now();
     const endedAt = new Date(now).toISOString();
     const wallSeconds = Math.max(0, Math.round((now - active.started_at_ms) / 1000));
-    let activeSeconds = wallSeconds;
+    let spanUntilLastEventSeconds = wallSeconds;
     if (active.last_event_at_ms != null && active.tool_calls > 0) {
-        activeSeconds = Math.min(wallSeconds, Math.max(1, Math.round((active.last_event_at_ms - active.started_at_ms) / 1000)));
+        spanUntilLastEventSeconds = Math.min(wallSeconds, Math.max(1, Math.round((active.last_event_at_ms - active.started_at_ms) / 1000)));
     }
-    const waitSeconds = Math.max(0, wallSeconds - activeSeconds);
+    const tailAfterLastEventSeconds = Math.max(0, wallSeconds - spanUntilLastEventSeconds);
     // Auto-fill repo buckets from project meta if not provided via extras
     let locBucket = extras?.repo_loc_bucket ?? null;
     let fileCountBucket = extras?.repo_file_count_bucket ?? null;
@@ -126,6 +165,12 @@ function buildCompletedTurn(active, reason, extras) {
                 fileCountBucket = meta.file_count_bucket;
         }
     }
+    const firstEditOffsetSeconds = active.first_edit_at_ms != null
+        ? Math.min(wallSeconds, Math.max(0, Math.round((active.first_edit_at_ms - active.started_at_ms) / 1000)))
+        : null;
+    const firstBashOffsetSeconds = active.first_bash_at_ms != null
+        ? Math.min(wallSeconds, Math.max(0, Math.round((active.first_bash_at_ms - active.started_at_ms) / 1000)))
+        : null;
     return {
         turn_id: active.turn_id,
         work_item_id: active.work_item_id,
@@ -142,8 +187,12 @@ function buildCompletedTurn(active, reason, extras) {
         started_at: active.started_at,
         ended_at: endedAt,
         wall_seconds: wallSeconds,
-        active_seconds: activeSeconds,
-        wait_seconds: waitSeconds,
+        first_edit_offset_seconds: firstEditOffsetSeconds,
+        first_bash_offset_seconds: firstBashOffsetSeconds,
+        span_until_last_event_seconds: spanUntilLastEventSeconds,
+        tail_after_last_event_seconds: tailAfterLastEventSeconds,
+        active_seconds: spanUntilLastEventSeconds,
+        wait_seconds: tailAfterLastEventSeconds,
         tool_calls: active.tool_calls,
         files_read: active.files_read,
         files_edited: active.files_edited,
@@ -462,7 +511,7 @@ function readAllCompletedJsonl(projectFp) {
             for (const line of content.split('\n')) {
                 if (line.trim()) {
                     try {
-                        turns.push(JSON.parse(line));
+                        turns.push(normalizeCompletedTurn(JSON.parse(line)));
                     }
                     catch {
                         // Skip malformed lines

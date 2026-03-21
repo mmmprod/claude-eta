@@ -1,18 +1,18 @@
 /**
  * Shared types for insight modules.
  */
-import type { TaskEntry, TaskClassification } from '../types.js';
+import type { AnalyticsTask, TaskClassification } from '../types.js';
 
 // Re-export for convenience
-export type { TaskEntry, TaskClassification };
+export type { AnalyticsTask, TaskClassification };
 
-/** A TaskEntry with a guaranteed positive duration */
-export type CompletedTask = TaskEntry & { duration_seconds: number };
+/** An AnalyticsTask with a guaranteed positive duration */
+export type CompletedTask = AnalyticsTask & { duration_seconds: number };
 
 // ── Utility functions (shared across modules) ────────────────
 
 /** Filter tasks with valid positive duration */
-export function completed(tasks: TaskEntry[]): CompletedTask[] {
+export function completed(tasks: AnalyticsTask[]): CompletedTask[] {
   return tasks.filter((t): t is CompletedTask => t.duration_seconds != null && t.duration_seconds > 0);
 }
 

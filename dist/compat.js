@@ -72,4 +72,92 @@ export function turnsToTaskEntries(turns) {
         model: t.model ?? 'unknown',
     }));
 }
+export function mainTurns(turns) {
+    return turns.filter((t) => t.runner_kind === 'main');
+}
+export function mainTurnsToTaskEntries(turns) {
+    return turnsToTaskEntries(mainTurns(turns));
+}
+function compareTurns(left, right) {
+    if (left.started_at !== right.started_at)
+        return left.started_at.localeCompare(right.started_at);
+    if (left.ended_at !== right.ended_at)
+        return left.ended_at.localeCompare(right.ended_at);
+    return left.turn_id.localeCompare(right.turn_id);
+}
+function representativeClassification(turns) {
+    return turns.find((turn) => turn.classification !== 'other')?.classification ?? turns[0].classification;
+}
+function aggregateFirstObservedOffset(turns, key) {
+    let elapsed = 0;
+    for (const turn of turns) {
+        const offset = turn[key];
+        if (typeof offset === 'number' && Number.isFinite(offset)) {
+            return elapsed + Math.max(0, offset);
+        }
+        elapsed += Math.max(0, turn.wall_seconds ?? 0);
+    }
+    return null;
+}
+/** Aggregate main-runner turns into logical work items for analytics and ETA. */
+export function turnsToAnalyticsTasks(turns) {
+    const grouped = new Map();
+    for (const turn of mainTurns(turns).slice().sort(compareTurns)) {
+        const key = `${turn.session_id}:${turn.work_item_id || turn.turn_id}`;
+        const list = grouped.get(key) ?? [];
+        list.push(turn);
+        grouped.set(key, list);
+    }
+    return [...grouped.values()]
+        .map((group) => {
+        const first = group[0];
+        const last = group[group.length - 1];
+        return {
+            analytics_id: first.work_item_id || first.turn_id,
+            work_item_id: first.work_item_id || first.turn_id,
+            session_id: first.session_id,
+            project: first.project_display_name,
+            timestamp_start: first.started_at,
+            timestamp_end: last.ended_at,
+            duration_seconds: group.reduce((sum, turn) => sum + turn.wall_seconds, 0),
+            prompt_summary: first.prompt_summary,
+            prompt_complexity: first.prompt_complexity ?? 0,
+            classification: representativeClassification(group),
+            tool_calls: group.reduce((sum, turn) => sum + turn.tool_calls, 0),
+            files_read: group.reduce((sum, turn) => sum + turn.files_read, 0),
+            files_edited: group.reduce((sum, turn) => sum + turn.files_edited, 0),
+            files_created: group.reduce((sum, turn) => sum + turn.files_created, 0),
+            errors: group.reduce((sum, turn) => sum + turn.errors, 0),
+            model: group.find((turn) => turn.model)?.model ?? 'unknown',
+            first_edit_offset_seconds: aggregateFirstObservedOffset(group, 'first_edit_offset_seconds'),
+            first_bash_offset_seconds: aggregateFirstObservedOffset(group, 'first_bash_offset_seconds'),
+            runner_kind: 'main',
+            source_turn_count: group.length,
+        };
+    })
+        .sort((left, right) => {
+        if (left.timestamp_start !== right.timestamp_start)
+            return left.timestamp_start.localeCompare(right.timestamp_start);
+        return left.analytics_id.localeCompare(right.analytics_id);
+    });
+}
+/** @deprecated Use turnsToAnalyticsTasks() in v2 analytics code. */
+export function turnsToAnalyticsTaskEntries(turns) {
+    return turnsToAnalyticsTasks(turns).map((task) => ({
+        task_id: task.analytics_id,
+        session_id: task.session_id,
+        project: task.project,
+        timestamp_start: task.timestamp_start,
+        timestamp_end: task.timestamp_end,
+        duration_seconds: task.duration_seconds,
+        prompt_summary: task.prompt_summary,
+        classification: task.classification,
+        tool_calls: task.tool_calls,
+        files_read: task.files_read,
+        files_edited: task.files_edited,
+        files_created: task.files_created,
+        errors: task.errors,
+        model: task.model,
+    }));
+}
 //# sourceMappingURL=compat.js.map

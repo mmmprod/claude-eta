@@ -4,7 +4,7 @@
  */
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { loadCompletedTurnsCompat, turnsToTaskEntries } from '../compat.js';
+import { loadCompletedTurnsCompat, mainTurnsToTaskEntries } from '../compat.js';
 import { resolveProjectIdentity } from '../identity.js';
 import { loadProjectMeta } from '../project-meta.js';
 import { getPluginDataDir } from '../paths.js';
@@ -60,7 +60,7 @@ export function anonymizeTask(
 export function anonymizeProject(cwd: string, pluginVersion: string): AnonymizedRecord[] {
   const { fp } = resolveProjectIdentity(cwd);
   const turns = loadCompletedTurnsCompat(cwd);
-  const tasks = turnsToTaskEntries(turns);
+  const tasks = mainTurnsToTaskEntries(turns);
   const meta = loadProjectMeta(fp);
   const projectMeta = { file_count: meta?.file_count ?? undefined, loc_bucket: meta?.loc_bucket ?? undefined };
   return tasks

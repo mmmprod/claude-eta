@@ -10,6 +10,9 @@ function makeStats(clsName, clsCount, volatility = 'medium', overrides = {}) {
     byClassification: [
       { classification: clsName, count: clsCount, median: 200, p25: 100, p75: 400, volatility, ...overrides },
     ],
+    byClassificationModel: [],
+    byClassificationPhase: [],
+    byClassificationModelPhase: [],
   };
 }
 
@@ -61,6 +64,46 @@ describe('estimateInitial', () => {
     const est = estimateInitial(stats, 'docs', 3);
     assert.ok(est.basis.includes('no docs-specific'));
   });
+
+  it('uses classification+model stats when enough local history exists for that model family', () => {
+    const stats = {
+      ...makeStats('bugfix', 10),
+      byClassificationModel: [
+        {
+          classification: 'bugfix',
+          model: 'claude-sonnet-4',
+          count: 6,
+          median: 140,
+          p25: 90,
+          p75: 220,
+          volatility: 'medium',
+        },
+      ],
+    };
+    const est = estimateInitial(stats, 'bugfix', 3, { model: 'claude-sonnet-4-20250514' });
+    assert.ok(est.basis.includes('claude-sonnet-4'));
+    assert.ok(est.p50_wall < 200);
+  });
+
+  it('falls back to classification-only stats when model history is too sparse', () => {
+    const stats = {
+      ...makeStats('bugfix', 10),
+      byClassificationModel: [
+        {
+          classification: 'bugfix',
+          model: 'claude-sonnet-4',
+          count: 1,
+          median: 140,
+          p25: 90,
+          p75: 220,
+          volatility: 'medium',
+        },
+      ],
+    };
+    const est = estimateInitial(stats, 'bugfix', 3, { model: 'claude-sonnet-4-20250514' });
+    assert.ok(!est.basis.includes('claude-sonnet-4'));
+    assert.ok(est.basis.includes('similar bugfix'));
+  });
 });
 
 // ── estimateWithTrace ────────────────────────────────────────
@@ -86,6 +129,43 @@ describe('estimateWithTrace', () => {
     const repair = estimateWithTrace(initial, 10, 'repair_loop');
     const validate = estimateWithTrace(initial, 10, 'validate');
     assert.ok(repair.remaining_p50 > validate.remaining_p50);
+  });
+
+  it('uses phase-specific history when enough traces exist', () => {
+    const stats = {
+      ...makeStats('bugfix', 10),
+      byClassificationPhase: [
+        {
+          phase: 'edit',
+          classification: 'bugfix',
+          count: 6,
+          median: 70,
+          p25: 60,
+          p75: 90,
+          volatility: 'medium',
+        },
+      ],
+      byClassificationModelPhase: [
+        {
+          phase: 'edit',
+          classification: 'bugfix',
+          model: 'claude-sonnet-4',
+          count: 4,
+          median: 55,
+          p25: 45,
+          p75: 75,
+          volatility: 'medium',
+        },
+      ],
+    };
+    const initial = estimateInitial(stats, 'bugfix', 3, { model: 'claude-sonnet-4-20250514' });
+    const refined = estimateWithTrace(initial, 30, 'edit', {
+      stats,
+      classification: 'bugfix',
+      model: 'claude-sonnet-4-20250514',
+    });
+    assert.ok(refined.basis.includes('edit traces'));
+    assert.ok(refined.remaining_p50 < initial.remaining_p50);
   });
 });
 

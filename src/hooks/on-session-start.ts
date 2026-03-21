@@ -7,7 +7,7 @@ import { resolveProjectIdentity } from '../identity.js';
 import { upsertSession } from '../event-store.js';
 import { extractModelId } from '../hook-model.js';
 import { needsMigration, migrateLegacyProject, legacySlug } from '../migrate.js';
-import { loadCompletedTurnsCompat, turnsToTaskEntries } from '../compat.js';
+import { loadCompletedTurnsCompat, turnsToAnalyticsTasks } from '../compat.js';
 import { computeStats, formatStatsContext, CALIBRATION_THRESHOLD } from '../stats.js';
 import { getRepoMetrics } from '../repo-metrics.js';
 import { upsertProjectMeta } from '../project-meta.js';
@@ -98,7 +98,7 @@ async function main(): Promise<void> {
   }
 
   // Calibrated — inject velocity context
-  const tasks = turnsToTaskEntries(turns);
+  const tasks = turnsToAnalyticsTasks(turns);
   const stats = computeStats(tasks);
   if (!stats) return;
 
