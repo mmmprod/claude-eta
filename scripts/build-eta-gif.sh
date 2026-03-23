@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 
-# Record and convert the ETA demo to GIF
+# Render and convert the ETA demo to GIF
 #
-# Prerequisites: asciinema, ffmpeg (optional for MP4)
+# Prerequisites: node, ffmpeg (optional for MP4)
 
 set -euo pipefail
 
@@ -59,15 +59,11 @@ ensure_agg() {
   echo "$target"
 }
 
-require_command asciinema
+require_command node
 AGG_BIN="$(ensure_agg)"
 
-echo "Recording..."
-asciinema rec "$REPO_ROOT/docs/eta-demo.cast" \
-  --cols 80 \
-  --rows 24 \
-  --command "$SCRIPT_DIR/eta-demo-script.sh" \
-  --overwrite
+echo "Rendering deterministic cast..."
+node "$SCRIPT_DIR/render-eta-demo-cast.mjs" "$REPO_ROOT/docs/eta-demo.cast"
 
 echo "Converting to GIF..."
 "$AGG_BIN" "$REPO_ROOT/docs/eta-demo.cast" \
