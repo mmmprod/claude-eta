@@ -25,6 +25,22 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const EXPORT_DIR = path.join(getPluginDataDir(), 'export');
 const INTERNAL_ONLY_MODES = new Set(['admin-export']);
+const KNOWN_MODES = new Set([
+    'session',
+    'history',
+    'stats',
+    'inspect',
+    'compare',
+    'community',
+    'export',
+    'contribute',
+    'eval',
+    'auto',
+    'insights',
+    'recap',
+    'admin-export',
+    'help',
+]);
 function internalToolsEnabled() {
     return /^(1|true|yes)$/i.test(process.env.CLAUDE_ETA_INTERNAL ?? '');
 }
@@ -325,10 +341,12 @@ function showCommunity() {
 }
 // ── Main ──────────────────────────────────────────────────────
 async function main() {
-    const mode = process.argv[2] ?? 'session';
-    // Last arg is always cwd (appended by command runner as $(pwd)).
-    // Earlier positional args (e.g. "auto on") sit between mode and cwd.
-    const cwd = process.argv.at(-1) ?? process.cwd();
+    const cliArgs = process.argv.slice(2);
+    const firstArg = cliArgs[0];
+    // The slash-command runner always appends "$(pwd)" as the last arg.
+    // When `/eta` has no explicit subcommand, that cwd becomes the only arg.
+    const mode = !firstArg || !KNOWN_MODES.has(firstArg) ? 'session' : firstArg;
+    const cwd = !firstArg || !KNOWN_MODES.has(firstArg) ? (firstArg ?? process.cwd()) : (process.argv.at(-1) ?? process.cwd());
     const confirm = process.argv.includes('--confirm');
     const pluginVersion = getPluginVersion();
     const prefs = loadPreferencesV2();

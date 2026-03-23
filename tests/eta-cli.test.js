@@ -92,6 +92,21 @@ function seedActiveTurn(overrides = {}) {
 }
 
 describe('/eta session first-run view', () => {
+  it('treats a cwd-only invocation like `/eta` and still shows the session view', () => {
+    seedActiveTurn();
+
+    const output = execFileSync('node', ['dist/cli/eta.js', TEST_CWD], {
+      encoding: 'utf8',
+      timeout: 5000,
+      env: { ...process.env, CLAUDE_PLUGIN_DATA: TEST_DATA_DIR },
+    });
+
+    assert.ok(output.includes('Session Stats (0 tasks)'), output);
+    assert.ok(output.includes('Active task: "fix auth redirect bug" (bugfix)'), output);
+    assert.ok(output.includes('Phase: edit | Elapsed: 1m 40s | Remaining: ~20s-1m 20s'), output);
+    assert.ok(output.includes('Privacy mode:'), output);
+  });
+
   it('shows the live active task block even when no task has completed yet', () => {
     seedActiveTurn();
 
