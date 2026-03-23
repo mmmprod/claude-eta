@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.3](https://github.com/mmmprod/claude-eta/compare/claude-eta-v1.3.2...claude-eta-v1.3.3) (2026-03-23)
+
+
+### Bug Fixes
+
+* **eta-accuracy:** use p80 upper-bound semantics instead of interval check ([#119](https://github.com/mmmprod/claude-eta/issues/119)) ([2f2676b](https://github.com/mmmprod/claude-eta/commit/2f2676b3aac8224e064210ae710f339a4d7f9de9))
+
 ## [1.3.2](https://github.com/mmmprod/claude-eta/compare/claude-eta-v1.3.1...claude-eta-v1.3.2) (2026-03-23)
 
 
