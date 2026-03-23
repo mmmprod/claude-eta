@@ -1,13 +1,12 @@
 /**
  * Shared phase-transition ETA refinement for PostToolUse and PostToolUseFailure.
  *
- * Runs estimateWithTrace using loaded stats on phase transitions (2-3 per turn).
+ * Runs estimateWithTrace using cached historical stats on phase transitions (2-3 per turn).
  * Stores result in state.refined_eta for consumption by on-prompt continuation.
  */
 import type { ActiveTurnState } from '../types.js';
 import type { TaskPhase } from '../features.js';
-import { loadCompletedTurnsCompat, turnsToAnalyticsTasks } from '../compat.js';
-import { computeStats } from '../stats.js';
+import { getProjectStats } from '../stats-cache.js';
 import { estimateInitial, estimateWithTrace } from '../estimator.js';
 
 /**
@@ -17,9 +16,7 @@ import { estimateInitial, estimateWithTrace } from '../estimator.js';
 export function refineEtaOnTransition(state: ActiveTurnState, cwd: string, newPhase: TaskPhase, now: number): void {
   state.last_phase = newPhase;
   try {
-    const turns = loadCompletedTurnsCompat(cwd);
-    const tasks = turnsToAnalyticsTasks(turns);
-    const stats = computeStats(tasks);
+    const stats = getProjectStats(cwd);
     if (stats) {
       const initial = estimateInitial(stats, state.classification, state.prompt_complexity ?? 1, {
         model: state.model,

@@ -1,5 +1,4 @@
-import { loadCompletedTurnsCompat, turnsToAnalyticsTasks } from '../compat.js';
-import { computeStats } from '../stats.js';
+import { getProjectStats } from '../stats-cache.js';
 import { estimateInitial, estimateWithTrace } from '../estimator.js';
 /**
  * Compute a refined ETA using full stats and store it in state.refined_eta.
@@ -8,9 +7,7 @@ import { estimateInitial, estimateWithTrace } from '../estimator.js';
 export function refineEtaOnTransition(state, cwd, newPhase, now) {
     state.last_phase = newPhase;
     try {
-        const turns = loadCompletedTurnsCompat(cwd);
-        const tasks = turnsToAnalyticsTasks(turns);
-        const stats = computeStats(tasks);
+        const stats = getProjectStats(cwd);
         if (stats) {
             const initial = estimateInitial(stats, state.classification, state.prompt_complexity ?? 1, {
                 model: state.model,
