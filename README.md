@@ -36,7 +36,7 @@ Tested on 163 real completed work items from a single developer:
 
 | Metric | Value |
 |--------|-------|
-| p80 interval coverage at prompt | 79.1% |
+| p80 coverage at prompt | 79.1% |
 
 p80 coverage = how often the real duration fell at or below the predicted p80 upper bound (target ~80%).
 
