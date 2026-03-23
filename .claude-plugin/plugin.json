@@ -1,7 +1,7 @@
 {
   "name": "claude-eta",
   "description": "Repair loop detector and ETA calibrator for Claude Code",
-  "version": "1.3.2",
+  "version": "1.3.3",
   "author": {
     "name": "mmmprod",
     "url": "https://github.com/mmmprod"
