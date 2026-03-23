@@ -70,6 +70,7 @@ echo "Converting to GIF..."
   "$REPO_ROOT/docs/eta-demo.gif" \
   --cols 80 \
   --rows 24 \
+  --font-family "DejaVu Sans Mono" \
   --theme monokai \
   --speed 1.2 \
   --font-size 16
