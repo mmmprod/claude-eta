@@ -96,11 +96,21 @@ function renderActiveTask(cwd: string, precomputedFp?: string): boolean {
     const sinceRefine = activeTurn.refined_eta.computed_at_ms
       ? Math.max(0, Math.round((Date.now() - activeTurn.refined_eta.computed_at_ms) / 1000))
       : 0;
-    parts.push(fmtRemaining(Math.max(0, activeTurn.refined_eta.p50 - sinceRefine), Math.max(0, activeTurn.refined_eta.p80 - sinceRefine)));
+    parts.push(
+      fmtRemaining(
+        Math.max(0, activeTurn.refined_eta.p50 - sinceRefine),
+        Math.max(0, activeTurn.refined_eta.p80 - sinceRefine),
+      ),
+    );
   } else if (activeTurn.live_remaining_p50 !== null && activeTurn.live_remaining_p80 !== null) {
     parts.push(fmtRemaining(activeTurn.live_remaining_p50, activeTurn.live_remaining_p80));
   } else if (activeTurn.cached_eta) {
-    parts.push(fmtRemaining(Math.max(0, activeTurn.cached_eta.p50_wall - elapsed), Math.max(0, activeTurn.cached_eta.p80_wall - elapsed)));
+    parts.push(
+      fmtRemaining(
+        Math.max(0, activeTurn.cached_eta.p50_wall - elapsed),
+        Math.max(0, activeTurn.cached_eta.p80_wall - elapsed),
+      ),
+    );
   }
 
   console.log(parts.join(` ${c.dim('|')} `));
@@ -112,11 +122,8 @@ function renderActiveTask(cwd: string, precomputedFp?: string): boolean {
 function showSession(cwd: string, tasks: AnalyticsTask[]): void {
   const { fp } = resolveProjectIdentity(cwd);
   const activeTurn = findActiveMainTurn(fp);
-  const anchorSessionId = activeTurn?.session_id
-    ?? (tasks.length > 0 ? tasks[tasks.length - 1].session_id : null);
-  const sessionTasks = anchorSessionId
-    ? tasks.filter((t) => t.session_id === anchorSessionId)
-    : [];
+  const anchorSessionId = activeTurn?.session_id ?? (tasks.length > 0 ? tasks[tasks.length - 1].session_id : null);
+  const sessionTasks = anchorSessionId ? tasks.filter((t) => t.session_id === anchorSessionId) : [];
   const completed = sessionTasks.filter((t) => t.duration_seconds !== null);
 
   const totalSec = completed.reduce((sum, t) => sum + (t.duration_seconds ?? 0), 0);

@@ -95,11 +95,8 @@ function renderActiveTask(cwd, precomputedFp) {
 function showSession(cwd, tasks) {
     const { fp } = resolveProjectIdentity(cwd);
     const activeTurn = findActiveMainTurn(fp);
-    const anchorSessionId = activeTurn?.session_id
-        ?? (tasks.length > 0 ? tasks[tasks.length - 1].session_id : null);
-    const sessionTasks = anchorSessionId
-        ? tasks.filter((t) => t.session_id === anchorSessionId)
-        : [];
+    const anchorSessionId = activeTurn?.session_id ?? (tasks.length > 0 ? tasks[tasks.length - 1].session_id : null);
+    const sessionTasks = anchorSessionId ? tasks.filter((t) => t.session_id === anchorSessionId) : [];
     const completed = sessionTasks.filter((t) => t.duration_seconds !== null);
     const totalSec = completed.reduce((sum, t) => sum + (t.duration_seconds ?? 0), 0);
     const avgSec = completed.length > 0 ? Math.round(totalSec / completed.length) : 0;
