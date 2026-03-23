@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.5](https://github.com/mmmprod/claude-eta/compare/claude-eta-v1.3.4...claude-eta-v1.3.5) (2026-03-23)
+
+
+### Bug Fixes
+
+* **eta:** apply pre-marketplace consistency fixes ([#123](https://github.com/mmmprod/claude-eta/issues/123)) ([001e19d](https://github.com/mmmprod/claude-eta/commit/001e19d54b7fa2836f3549f9f0a0ee44ecbcc2b7))
+
 ## [1.3.4](https://github.com/mmmprod/claude-eta/compare/claude-eta-v1.3.3...claude-eta-v1.3.4) (2026-03-23)
 
 
