@@ -8,34 +8,72 @@
   <a href="https://github.com/mmmprod/claude-eta/stargazers"><img src="https://img.shields.io/github/stars/mmmprod/claude-eta?style=flat-square&color=yellow" alt="GitHub stars" /></a>
 </p>
 
+## Claude has no concept of time. claude-eta gives it one.
+
+Claude says "this should take about 2 days." You finish in 12 minutes.
+
+LLMs have zero feedback between what they promise and what actually happens.
+claude-eta creates that loop: it times every task, learns your velocity,
+and feeds real data back into Claude before it responds.
+
+After enough history, ETAs appear automatically — calibrated on YOUR project.
+
+<p align="center">
+  <img src="docs/eta-demo.gif" alt="claude-eta ETA demo" width="979" />
+</p>
+
+### How it works
+
+1. You type a prompt
+2. claude-eta classifies it, starts a timer, injects your velocity stats
+3. Claude works. Tool calls, file ops, errors counted silently.
+4. Task completes. Real duration recorded. Next estimate improves.
+5. After enough tasks of the same type, ETAs appear automatically at the start of Claude's responses.
+
+## Eval results
+
+Tested on 163 real completed work items from a single developer:
+
+| Metric | Value |
+|--------|-------|
+| p80 interval coverage at prompt | 79.1% |
+
+p80 coverage = how often the real duration fell inside the predicted interval (target ~80%).
+
+MdAPE (median absolute % error) = 81.6% — expected for a single-user dataset, improves with volume.
+
+<details>
+<summary>Additional evaluator stages</summary>
+
+| Stage | MdAPE | p80 coverage |
+|-------|-------|--------------|
+| At prompt | 81.6% | 79.1% |
+| After first edit | 100.0% | 58.8% |
+| After first bash | 86.8% | 64.7% |
+
+Loop detector: 0 reconstructed loops across 9 persisted Bash-failure histories on this project, 0 potential false positives.
+
+</details>
+
+Run `/eta eval` on your own data.
+
+### Also catches repair loops
+
 <p align="center">
   <img src="docs/loop-detector-demo.gif" alt="claude-eta loop detector demo" width="979" />
 </p>
 
-## Claude gets stuck. claude-eta gets it unstuck.
+When Claude hits the same error 3+ times, claude-eta detects the pattern and intervenes:
 
-When Claude Code hits the same error 3 times in a row, claude-eta detects the loop
-and injects a correction before you even notice.
+- At 3x: warning injected at the next prompt
+- At 5x: blocks and forces a strategy change
 
-No config. No GUI. It works in the background.
+The key: it fingerprints error CONTENT, not just count. TDD (different errors each time) won't trigger it.
 
-### What it catches
+### Also catches hallucinated estimates
 
-**Repair loops**: Claude tries the same failing approach repeatedly.
-
-claude-eta fingerprints each error. When the same error appears 3+ times:
-
-- At 3x: injects a warning at the next prompt
-- At 5x: blocks the response and forces a strategy change
-
-**Hallucinated time estimates**: Claude says "this will take 2 days" for a 10-minute task.
-
-claude-eta compares against your real project history and corrects inline.
-
-### What it tracks silently
-
-Every task gets a timer. Every tool call is counted. After a few tasks, claude-eta knows
-your real velocity per task type and calibrates Claude's responses with that data.
+When Claude says "2 days" for a 10-minute task, the bullshit detector corrects inline
+using your measured project data.
 
 ## Install
 
@@ -66,35 +104,6 @@ After 5+ completed tasks, run:
 - `/eta insights` for 9 analyses on your task history
 - `/eta eval` for the offline walk-forward accuracy report
 
-## How the loop detector works
-
-```text
-TDD (normal):     edit -> test fail A -> fix -> test fail B -> fix -> pass
-
-Repair loop:      edit -> test fail A -> edit -> test fail A -> edit -> test fail A
-                                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-                                        claude-eta detects this pattern
-```
-
-The key difference: in a loop, the same error keeps returning. claude-eta fingerprints
-error content, normalizing away paths, numbers, and quoted values so structurally identical
-failures match.
-
-## Claude can't estimate time. claude-eta teaches it.
-
-Claude says "2 days" for a 12-minute task because it has zero feedback loop
-between what it promises and what actually happens. claude-eta creates that loop.
-
-After 5 tasks, Claude receives your real velocity data before responding:
-project medians, confidence intervals, per-type volatility. It stops guessing.
-
-`/eta auto on` enables Claude to show an ETA at the start of each response,
-calibrated on your history, with an accuracy self-check that auto-disables
-if predictions drop below 50%.
-
-The loop detector proves the plugin sees what Claude does. The ETA proves it
-learns from what it sees. Same mechanism: observe -> inject, applied twice.
-
 ## Why not just `--max-turns`?
 
 | | `--max-turns` | claude-eta |
@@ -123,7 +132,49 @@ Everything is local by default. No cloud. No telemetry. No upload unless you exp
 
 See [SECURITY.md](SECURITY.md) for the full storage and community-data details.
 
+## Performance
+
+claude-eta hooks run on every Claude Code lifecycle event. Measured overhead:
+
+| Hook | Avg latency | Frequency |
+|------|-------------|-----------|
+| PostToolUse | ~37ms | Every tool call |
+| PostToolUseFailure | ~37ms | Every tool failure |
+| UserPromptSubmit | ~42ms | Every prompt |
+| Stop | ~42ms | End of response |
+
+Benchmarked on Linux 6.6 WSL2 x86_64, 12th Gen Intel(R) Core(TM) i7-12700F, Node v20.20.0. Run `./scripts/bench-hooks.sh` to measure on yours.
+
+PostToolUse is the hot path. It reads and writes a single small JSON file (~1KB).
+No historical data is loaded. No stats are computed.
+
 ## Advanced
+
+<details>
+<summary>How the loop detector works</summary>
+
+```text
+TDD (normal):     edit -> test fail A -> fix -> test fail B -> fix -> pass
+
+Repair loop:      edit -> test fail A -> edit -> test fail A -> edit -> test fail A
+                                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                                        claude-eta detects this pattern
+```
+
+The key difference: in a loop, the same error keeps returning. claude-eta fingerprints
+error content, normalizing away paths, numbers, and quoted values so structurally identical
+failures match.
+
+</details>
+
+<details>
+<summary>Auto-ETA (opt-in estimated duration at response start)</summary>
+
+`/eta auto on` enables automatic ETA injection when claude-eta has enough local calibration for the task type.
+
+`/eta auto` shows whether the feature is active and how accurate its recent interval coverage has been.
+
+</details>
 
 <details>
 <summary>Community baselines</summary>
@@ -167,40 +218,6 @@ and `SELECT baselines_cache`.
 `/eta`, `/eta history`, `/eta stats`, `/eta inspect`, `/eta insights`, `/eta eval`, `/eta compare`, `/eta export`, `/eta contribute`, `/eta community`, `/eta auto`, `/eta recap`, `/eta help`
 
 </details>
-
-## Performance
-
-claude-eta hooks run on every Claude Code lifecycle event. Measured overhead:
-
-| Hook | Avg latency | Frequency |
-|------|-------------|-----------|
-| PostToolUse | ~37ms | Every tool call |
-| PostToolUseFailure | ~37ms | Every tool failure |
-| UserPromptSubmit | ~42ms | Every prompt |
-| Stop | ~42ms | End of response |
-
-Benchmarked on Linux 6.6 WSL2 x86_64, 12th Gen Intel(R) Core(TM) i7-12700F, Node v20.20.0. Run `./scripts/bench-hooks.sh` to measure on yours.
-
-PostToolUse is the hot path. It reads and writes a single small JSON file (~1KB).
-No historical data is loaded. No stats are computed.
-
-## Eval results
-
-### How accurate is it?
-
-Tested on 163 real completed work items from a single developer on this repository.
-
-| Stage | MdAPE | p80 coverage |
-|-------|-------|--------------|
-| At prompt | 81.6% | 79.1% |
-| After first edit | 100.0% | 58.8% |
-| After first bash | 86.8% | 64.7% |
-
-Loop detector: 0 reconstructed loops across 9 persisted Bash-failure histories on this project, 0 potential false positives.
-
-These numbers come from one user on one project. They will vary across repos and improve with more local history.
-
-Run `/eta eval` on your own data.
 
 ## License
 
