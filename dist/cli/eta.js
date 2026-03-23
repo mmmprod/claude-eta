@@ -64,8 +64,11 @@ function coverageColor(rate) {
         return c.yellow;
     return c.red;
 }
-function renderActiveTask(cwd) {
-    const { fp } = resolveProjectIdentity(cwd);
+function fmtRemaining(p50, p80) {
+    return `${c.dim('Remaining:')} ${c.cyan(`~${fmtDuration(p50)}-${fmtDuration(p80)}`)}`;
+}
+function renderActiveTask(cwd, precomputedFp) {
+    const fp = precomputedFp ?? resolveProjectIdentity(cwd).fp;
     const activeTurn = findActiveMainTurn(fp);
     if (!activeTurn)
         return false;
@@ -73,20 +76,27 @@ function renderActiveTask(cwd) {
     const phase = activeTurn.live_phase ?? 'explore';
     console.log(`\n${c.bold('Active task')}: "${activeTurn.prompt_summary}" ${c.dim(`(${activeTurn.classification})`)}`);
     const parts = [`${c.dim('Phase:')} ${phase}`, `${c.dim('Elapsed:')} ${c.cyan(fmtDuration(elapsed))}`];
-    if (activeTurn.live_remaining_p50 !== null && activeTurn.live_remaining_p80 !== null) {
-        parts.push(`${c.dim('Remaining:')} ${c.cyan(`~${fmtDuration(activeTurn.live_remaining_p50)}-${fmtDuration(activeTurn.live_remaining_p80)}`)}`);
+    if (activeTurn.refined_eta && activeTurn.refined_eta.computed_at_ms) {
+        const sinceRefine = activeTurn.refined_eta.computed_at_ms
+            ? Math.max(0, Math.round((Date.now() - activeTurn.refined_eta.computed_at_ms) / 1000))
+            : 0;
+        parts.push(fmtRemaining(Math.max(0, activeTurn.refined_eta.p50 - sinceRefine), Math.max(0, activeTurn.refined_eta.p80 - sinceRefine)));
+    }
+    else if (activeTurn.live_remaining_p50 !== null && activeTurn.live_remaining_p80 !== null) {
+        parts.push(fmtRemaining(activeTurn.live_remaining_p50, activeTurn.live_remaining_p80));
     }
     else if (activeTurn.cached_eta) {
-        const remainP50 = Math.max(0, activeTurn.cached_eta.p50_wall - elapsed);
-        const remainP80 = Math.max(0, activeTurn.cached_eta.p80_wall - elapsed);
-        parts.push(`${c.dim('Remaining:')} ${c.cyan(`~${fmtDuration(remainP50)}-${fmtDuration(remainP80)}`)}`);
+        parts.push(fmtRemaining(Math.max(0, activeTurn.cached_eta.p50_wall - elapsed), Math.max(0, activeTurn.cached_eta.p80_wall - elapsed)));
     }
     console.log(parts.join(` ${c.dim('|')} `));
     return true;
 }
 // ── Modes ─────────────────────────────────────────────────────
 function showSession(cwd, tasks) {
-    const sessionTasks = tasks.length > 0 ? tasks.filter((t) => t.session_id === tasks[tasks.length - 1].session_id) : [];
+    const { fp } = resolveProjectIdentity(cwd);
+    const activeTurn = findActiveMainTurn(fp);
+    const anchorSessionId = activeTurn?.session_id ?? (tasks.length > 0 ? tasks[tasks.length - 1].session_id : null);
+    const sessionTasks = anchorSessionId ? tasks.filter((t) => t.session_id === anchorSessionId) : [];
     const completed = sessionTasks.filter((t) => t.duration_seconds !== null);
     const totalSec = completed.reduce((sum, t) => sum + (t.duration_seconds ?? 0), 0);
     const avgSec = completed.length > 0 ? Math.round(totalSec / completed.length) : 0;
@@ -100,7 +110,7 @@ function showSession(cwd, tasks) {
     console.log(`| ${c.dim('Files read')}          | ${c.cyan(col(String(completed.reduce((s, t) => s + t.files_read, 0)), 19))} |`);
     console.log(`| ${c.dim('Files edited')}        | ${c.cyan(col(String(completed.reduce((s, t) => s + t.files_edited, 0)), 19))} |`);
     console.log(`| ${c.dim('Errors')}              | ${c.red(col(String(completed.reduce((s, t) => s + t.errors, 0)), 19))} |`);
-    renderActiveTask(cwd);
+    renderActiveTask(cwd, fp);
 }
 function showHistory(tasks) {
     const recent = tasks.slice(-20).reverse();

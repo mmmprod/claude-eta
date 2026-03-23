@@ -32,26 +32,24 @@ After 10 tasks of the same type, ETAs appear automatically — calibrated on YOU
 
 ## Eval results
 
-Tested on 163 real completed work items from a single developer:
+Tested on 217 real completed work items from a single developer:
 
 | Metric | Value |
 |--------|-------|
-| p80 coverage at prompt | 79.1% |
+| p80 coverage at prompt | 77.9% |
 
 p80 coverage = how often the real duration fell at or below the predicted p80 upper bound (target ~80%).
 
-MdAPE (median absolute % error) = 81.6% — expected for a single-user dataset, improves with volume.
+MdAPE (median absolute % error) = 79.6% — expected for a single-user dataset, improves with volume.
 
 <details>
 <summary>Additional evaluator stages</summary>
 
 | Stage | MdAPE | p80 coverage |
 |-------|-------|--------------|
-| At prompt | 81.6% | 79.1% |
-| After first edit | 100.0% | 58.8% |
-| After first bash | 86.8% | 64.7% |
-
-Loop detector: 0 reconstructed loops across 9 persisted Bash-failure histories on this project, 0 potential false positives.
+| At prompt | 79.6% | 77.9% |
+| After first edit | 95.0% | 67.6% |
+| After first bash | 80.4% | 74.4% |
 
 </details>
 
@@ -169,16 +167,10 @@ See [SECURITY.md](SECURITY.md) for the full storage and community-data details.
 
 ## Performance
 
-claude-eta hooks run on every Claude Code lifecycle event. Measured overhead:
+claude-eta hooks run on every Claude Code lifecycle event.
+Typical overhead is 30–50ms per hook on modern hardware (dominated by Node.js cold start).
 
-| Hook | Avg latency | Frequency |
-|------|-------------|-----------|
-| PostToolUse | ~37ms | Every tool call |
-| PostToolUseFailure | ~37ms | Every tool failure |
-| UserPromptSubmit | ~42ms | Every prompt |
-| Stop | ~42ms | End of response |
-
-Benchmarked on Linux 6.6 WSL2 x86_64, 12th Gen Intel(R) Core(TM) i7-12700F, Node v20.20.0. Run `./scripts/bench-hooks.sh` to measure on yours.
+Run `./scripts/bench-hooks.sh` to measure on your machine.
 
 PostToolUse is the hot path. It reads and writes a single small JSON file (~1KB).
 No historical data is loaded. No stats are computed.

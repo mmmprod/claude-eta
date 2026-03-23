@@ -38,7 +38,7 @@ export function anonymizeTask(
   pluginVersion: string,
   projectMeta?: { file_count?: number; loc_bucket?: string },
 ): AnonymizedRecord | null {
-  if (task.duration_seconds == null || task.duration_seconds <= 0) return null;
+  if (task.duration_seconds == null || task.duration_seconds <= 0 || task.duration_seconds >= 86400) return null;
 
   const contribHash = contributorHash();
   return {

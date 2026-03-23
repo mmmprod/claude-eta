@@ -28,7 +28,7 @@ export function refineEtaOnTransition(state: ActiveTurnState, cwd: string, newPh
         model: state.model,
         cumulativeWorkItemSeconds: state.cumulative_work_item_seconds ?? 0,
       });
-      state.refined_eta = { p50: refined.remaining_p50, p80: refined.remaining_p80 };
+      state.refined_eta = { p50: refined.remaining_p50, p80: refined.remaining_p80, computed_at_ms: now };
     }
   } catch {
     // Stats load failure is non-fatal -- live_* fields already updated by applyPhaseTransition

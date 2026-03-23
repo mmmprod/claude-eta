@@ -76,8 +76,12 @@ function coverageColor(rate: number): (text: string) => string {
   return c.red;
 }
 
-function renderActiveTask(cwd: string): boolean {
-  const { fp } = resolveProjectIdentity(cwd);
+function fmtRemaining(p50: number, p80: number): string {
+  return `${c.dim('Remaining:')} ${c.cyan(`~${fmtDuration(p50)}-${fmtDuration(p80)}`)}`;
+}
+
+function renderActiveTask(cwd: string, precomputedFp?: string): boolean {
+  const fp = precomputedFp ?? resolveProjectIdentity(cwd).fp;
   const activeTurn = findActiveMainTurn(fp);
   if (!activeTurn) return false;
 
@@ -88,14 +92,25 @@ function renderActiveTask(cwd: string): boolean {
 
   const parts = [`${c.dim('Phase:')} ${phase}`, `${c.dim('Elapsed:')} ${c.cyan(fmtDuration(elapsed))}`];
 
-  if (activeTurn.live_remaining_p50 !== null && activeTurn.live_remaining_p80 !== null) {
+  if (activeTurn.refined_eta && activeTurn.refined_eta.computed_at_ms) {
+    const sinceRefine = activeTurn.refined_eta.computed_at_ms
+      ? Math.max(0, Math.round((Date.now() - activeTurn.refined_eta.computed_at_ms) / 1000))
+      : 0;
     parts.push(
-      `${c.dim('Remaining:')} ${c.cyan(`~${fmtDuration(activeTurn.live_remaining_p50)}-${fmtDuration(activeTurn.live_remaining_p80)}`)}`,
+      fmtRemaining(
+        Math.max(0, activeTurn.refined_eta.p50 - sinceRefine),
+        Math.max(0, activeTurn.refined_eta.p80 - sinceRefine),
+      ),
     );
+  } else if (activeTurn.live_remaining_p50 !== null && activeTurn.live_remaining_p80 !== null) {
+    parts.push(fmtRemaining(activeTurn.live_remaining_p50, activeTurn.live_remaining_p80));
   } else if (activeTurn.cached_eta) {
-    const remainP50 = Math.max(0, activeTurn.cached_eta.p50_wall - elapsed);
-    const remainP80 = Math.max(0, activeTurn.cached_eta.p80_wall - elapsed);
-    parts.push(`${c.dim('Remaining:')} ${c.cyan(`~${fmtDuration(remainP50)}-${fmtDuration(remainP80)}`)}`);
+    parts.push(
+      fmtRemaining(
+        Math.max(0, activeTurn.cached_eta.p50_wall - elapsed),
+        Math.max(0, activeTurn.cached_eta.p80_wall - elapsed),
+      ),
+    );
   }
 
   console.log(parts.join(` ${c.dim('|')} `));
@@ -105,7 +120,10 @@ function renderActiveTask(cwd: string): boolean {
 // ── Modes ─────────────────────────────────────────────────────
 
 function showSession(cwd: string, tasks: AnalyticsTask[]): void {
-  const sessionTasks = tasks.length > 0 ? tasks.filter((t) => t.session_id === tasks[tasks.length - 1].session_id) : [];
+  const { fp } = resolveProjectIdentity(cwd);
+  const activeTurn = findActiveMainTurn(fp);
+  const anchorSessionId = activeTurn?.session_id ?? (tasks.length > 0 ? tasks[tasks.length - 1].session_id : null);
+  const sessionTasks = anchorSessionId ? tasks.filter((t) => t.session_id === anchorSessionId) : [];
   const completed = sessionTasks.filter((t) => t.duration_seconds !== null);
 
   const totalSec = completed.reduce((sum, t) => sum + (t.duration_seconds ?? 0), 0);
@@ -132,7 +150,7 @@ function showSession(cwd: string, tasks: AnalyticsTask[]): void {
     `| ${c.dim('Errors')}              | ${c.red(col(String(completed.reduce((s, t) => s + t.errors, 0)), 19))} |`,
   );
 
-  renderActiveTask(cwd);
+  renderActiveTask(cwd, fp);
 }
 
 function showHistory(tasks: AnalyticsTask[]): void {

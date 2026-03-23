@@ -193,7 +193,7 @@ export interface ActiveTurnState {
 
   // Phase-transition refined ETA (set by on-tool-use/on-tool-failure, read by on-prompt continuation)
   last_phase?: string | null;
-  refined_eta?: { p50: number; p80: number } | null;
+  refined_eta?: { p50: number; p80: number; computed_at_ms?: number } | null;
 
   /** Number of files edited after the first bash failure (for repair_loop detection) */
   files_edited_after_first_failure: number;

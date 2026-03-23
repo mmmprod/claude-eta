@@ -10,7 +10,7 @@ import * as crypto from 'node:crypto';
 import type { UserPromptSubmitStdin } from '../types.js';
 import { readStdin } from '../stdin.js';
 import { resolveProjectIdentity } from '../identity.js';
-import { getSession, getActiveTurn, startTurn, closeTurn } from '../event-store.js';
+import { getSession, getActiveTurn, setActiveTurn, startTurn, closeTurn } from '../event-store.js';
 import { loadCompletedTurnsCompat } from '../compat.js';
 import { loadPreferencesV2, savePreferencesV2 } from '../preferences.js';
 import { setLastEtaV2, consumeLastCompletedV2 } from '../ephemeral.js';
@@ -89,22 +89,16 @@ async function main(): Promise<void> {
         model: existing.model,
       });
 
-      // Prefer refined_eta from phase-transition recalc (already computed by on-tool-use)
-      const hasRefinedEta = existing.refined_eta && existing.last_phase && existing.last_phase !== 'explore';
-      const refined = hasRefinedEta
-        ? {
-            ...initial,
-            remaining_p50: existing.refined_eta!.p50,
-            remaining_p80: existing.refined_eta!.p80,
-            calibration: 'project+trace' as const,
-            phase: features.phase,
-          }
-        : estimateWithTrace(initial, elapsed, features.phase, {
-            stats,
-            classification: existing.classification,
-            model: existing.model,
-            cumulativeWorkItemSeconds: existing.cumulative_work_item_seconds ?? 0,
-          });
+      const refined = estimateWithTrace(initial, elapsed, features.phase, {
+        stats,
+        classification: existing.classification,
+        model: existing.model,
+        cumulativeWorkItemSeconds: existing.cumulative_work_item_seconds ?? 0,
+      });
+
+      // Persist recalculated ETA so /eta CLI reads fresh values
+      existing.refined_eta = { p50: refined.remaining_p50, p80: refined.remaining_p80, computed_at_ms: Date.now() };
+      setActiveTurn(existing);
 
       const legacy = toRemainingTaskEstimate(refined, existing.prompt_complexity);
       contextParts.push(
