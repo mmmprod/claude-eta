@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.6](https://github.com/mmmprod/claude-eta/compare/claude-eta-v1.3.5...claude-eta-v1.3.6) (2026-03-23)
+
+
+### Bug Fixes
+
+* **docs:** align install flow and eval snapshot ([#125](https://github.com/mmmprod/claude-eta/issues/125)) ([5027917](https://github.com/mmmprod/claude-eta/commit/50279178650cde7121ee586d1f57a469a922cdd8))
+
 ## [1.3.5](https://github.com/mmmprod/claude-eta/compare/claude-eta-v1.3.4...claude-eta-v1.3.5) (2026-03-23)
 
 
