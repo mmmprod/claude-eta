@@ -130,17 +130,24 @@ export function estimateWithTrace(initial, elapsedSeconds, phase, context) {
     };
 }
 // ── Backward compat adapter ──────────────────────────────────
-/** Convert EtaEstimate to the legacy TaskEstimate shape for existing consumers */
-export function toTaskEstimate(est, complexity) {
+function toLegacyTaskEstimate(low, high, est, complexity) {
     return {
-        low: est.p50_wall,
-        high: est.p80_wall,
-        median: est.p50_wall,
+        low,
+        high,
+        median: low,
         confidence: calibrationToConfidence(est.calibration),
         basis: est.basis,
         volatility: 'medium', // No longer meaningful, kept for compat
         complexity,
     };
+}
+/** Convert EtaEstimate to the legacy TaskEstimate shape using total wall-clock ranges. */
+export function toTaskEstimate(est, complexity) {
+    return toLegacyTaskEstimate(est.p50_wall, est.p80_wall, est, complexity);
+}
+/** Convert EtaEstimate to the legacy TaskEstimate shape using remaining ranges. */
+export function toRemainingTaskEstimate(est, complexity) {
+    return toLegacyTaskEstimate(est.remaining_p50, est.remaining_p80, est, complexity);
 }
 /** Map calibration level to a rough confidence % for backward-compat display */
 function calibrationToConfidence(cal) {

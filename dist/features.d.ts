@@ -26,7 +26,7 @@ export declare function extractFeatures(state: ActiveTurnState): TraceFeatures;
 /**
  * Recompute remaining time from a cached ETA snapshot.
  * Pure arithmetic — no I/O, no stats lookup.
- * Used by on-tool-use/on-tool-failure on phase transitions.
+ * Used by on-tool-use/on-tool-failure on every tool event.
  */
 export declare function recomputeRemaining(cachedEta: {
     p50_wall: number;
@@ -37,7 +37,8 @@ export declare function recomputeRemaining(cachedEta: {
 };
 /** Apply phase-transition ETA refinement to a mutable turn state.
  *  Called by on-tool-use and on-tool-failure on every tool event.
- *  Returns the new phase if a transition occurred, or null if unchanged. */
+ *  Always refreshes the lightweight live countdown, and only reports a phase
+ *  transition when the detected phase actually changes. */
 export declare function applyPhaseTransition(state: ActiveTurnState, now: number): TaskPhase | null;
 /**
  * Detect the current task phase from the tool usage sequence.

@@ -24,7 +24,7 @@ export function extractFeatures(state) {
 /**
  * Recompute remaining time from a cached ETA snapshot.
  * Pure arithmetic — no I/O, no stats lookup.
- * Used by on-tool-use/on-tool-failure on phase transitions.
+ * Used by on-tool-use/on-tool-failure on every tool event.
  */
 export function recomputeRemaining(cachedEta, elapsedSeconds, phase) {
     const phaseMultipliers = {
@@ -41,11 +41,11 @@ export function recomputeRemaining(cachedEta, elapsedSeconds, phase) {
 }
 /** Apply phase-transition ETA refinement to a mutable turn state.
  *  Called by on-tool-use and on-tool-failure on every tool event.
- *  Returns the new phase if a transition occurred, or null if unchanged. */
+ *  Always refreshes the lightweight live countdown, and only reports a phase
+ *  transition when the detected phase actually changes. */
 export function applyPhaseTransition(state, now) {
     const currentPhase = detectPhase(state);
-    if (currentPhase === state.live_phase)
-        return null;
+    const phaseChanged = currentPhase !== state.live_phase;
     state.live_phase = currentPhase;
     if (state.cached_eta) {
         const elapsed = Math.round((now - state.started_at_ms) / 1000);
@@ -53,7 +53,7 @@ export function applyPhaseTransition(state, now) {
         state.live_remaining_p50 = remaining.remaining_p50;
         state.live_remaining_p80 = remaining.remaining_p80;
     }
-    return currentPhase;
+    return phaseChanged ? currentPhase : null;
 }
 /**
  * Detect the current task phase from the tool usage sequence.

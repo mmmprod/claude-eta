@@ -48,7 +48,7 @@ export function classifyPrompt(prompt: string): TaskClassification {
 export const CONTINUATION_PATTERNS =
   /^(merci|thanks|thank you|ok|oui|yes|non|no|continue|go|go ahead|sure|d'accord|parfait|cool|nice|got it|understood|proceed|do it|vas-?y|c'est bon|exactement|exactly|right|correct|yep|yup|ouais|ça marche|good|great|bien|super|entendu|compris|allez|let's go|on y va|fais[- ]le|make it so|ship it|lgtm)[\s!.]*$/i;
 
-// Weak patterns — require same classification to bypass scoring
+// Weak patterns — conversational additive hints. They should never decide alone.
 const WEAK_SAME_PATTERNS = [
   /^(continue(?:\s+(?:et|with))?|poursuis|keep going|still on|same\b|m[eê]me\b|also\b|ajoute aussi|add also|and also)/i,
 ];
@@ -60,6 +60,10 @@ const STRONG_SAME_PATTERNS = [
 
 const EXPLICIT_RESET_PATTERNS =
   /^(new task|another task|something else|switch to|let'?s switch|on passe [àa]|passe [àa]|nouvelle? t[âa]che|autre sujet|change de sujet|nouveau sujet)\b/i;
+
+const SAME_WORK_ITEM_THRESHOLD = 0.5;
+const WEAK_PATTERN_SCORE_BONUS = 0.1;
+const CROSS_CLASSIFICATION_SCORE_PENALTY = 0.1;
 
 export type PromptTransition = 'continuation' | 'same_work_item' | 'new_work_item';
 
@@ -101,20 +105,19 @@ export function decidePromptTransition(
   // Strong same-work-item patterns always bypass scoring
   if (STRONG_SAME_PATTERNS.some((p) => p.test(trimmed))) return 'same_work_item';
 
-  // Weak patterns only bypass when classification hasn't changed
-  if (WEAK_SAME_PATTERNS.some((p) => p.test(trimmed))) {
-    if (classification === existingActive.classification) return 'same_work_item';
-    // Classification changed with weak pattern → fall through to similarity scoring
-  }
+  const hasWeakSameSignal = WEAK_SAME_PATTERNS.some((p) => p.test(trimmed));
 
-  // Similarity fallback when regex doesn't match
-  const score = computeSimilarityScore(
+  // Similarity fallback: weak patterns are only a score bonus, never a verdict.
+  let score = computeSimilarityScore(
     prompt,
     classification,
     existingActive.classification,
     existingActive.prompt_summary ?? '',
   );
-  if (score >= 0.5) return 'same_work_item';
+  if (hasWeakSameSignal) score += WEAK_PATTERN_SCORE_BONUS;
+  if (classification !== existingActive.classification) score -= CROSS_CLASSIFICATION_SCORE_PENALTY;
+  score = Math.max(0, Math.min(score, 1));
+  if (score >= SAME_WORK_ITEM_THRESHOLD) return 'same_work_item';
 
   // Different classification → new work item
   return 'new_work_item';

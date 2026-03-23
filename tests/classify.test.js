@@ -230,8 +230,11 @@ describe('decidePromptTransition', () => {
   });
 
   it('same classification works across non-bugfix types', () => {
-    const existing = makeActiveTurn({ classification: 'feature' });
-    assert.equal(decidePromptTransition('also add a sidebar to the dashboard', 'feature', existing), 'same_work_item');
+    const existing = makeActiveTurn({ classification: 'feature', prompt_summary: 'add user dashboard' });
+    assert.equal(
+      decidePromptTransition('also add a sidebar to the user dashboard', 'feature', existing),
+      'same_work_item',
+    );
   });
 });
 
@@ -326,9 +329,18 @@ describe('decidePromptTransition — weak vs strong patterns', () => {
 
   it('weak pattern + same classification → same_work_item', () => {
     const existing = makeActiveTurn({ classification: 'feature', prompt_summary: 'add user dashboard' });
-    const prompt = 'also add a sidebar component';
-    // "also" is a weak pattern, same classification (feature) → bypass scoring
+    const prompt = 'also add a sidebar to the user dashboard';
+    // Weak marker is not enough alone; shared topic overlap keeps this in the same work item.
     assert.equal(decidePromptTransition(prompt, classifyPrompt(prompt), existing), 'same_work_item');
+  });
+
+  it('weak pattern + same classification without overlap → new_work_item', () => {
+    const existing = makeActiveTurn({
+      classification: 'bugfix',
+      prompt_summary: 'fix login redirect bug in auth middleware',
+    });
+    const prompt = 'also fix flaky payment webhook retry bug';
+    assert.equal(decidePromptTransition(prompt, classifyPrompt(prompt), existing), 'new_work_item');
   });
 });
 

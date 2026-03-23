@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { estimateInitial, estimateWithTrace, toTaskEstimate } from '../dist/estimator.js';
-import { extractFeatures, detectPhase, recomputeRemaining } from '../dist/features.js';
+import { estimateInitial, estimateWithTrace, toRemainingTaskEstimate, toTaskEstimate } from '../dist/estimator.js';
+import { applyPhaseTransition, extractFeatures, detectPhase, recomputeRemaining } from '../dist/features.js';
 
 function makeStats(clsName, clsCount, volatility = 'medium', overrides = {}) {
   return {
@@ -196,6 +196,18 @@ describe('toTaskEstimate', () => {
   });
 });
 
+describe('toRemainingTaskEstimate', () => {
+  it('converts EtaEstimate using remaining ranges instead of total wall time', () => {
+    const initial = estimateInitial(makeStats('bugfix', 10), 'bugfix', 3);
+    const refined = estimateWithTrace(initial, 60, 'edit');
+    const remaining = toRemainingTaskEstimate(refined, 3);
+
+    assert.equal(remaining.low, refined.remaining_p50);
+    assert.equal(remaining.high, refined.remaining_p80);
+    assert.notEqual(remaining.low, refined.p50_wall);
+  });
+});
+
 // ── detectPhase ──────────────────────────────────────────────
 
 describe('detectPhase', () => {
@@ -350,6 +362,75 @@ describe('recomputeRemaining', () => {
     const result = recomputeRemaining(cached, 0, 'explore');
     assert.equal(result.remaining_p50, Math.round(120 * 1.05));
     assert.ok(result.remaining_p80 >= result.remaining_p50 + 1);
+  });
+});
+
+describe('applyPhaseTransition', () => {
+  function makeState(overrides = {}) {
+    const now = Date.now();
+    return {
+      turn_id: 'test',
+      work_item_id: 'test',
+      session_id: 'sess',
+      agent_key: 'main',
+      agent_id: null,
+      agent_type: null,
+      runner_kind: 'main',
+      project_fp: 'fp',
+      project_display_name: 'test',
+      classification: 'bugfix',
+      prompt_summary: 'test',
+      prompt_complexity: 2,
+      started_at: new Date(now - 100000).toISOString(),
+      started_at_ms: now - 100000,
+      tool_calls: 0,
+      files_read: 0,
+      files_edited: 1,
+      files_created: 0,
+      unique_files: 0,
+      bash_calls: 0,
+      bash_failures: 0,
+      grep_calls: 0,
+      glob_calls: 0,
+      errors: 0,
+      first_tool_at_ms: null,
+      first_edit_at_ms: now - 99000,
+      first_bash_at_ms: null,
+      last_event_at_ms: null,
+      last_assistant_message: null,
+      model: null,
+      source: null,
+      status: 'active',
+      path_fps: [],
+      error_fingerprints: [],
+      cached_eta: {
+        p50_wall: 120,
+        p80_wall: 180,
+        basis: 'cached',
+        calibration: 'project',
+      },
+      live_remaining_p50: 80,
+      live_remaining_p80: 140,
+      live_phase: 'edit',
+      last_phase: 'edit',
+      refined_eta: null,
+      files_edited_after_first_failure: 0,
+      first_bash_failure_at_ms: null,
+      cumulative_work_item_seconds: 0,
+      ...overrides,
+    };
+  }
+
+  it('refreshes live remaining even when the phase does not change', () => {
+    const now = Date.now();
+    const state = makeState({ started_at_ms: now - 100000, started_at: new Date(now - 100000).toISOString() });
+    const transitioned = applyPhaseTransition(state, now);
+
+    assert.equal(transitioned, null);
+    assert.ok(state.live_remaining_p50 <= 20, `expected countdown near 20s, got ${state.live_remaining_p50}`);
+    assert.ok(state.live_remaining_p50 >= 19, `expected countdown near 20s, got ${state.live_remaining_p50}`);
+    assert.ok(state.live_remaining_p80 <= 80, `expected countdown near 80s, got ${state.live_remaining_p80}`);
+    assert.ok(state.live_remaining_p80 >= 79, `expected countdown near 80s, got ${state.live_remaining_p80}`);
   });
 });
 

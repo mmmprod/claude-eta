@@ -118,7 +118,7 @@ async function main(): Promise<void> {
   // Self-check Auto-ETA accuracy
   if (completed) {
     const lastEta = consumeLastEtaV2(fp, sessionId);
-    if (lastEta && lastEta.task_id === completed.turn_id) {
+    if (lastEta && lastEta.task_id === completed.work_item_id) {
       const hit = completed.wall_seconds <= lastEta.high;
       updateEtaAccuracy(fp, completed.classification, hit);
     }

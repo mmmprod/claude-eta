@@ -70,6 +70,15 @@ function seedActiveTurn(overrides = {}) {
     status: 'active',
     path_fps: [],
     error_fingerprints: [],
+    cached_eta: null,
+    live_remaining_p50: null,
+    live_remaining_p80: null,
+    live_phase: null,
+    last_phase: null,
+    refined_eta: null,
+    files_edited_after_first_failure: 0,
+    first_bash_failure_at_ms: null,
+    cumulative_work_item_seconds: 0,
     ...overrides,
   };
 
@@ -84,6 +93,59 @@ function runPrompt(prompt) {
     timeout: 5000,
     env: { ...process.env, CLAUDE_PLUGIN_DATA: TEST_DATA_DIR },
   });
+}
+
+function legacySlug(name) {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
+}
+
+function seedLegacyData(tasks) {
+  const dataDir = path.join(TEST_DATA_DIR, 'data');
+  fs.mkdirSync(dataDir, { recursive: true });
+  const slug = legacySlug(path.basename(TEST_CWD));
+  fs.writeFileSync(
+    path.join(dataDir, `${slug}.json`),
+    JSON.stringify({ project: slug, created: new Date().toISOString(), tasks, eta_accuracy: {} }),
+  );
+}
+
+function makeLegacyTask(overrides = {}) {
+  return {
+    task_id: 'task-' + Math.random().toString(36).slice(2),
+    session_id: 'legacy-session',
+    project: legacySlug(path.basename(TEST_CWD)),
+    timestamp_start: new Date(Date.now() - 600000).toISOString(),
+    timestamp_end: new Date(Date.now() - 599820).toISOString(),
+    duration_seconds: 180,
+    prompt_summary: 'historical bugfix',
+    classification: 'bugfix',
+    tool_calls: 4,
+    files_read: 2,
+    files_edited: 1,
+    files_created: 0,
+    errors: 0,
+    model: 'claude-sonnet-4-20250514',
+    ...overrides,
+  };
+}
+
+function getAdditionalContext(output) {
+  if (!output) return '';
+  const parsed = JSON.parse(output);
+  return parsed?.hookSpecificOutput?.additionalContext ?? '';
+}
+
+function fmtSec(seconds) {
+  if (seconds < 60) return `${seconds}s`;
+  const min = Math.floor(seconds / 60);
+  const sec = seconds % 60;
+  if (min < 60) return sec > 0 ? `${min}m${sec}s` : `${min}m`;
+  const hr = Math.floor(min / 60);
+  const remainMin = min % 60;
+  return remainMin > 0 ? `${hr}h${remainMin}m` : `${hr}h`;
 }
 
 describe('UserPromptSubmit hook work-item continuity', () => {
@@ -121,5 +183,61 @@ describe('UserPromptSubmit hook work-item continuity', () => {
     const active = JSON.parse(fs.readFileSync(activePath, 'utf8'));
     assert.equal(active.turn_id, 'turn-existing');
     assert.equal(active.work_item_id, 'wi-existing');
+  });
+
+  it('does not reuse work_item_id for weak same-pattern prompts without business overlap', () => {
+    const { activePath } = seedActiveTurn({
+      classification: 'bugfix',
+      prompt_summary: 'fix login redirect bug in auth middleware',
+    });
+
+    runPrompt('also fix flaky payment webhook retry bug');
+
+    const active = JSON.parse(fs.readFileSync(activePath, 'utf8'));
+    assert.notEqual(active.work_item_id, 'wi-existing');
+  });
+
+  it('injects remaining ETA on continuation instead of the total estimate', () => {
+    seedLegacyData(Array.from({ length: 5 }, () => makeLegacyTask()));
+    seedActiveTurn({
+      classification: 'bugfix',
+      prompt_summary: 'fix auth redirect bug',
+      prompt_complexity: 2,
+      first_edit_at_ms: Date.now() - 20000,
+      cached_eta: {
+        p50_wall: 50,
+        p80_wall: 90,
+        basis: 'generic bugfix baseline',
+        calibration: 'cold',
+      },
+      last_phase: 'edit',
+      refined_eta: { p50: 12, p80: 34 },
+    });
+
+    const context = getAdditionalContext(runPrompt('ok'));
+    assert.ok(context.includes('Current remaining estimate: 12s–34s'), context);
+  });
+
+  it('injects remaining ETA for same_work_item prompts using the persisted remaining snapshot', () => {
+    seedLegacyData(Array.from({ length: 5 }, () => makeLegacyTask()));
+    const { activePath } = seedActiveTurn({
+      classification: 'bugfix',
+      prompt_summary: 'fix erreurs réseau dans compare',
+      prompt_complexity: 2,
+      started_at: new Date(Date.now() - 260000).toISOString(),
+      started_at_ms: Date.now() - 260000,
+      model: 'claude-sonnet-4-20250514',
+    });
+
+    const context = getAdditionalContext(runPrompt('gère aussi les erreurs réseau dans compare'));
+    const active = JSON.parse(fs.readFileSync(activePath, 'utf8'));
+
+    assert.ok(context.includes('Current remaining estimate:'), context);
+    assert.ok(
+      context.includes(
+        `Current remaining estimate: ${fmtSec(active.cached_eta.p50_wall)}–${fmtSec(active.cached_eta.p80_wall)}`,
+      ),
+      context,
+    );
   });
 });
