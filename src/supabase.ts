@@ -13,6 +13,12 @@ interface SupabaseResponse<T> {
   error: string | null;
 }
 
+interface PostResponse {
+  ok: boolean;
+  status: number;
+  body: string;
+}
+
 function headers(): Record<string, string> {
   return {
     apikey: SUPABASE_ANON_KEY,
@@ -23,19 +29,45 @@ function headers(): Record<string, string> {
 
 const FETCH_TIMEOUT_MS = 10_000;
 
+async function postVelocityRecords(records: object[]): Promise<PostResponse> {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/velocity_records`, {
+    method: 'POST',
+    headers: { ...headers(), Prefer: 'return=minimal' },
+    body: JSON.stringify(records),
+    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+  });
+
+  return {
+    ok: res.ok,
+    status: res.status,
+    body: res.ok ? '' : await res.text(),
+  };
+}
+
+function isMissingColumnError(body: string, column: string): boolean {
+  return body.includes(column) && (body.includes('schema cache') || body.includes('does not exist'));
+}
+
+function stripField(records: object[], field: string): object[] {
+  return records.map((record) => {
+    if (!record || typeof record !== 'object' || Array.isArray(record)) return record;
+    const { [field]: _omitted, ...rest } = record as Record<string, unknown>;
+    return rest;
+  });
+}
+
 /** INSERT rows into velocity_records. Returns error string or null on success. */
 export async function insertVelocityRecords(records: object[]): Promise<SupabaseResponse<null>> {
   try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/velocity_records`, {
-      method: 'POST',
-      headers: { ...headers(), Prefer: 'return=minimal' },
-      body: JSON.stringify(records),
-      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-    });
+    let result = await postVelocityRecords(records);
 
-    if (!res.ok) {
-      const body = await res.text();
-      return { data: null, error: `${res.status}: ${body}` };
+    // Backward-compat for servers that have not yet applied the record_unit migration.
+    if (!result.ok && isMissingColumnError(result.body, 'record_unit')) {
+      result = await postVelocityRecords(stripField(records, 'record_unit'));
+    }
+
+    if (!result.ok) {
+      return { data: null, error: `${result.status}: ${result.body}` };
     }
 
     return { data: null, error: null };

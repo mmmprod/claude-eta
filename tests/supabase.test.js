@@ -51,6 +51,34 @@ describe('supabase', () => {
       assert.ok(result.error);
       assert.ok(result.error.includes('aborted'));
     });
+
+    it('retries without record_unit when the server schema is older', async () => {
+      const bodies = [];
+      global.fetch = async (_url, options) => {
+        bodies.push(JSON.parse(options.body));
+        if (bodies.length === 1) {
+          return new Response(
+            JSON.stringify({
+              code: 'PGRST204',
+              message: "Could not find the 'record_unit' column of 'velocity_records' in the schema cache",
+            }),
+            { status: 400, headers: { 'Content-Type': 'application/json' } },
+          );
+        }
+
+        return new Response('', { status: 201 });
+      };
+
+      const result = await insertVelocityRecords([
+        { task_type: 'other', duration_seconds: 30, source_turn_count: 1, record_unit: 'work_item' },
+      ]);
+
+      assert.equal(result.error, null);
+      assert.equal(bodies.length, 2);
+      assert.equal(bodies[0][0].record_unit, 'work_item');
+      assert.equal('record_unit' in bodies[1][0], false);
+      assert.equal(bodies[1][0].source_turn_count, 1);
+    });
   });
 
   describe('fetchBaselines', () => {
