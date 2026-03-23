@@ -53,10 +53,29 @@ function col(s, len, align = 'left') {
     const truncated = s.length > len ? s.slice(0, len) : s;
     return align === 'left' ? truncated.padEnd(len) : truncated.padStart(len);
 }
+function renderActiveTask(cwd) {
+    const { fp } = resolveProjectIdentity(cwd);
+    const activeTurn = findActiveMainTurn(fp);
+    if (!activeTurn)
+        return false;
+    const elapsed = Math.round((Date.now() - activeTurn.started_at_ms) / 1000);
+    const phase = activeTurn.live_phase ?? 'explore';
+    console.log(`\n**Active task**: "${activeTurn.prompt_summary}" (${activeTurn.classification})`);
+    const parts = [`Phase: ${phase}`, `Elapsed: ${fmtDuration(elapsed)}`];
+    if (activeTurn.live_remaining_p50 !== null && activeTurn.live_remaining_p80 !== null) {
+        parts.push(`Remaining: ~${fmtDuration(activeTurn.live_remaining_p50)}-${fmtDuration(activeTurn.live_remaining_p80)}`);
+    }
+    else if (activeTurn.cached_eta) {
+        const remainP50 = Math.max(0, activeTurn.cached_eta.p50_wall - elapsed);
+        const remainP80 = Math.max(0, activeTurn.cached_eta.p80_wall - elapsed);
+        parts.push(`Remaining: ~${fmtDuration(remainP50)}-${fmtDuration(remainP80)}`);
+    }
+    console.log(parts.join(' | '));
+    return true;
+}
 // ── Modes ─────────────────────────────────────────────────────
 function showSession(cwd, tasks) {
-    const lastSessionId = tasks[tasks.length - 1].session_id;
-    const sessionTasks = tasks.filter((t) => t.session_id === lastSessionId);
+    const sessionTasks = tasks.length > 0 ? tasks.filter((t) => t.session_id === tasks[tasks.length - 1].session_id) : [];
     const completed = sessionTasks.filter((t) => t.duration_seconds !== null);
     const totalSec = completed.reduce((sum, t) => sum + (t.duration_seconds ?? 0), 0);
     const avgSec = completed.length > 0 ? Math.round(totalSec / completed.length) : 0;
@@ -70,23 +89,7 @@ function showSession(cwd, tasks) {
     console.log(`| Files read          | ${col(String(completed.reduce((s, t) => s + t.files_read, 0)), 19)} |`);
     console.log(`| Files edited        | ${col(String(completed.reduce((s, t) => s + t.files_edited, 0)), 19)} |`);
     console.log(`| Errors              | ${col(String(completed.reduce((s, t) => s + t.errors, 0)), 19)} |`);
-    const { fp } = resolveProjectIdentity(cwd);
-    const activeTurn = findActiveMainTurn(fp);
-    if (activeTurn) {
-        const elapsed = Math.round((Date.now() - activeTurn.started_at_ms) / 1000);
-        const phase = activeTurn.live_phase ?? 'explore';
-        console.log(`\n**Active task**: "${activeTurn.prompt_summary}" (${activeTurn.classification})`);
-        const parts = [`Phase: ${phase}`, `Elapsed: ${fmtDuration(elapsed)}`];
-        if (activeTurn.live_remaining_p50 !== null && activeTurn.live_remaining_p80 !== null) {
-            parts.push(`Remaining: ~${fmtDuration(activeTurn.live_remaining_p50)}-${fmtDuration(activeTurn.live_remaining_p80)}`);
-        }
-        else if (activeTurn.cached_eta) {
-            const remainP50 = Math.max(0, activeTurn.cached_eta.p50_wall - elapsed);
-            const remainP80 = Math.max(0, activeTurn.cached_eta.p80_wall - elapsed);
-            parts.push(`Remaining: ~${fmtDuration(remainP50)}-${fmtDuration(remainP80)}`);
-        }
-        console.log(parts.join(' | '));
-    }
+    renderActiveTask(cwd);
 }
 function showHistory(tasks) {
     const recent = tasks.slice(-20).reverse();
@@ -420,6 +423,11 @@ async function main() {
         return;
     }
     if (tasks.length === 0) {
+        if (mode === 'session') {
+            showSession(cwd, tasks);
+            console.log(`\nPrivacy mode: **${prefs.community_choice_made ? (prefs.community_sharing ? 'community uploads enabled (manual confirm required)' : 'local-only chosen') : 'choice pending (currently local-only)'}**. Use \`/eta community\` to manage sharing.`);
+            return;
+        }
         console.log('No tasks tracked yet. claude-eta is recording — data will appear after your first completed task.');
         console.log(`Privacy mode: **${prefs.community_choice_made ? (prefs.community_sharing ? 'community uploads enabled (manual confirm required)' : 'local-only chosen') : 'choice pending (currently local-only)'}**. Use \`/eta community\` to manage sharing.`);
         return;

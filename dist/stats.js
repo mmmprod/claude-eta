@@ -264,7 +264,7 @@ export function fmtSec(seconds) {
     return remainMin > 0 ? `${hr}h${remainMin}m` : `${hr}h`;
 }
 /** Format stats as a concise context string for Claude injection */
-export function formatStatsContext(stats, estimate) {
+export function formatStatsContext(stats, estimate, estimateLabel = 'Current task estimate') {
     const lines = [
         `[claude-eta] Project velocity (${stats.totalCompleted} completed tasks):`,
         `Overall: median ${fmtSec(stats.overall.median)}, range ${fmtSec(stats.overall.p25)}–${fmtSec(stats.overall.p75)}`,
@@ -274,16 +274,16 @@ export function formatStatsContext(stats, estimate) {
     }
     if (estimate) {
         const vol = estimate.volatility === 'high' ? ' — high volatility, wide range expected' : '';
-        lines.push(`→ Current task estimate: ${fmtSec(estimate.low)}–${fmtSec(estimate.high)} (${estimate.confidence}% confidence, ${estimate.basis}${vol})`);
+        lines.push(`→ ${estimateLabel}: ${fmtSec(estimate.low)}–${fmtSec(estimate.high)} (${estimate.confidence}% confidence, ${estimate.basis}${vol})`);
     }
     lines.push('Use these baselines to calibrate any time estimates. Do not volunteer time estimates unless the user asks.');
     return lines.join('\n');
 }
 /** Format context during cold start (< CALIBRATION_THRESHOLD tasks) */
-export function formatColdStartContext(estimate, tasksCompleted) {
+export function formatColdStartContext(estimate, tasksCompleted, estimateLabel = 'Current task estimate') {
     const lines = [
         `[claude-eta] Calibration: ${tasksCompleted}/${CALIBRATION_THRESHOLD} tasks recorded. Estimates become project-specific after ${CALIBRATION_THRESHOLD} tasks.`,
-        `→ Current task estimate: ${fmtSec(estimate.low)}–${fmtSec(estimate.high)} (${estimate.confidence}% confidence, ${estimate.basis} — not calibrated to this project yet)`,
+        `→ ${estimateLabel}: ${fmtSec(estimate.low)}–${fmtSec(estimate.high)} (${estimate.confidence}% confidence, ${estimate.basis} — not calibrated to this project yet)`,
         'Use these baselines to calibrate any time estimates. Do not volunteer time estimates unless the user asks.',
     ];
     return lines.join('\n');

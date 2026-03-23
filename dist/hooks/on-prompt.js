@@ -18,7 +18,7 @@ import { loadProjectMeta } from '../project-meta.js';
 import { classifyPrompt, summarizePrompt, decidePromptTransition } from '../classify.js';
 import { extractFeatures } from '../features.js';
 import { detectRepairLoop } from '../loop-detector.js';
-import { estimateInitial, estimateWithTrace, toTaskEstimate } from '../estimator.js';
+import { estimateInitial, estimateWithTrace, toRemainingTaskEstimate, toTaskEstimate } from '../estimator.js';
 import { computeStats, formatStatsContext, scorePromptComplexity, getDefaultEstimate, formatColdStartContext, formatTaskRecap, fmtSec, } from '../stats.js';
 /** Output hook response with optional additionalContext */
 function respond(additionalContext) {
@@ -77,8 +77,8 @@ async function main() {
                     model: existing.model,
                     cumulativeWorkItemSeconds: existing.cumulative_work_item_seconds ?? 0,
                 });
-            const legacy = toTaskEstimate(refined, existing.prompt_complexity);
-            contextParts.push(formatStatsContext(stats, legacy));
+            const legacy = toRemainingTaskEstimate(refined, existing.prompt_complexity);
+            contextParts.push(formatStatsContext(stats, legacy, 'Current remaining estimate'));
             if (features.phase !== 'explore') {
                 contextParts.push(`[claude-eta] Phase: ${features.phase}, elapsed ${fmtSec(elapsed)}, remaining ~${fmtSec(refined.remaining_p50)}–${fmtSec(refined.remaining_p80)}`);
             }
@@ -154,16 +154,20 @@ async function main() {
         cumulative_work_item_seconds: cumulativeSeconds,
     };
     // Cache ETA snapshot before startTurn so it's persisted in a single write
-    let initialEta = null;
-    if (stats) {
-        initialEta = estimateInitial(stats, classification, complexity, { model });
-        state.cached_eta = {
-            p50_wall: Math.max(0, initialEta.p50_wall - cumulativeSeconds),
-            p80_wall: Math.max(1, initialEta.p80_wall - cumulativeSeconds),
-            basis: initialEta.basis,
-            calibration: initialEta.calibration,
-        };
-    }
+    const initialEta = estimateInitial(stats, classification, complexity, { model });
+    const remainingP50 = Math.max(0, initialEta.p50_wall - cumulativeSeconds);
+    const remainingP80 = Math.max(1, initialEta.p80_wall - cumulativeSeconds);
+    state.cached_eta = {
+        p50_wall: remainingP50,
+        p80_wall: remainingP80,
+        basis: initialEta.basis,
+        calibration: initialEta.calibration,
+    };
+    const displayEta = {
+        ...initialEta,
+        remaining_p50: remainingP50,
+        remaining_p80: remainingP80,
+    };
     startTurn(state);
     // ── Build context injection ────────────────────────────────
     const contextParts = [];
@@ -178,14 +182,20 @@ async function main() {
             }
         }
     }
-    if (initialEta && stats) {
-        const estimate = toTaskEstimate(initialEta, complexity);
-        contextParts.push(formatStatsContext(stats, estimate));
+    if (stats) {
+        const isOngoingWorkItem = transition === 'same_work_item' || cumulativeSeconds > 0;
+        const estimate = isOngoingWorkItem
+            ? toRemainingTaskEstimate(displayEta, complexity)
+            : toTaskEstimate(displayEta, complexity);
+        contextParts.push(formatStatsContext(stats, estimate, isOngoingWorkItem ? 'Current remaining estimate' : 'Current task estimate'));
     }
     else {
         const completedCount = turns.length;
-        const estimate = getDefaultEstimate(classification, complexity);
-        contextParts.push(formatColdStartContext(estimate, completedCount));
+        const isOngoingWorkItem = transition === 'same_work_item' || cumulativeSeconds > 0;
+        const estimate = isOngoingWorkItem
+            ? toRemainingTaskEstimate(displayEta, complexity)
+            : getDefaultEstimate(classification, complexity);
+        contextParts.push(formatColdStartContext(estimate, completedCount, isOngoingWorkItem ? 'Current remaining estimate' : 'Current task estimate'));
     }
     // Auto-ETA evaluation (only when calibrated)
     if (stats) {

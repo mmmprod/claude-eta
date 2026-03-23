@@ -331,4 +331,67 @@ describe('Stop hook integration', () => {
     assert.equal(bugfixAcc.interval80_total, 1, 'should have 1 total observation');
     assert.equal(bugfixAcc.interval80_hits, 1, 'fast finish (below p50) should be a HIT, not a miss');
   });
+
+  it('records accuracy against work_item_id for multi-turn work items', () => {
+    const fp = getTestFp();
+    const turnId = 'turn-2';
+    const workItemId = 'wi-1';
+
+    seedActiveTurn(fp, SESSION_ID, 'main', {
+      turn_id: turnId,
+      work_item_id: workItemId,
+      classification: 'bugfix',
+      started_at: new Date(Date.now() - 5000).toISOString(),
+      started_at_ms: Date.now() - 5000,
+    });
+
+    const metaDir = path.join(TEST_DATA_DIR, 'projects', fp);
+    fs.mkdirSync(metaDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(metaDir, 'meta.json'),
+      JSON.stringify({
+        project_fp: fp,
+        display_name: 'test-stop-hook-project',
+        cwd_realpath: TEST_CWD,
+        created: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        legacy_slug: null,
+        file_count: null,
+        file_count_bucket: null,
+        loc_bucket: null,
+        repo_metrics_updated_at: null,
+        eta_accuracy: null,
+      }),
+    );
+
+    const cacheDir = path.join(TEST_DATA_DIR, 'projects', fp, 'cache');
+    fs.mkdirSync(cacheDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(cacheDir, `ephemeral-${SESSION_ID}.json`),
+      JSON.stringify({
+        last_eta: {
+          low: 60,
+          high: 120,
+          classification: 'bugfix',
+          task_id: workItemId,
+          timestamp: new Date().toISOString(),
+        },
+        last_completed: null,
+        updated_at: new Date().toISOString(),
+      }),
+    );
+
+    runStopHook({
+      last_assistant_message: 'Fixed the multi-turn bug.',
+      stop_hook_active: false,
+      session_id: SESSION_ID,
+      cwd: TEST_CWD,
+    });
+
+    const meta = JSON.parse(fs.readFileSync(path.join(metaDir, 'meta.json'), 'utf-8'));
+    const bugfixAcc = meta.eta_accuracy.by_classification?.bugfix;
+    assert.ok(bugfixAcc, 'bugfix accuracy entry should exist');
+    assert.equal(bugfixAcc.interval80_total, 1, 'multi-turn work items should count toward accuracy');
+    assert.equal(bugfixAcc.interval80_hits, 1, 'the multi-turn observation should be recorded as a hit');
+  });
 });

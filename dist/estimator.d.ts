@@ -50,6 +50,8 @@ export declare function estimateWithTrace(initial: EtaEstimate, elapsedSeconds: 
     model?: string | null;
     cumulativeWorkItemSeconds?: number;
 }): EtaEstimate;
-/** Convert EtaEstimate to the legacy TaskEstimate shape for existing consumers */
+/** Convert EtaEstimate to the legacy TaskEstimate shape using total wall-clock ranges. */
 export declare function toTaskEstimate(est: EtaEstimate, complexity: number): import('./stats.js').TaskEstimate;
+/** Convert EtaEstimate to the legacy TaskEstimate shape using remaining ranges. */
+export declare function toRemainingTaskEstimate(est: EtaEstimate, complexity: number): import('./stats.js').TaskEstimate;
 //# sourceMappingURL=estimator.d.ts.map
