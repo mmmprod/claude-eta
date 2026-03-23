@@ -35,7 +35,7 @@ jobs:
         run: npm run build
 
       - name: Test
-        run: npm test
+        run: npm run test:local:run
 
       - name: Format check
         run: npm run format:check
@@ -57,7 +57,7 @@ jobs:
         run: npm run build
 
       - name: Supabase schema validation
-        run: npm run test:integration
+        run: npm run test:remote:run
 
   perf:
     runs-on: ubuntu-latest
