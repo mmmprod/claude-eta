@@ -101,9 +101,35 @@ describe('/eta session first-run view', () => {
       env: { ...process.env, CLAUDE_PLUGIN_DATA: TEST_DATA_DIR },
     });
 
-    assert.ok(output.includes('## Session Stats (0 tasks completed)'), output);
-    assert.ok(output.includes('**Active task**: "fix auth redirect bug" (bugfix)'), output);
+    assert.ok(output.includes('Session Stats (0 tasks)'), output);
+    assert.ok(output.includes('Active task: "fix auth redirect bug" (bugfix)'), output);
     assert.ok(output.includes('Phase: edit | Elapsed: 1m 40s | Remaining: ~20s-1m 20s'), output);
     assert.ok(output.includes('Privacy mode:'), output);
+  });
+
+  it('emits ANSI colors when FORCE_COLOR=1 is set', () => {
+    seedActiveTurn();
+    const env = { ...process.env, CLAUDE_PLUGIN_DATA: TEST_DATA_DIR, FORCE_COLOR: '1' };
+    delete env.NO_COLOR;
+
+    const output = execFileSync('node', ['dist/cli/eta.js', 'session', TEST_CWD], {
+      encoding: 'utf8',
+      timeout: 5000,
+      env,
+    });
+
+    assert.match(output, /\x1b\[[0-9;]*m/);
+  });
+
+  it('suppresses ANSI colors when NO_COLOR=1 is set even if FORCE_COLOR=1', () => {
+    seedActiveTurn();
+
+    const output = execFileSync('node', ['dist/cli/eta.js', 'session', TEST_CWD], {
+      encoding: 'utf8',
+      timeout: 5000,
+      env: { ...process.env, CLAUDE_PLUGIN_DATA: TEST_DATA_DIR, FORCE_COLOR: '1', NO_COLOR: '1' },
+    });
+
+    assert.doesNotMatch(output, /\x1b\[[0-9;]*m/);
   });
 });

@@ -256,7 +256,7 @@ async function main(): Promise<void> {
       prefs.auto_eta = false;
       prefs.updated_at = new Date().toISOString();
       savePreferencesV2(prefs);
-      contextParts.push('[claude-eta] Auto-ETA disabled. Re-enable anytime with /claude-eta:eta auto on.');
+      contextParts.push('[claude-eta] Auto-ETA disabled. Re-enable anytime with /eta auto on.');
     } else {
       // Use hoisted project meta for the auto-eta accuracy gate
       const rawAccuracy = projectMeta?.eta_accuracy?.by_classification ?? {};

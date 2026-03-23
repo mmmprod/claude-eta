@@ -13,7 +13,7 @@ import { getRepoMetrics } from '../repo-metrics.js';
 import { upsertProjectMeta } from '../project-meta.js';
 import { loadPreferencesV2, savePreferencesV2 } from '../preferences.js';
 import { refreshBaselinesCache } from '../baselines-cache.js';
-const COMMUNITY_ONBOARDING_NOTE = 'Privacy: local-only by default. If community features matter later, choose `/claude-eta:eta community off` to stay private or `/claude-eta:eta community on` to allow manual anonymized uploads. `/claude-eta:eta compare` is read-only.';
+const COMMUNITY_ONBOARDING_NOTE = 'Privacy: local-only by default. If community features matter later, choose `/eta community off` to stay private or `/eta community on` to allow manual anonymized uploads. `/eta compare` is read-only.';
 function consumeCommunityOnboardingNote() {
     const prefs = loadPreferencesV2();
     if (prefs.community_onboarding_seen)
@@ -98,7 +98,7 @@ async function main() {
     }
     if (completed >= CALIBRATION_THRESHOLD && completed <= CALIBRATION_THRESHOLD + 2) {
         context +=
-            '\nTip: run `/claude-eta:eta compare` to see how your pace compares to the community, or `/claude-eta:eta help` for all commands.';
+            '\nTip: run `/eta compare` to see how your pace compares to the community, or `/eta help` for all commands.';
     }
     process.stdout.write(context);
 }

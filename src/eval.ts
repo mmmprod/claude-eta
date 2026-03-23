@@ -4,6 +4,7 @@
  * so each estimate only sees history that would have existed at prediction time.
  */
 import { normalizeModel } from './anonymize.js';
+import { c } from './cli/colors.js';
 import { estimateInitial, estimateWithTrace } from './estimator.js';
 import { computeStats } from './stats.js';
 import type { AnalyticsTask, TaskClassification } from './types.js';
@@ -265,6 +266,13 @@ function fmtMetric(metrics: EvalMetrics): string {
   return `${metrics.mdape_pct.toFixed(1)}% / ${metrics.p80_coverage_pct.toFixed(1)}%`;
 }
 
+function coverageColor(pct: number | null): (text: string) => string {
+  if (pct == null) return (text: string) => text;
+  if (pct >= 70) return c.green;
+  if (pct >= 50) return c.yellow;
+  return c.red;
+}
+
 function fmtOverallMetrics(metrics: EvalMetrics): [string, string, string] {
   return [
     String(metrics.sample_count),
@@ -281,15 +289,15 @@ function renderBreakdown(title: string, rows: EvalBreakdownRow[]): string[] {
   if (rows.length === 0) return [];
 
   return [
-    `### ${title}`,
+    c.bold(title),
     '',
     'Cell format: `MdAPE / P80 coverage`',
     '',
-    '| Bucket                     | N   | Prompt           | First edit       | First bash       |',
-    '|----------------------------|-----|------------------|------------------|------------------|',
+    c.dim('| Bucket                     | N   | Prompt           | First edit       | First bash       |'),
+    c.dim('|----------------------------|-----|------------------|------------------|------------------|'),
     ...rows.map(
       (row) =>
-        `| ${pad(row.key, 26)} | ${pad(String(row.sample_count), 3)} | ${pad(fmtMetric(row.prompt), 16)} | ${pad(fmtMetric(row.first_edit), 16)} | ${pad(fmtMetric(row.first_bash), 16)} |`,
+        `| ${c.bold(pad(row.key, 26))} | ${c.dim(pad(String(row.sample_count), 3))} | ${coverageColor(row.prompt.p80_coverage_pct)(pad(fmtMetric(row.prompt), 16))} | ${coverageColor(row.first_edit.p80_coverage_pct)(pad(fmtMetric(row.first_edit), 16))} | ${coverageColor(row.first_bash.p80_coverage_pct)(pad(fmtMetric(row.first_bash), 16))} |`,
     ),
     '',
   ];
@@ -301,18 +309,20 @@ export function formatEvaluationReport(report: EvalReport): string {
   }
 
   const lines = [
-    '## Predictor Evaluation',
+    c.bold('Predictor Evaluation'),
     '',
-    `Walk-forward replay over ${report.total_tasks} completed main work items.`,
+    `Walk-forward replay over ${c.cyan(String(report.total_tasks))} completed main work items.`,
     'Metrics start once project calibration exists (after the first 5 completed work items).',
     '',
-    '| Stage       | Samples | MdAPE | P80 coverage |',
-    '|-------------|---------|-------|--------------|',
+    c.dim('| Stage       | Samples | MdAPE | P80 coverage |'),
+    c.dim('|-------------|---------|-------|--------------|'),
   ];
 
   for (const stage of ['prompt', 'first_edit', 'first_bash'] as EvalStage[]) {
     const [samples, mdape, coverage] = fmtOverallMetrics(report.overall[stage]);
-    lines.push(`| ${pad(stage, 11)} | ${pad(samples, 7)} | ${pad(mdape, 5)} | ${pad(coverage, 12)} |`);
+    lines.push(
+      `| ${c.bold(pad(stage, 11))} | ${c.dim(pad(samples, 7))} | ${c.cyan(pad(mdape, 5))} | ${coverageColor(report.overall[stage].p80_coverage_pct)(pad(coverage, 12))} |`,
+    );
   }
 
   lines.push('');
