@@ -440,7 +440,8 @@ async function main(): Promise<void> {
   // The slash-command runner always appends "$(pwd)" as the last arg.
   // When `/eta` has no explicit subcommand, that cwd becomes the only arg.
   const mode = !firstArg || !KNOWN_MODES.has(firstArg) ? 'session' : firstArg;
-  const cwd = !firstArg || !KNOWN_MODES.has(firstArg) ? (firstArg ?? process.cwd()) : (process.argv.at(-1) ?? process.cwd());
+  const cwd =
+    !firstArg || !KNOWN_MODES.has(firstArg) ? (firstArg ?? process.cwd()) : (process.argv.at(-1) ?? process.cwd());
   const confirm = process.argv.includes('--confirm');
   const pluginVersion = getPluginVersion();
   const prefs = loadPreferencesV2();
