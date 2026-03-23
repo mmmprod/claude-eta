@@ -20,6 +20,7 @@ export function refineEtaOnTransition(state, cwd, newPhase, now) {
                 stats,
                 classification: state.classification,
                 model: state.model,
+                cumulativeWorkItemSeconds: state.cumulative_work_item_seconds ?? 0,
             });
             state.refined_eta = { p50: refined.remaining_p50, p80: refined.remaining_p80 };
         }

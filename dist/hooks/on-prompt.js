@@ -75,6 +75,7 @@ async function main() {
                     stats,
                     classification: existing.classification,
                     model: existing.model,
+                    cumulativeWorkItemSeconds: existing.cumulative_work_item_seconds ?? 0,
                 });
             const legacy = toTaskEstimate(refined, existing.prompt_complexity);
             contextParts.push(formatStatsContext(stats, legacy));
