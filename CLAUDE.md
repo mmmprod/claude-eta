@@ -30,8 +30,8 @@ Always build before testing — tests import from `dist/`.
 4. **PostToolUseFailure** (`on-tool-failure.ts`) — Same as PostToolUse but always increments errors + bash_failures
 5. **Stop** (`on-stop.ts`) — Bullshit detector (classification-specific baseline), closes turn. `stop_blocked` status prevents infinite loop.
 6. **StopFailure** (`on-stop-failure.ts`) — Closes turn with `stop_reason='stop_failure'`
-7. **SubagentStart** (`on-subagent-start.ts`) — Creates a subagent turn (stub, Phase 8)
-8. **SubagentStop** (`on-subagent-stop.ts`) — Closes a subagent turn (stub, Phase 8)
+7. **SubagentStart** (`on-subagent-start.ts`) — Creates a subagent turn via event-store
+8. **SubagentStop** (`on-subagent-stop.ts`) — Closes a subagent turn via event-store
 9. **SessionEnd** (`on-session-end.ts`) — Closes all active turns for the session
 
 Data flow: counters accumulate in `active/<session_id>__<agent_key>.json` (tiny file, fast I/O) during the turn, then get appended to `completed/<session_id>__<agent_key>.jsonl` at Stop. Each (session, agent) pair has its own files — no global `_active.json`.
