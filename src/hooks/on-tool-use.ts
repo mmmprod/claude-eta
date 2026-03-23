@@ -55,13 +55,15 @@ async function main(): Promise<void> {
       state.files_edited += 1;
       fileOp = 'edit';
       if (state.first_edit_at_ms === null) state.first_edit_at_ms = now;
-      if (state.first_bash_failure_at_ms !== null) state.files_edited_after_first_failure = (state.files_edited_after_first_failure ?? 0) + 1;
+      if (state.first_bash_failure_at_ms !== null)
+        state.files_edited_after_first_failure = (state.files_edited_after_first_failure ?? 0) + 1;
       break;
     case 'Write':
       state.files_created += 1;
       fileOp = 'create';
       if (state.first_edit_at_ms === null) state.first_edit_at_ms = now;
-      if (state.first_bash_failure_at_ms !== null) state.files_edited_after_first_failure = (state.files_edited_after_first_failure ?? 0) + 1;
+      if (state.first_bash_failure_at_ms !== null)
+        state.files_edited_after_first_failure = (state.files_edited_after_first_failure ?? 0) + 1;
       break;
   }
 

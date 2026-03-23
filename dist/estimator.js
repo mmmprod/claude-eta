@@ -76,7 +76,11 @@ export function estimateWithTrace(initial, elapsedSeconds, phase, context) {
     let remainP50 = Math.max(0, Math.round(baselineP50 * phaseMultipliers[phase]));
     let remainP80 = Math.max(remainP50 + (remainP50 === 0 ? 0 : 1), Math.round(baselineP80 * phaseMultipliers[phase]));
     let basis = initial.basis;
-    const phaseBucket = phase === 'validate' || phase === 'validate_failed' ? 'validate' : phase === 'edit' || phase === 'repair_loop' ? 'edit' : null;
+    const phaseBucket = phase === 'validate' || phase === 'validate_failed'
+        ? 'validate'
+        : phase === 'edit' || phase === 'repair_loop'
+            ? 'edit'
+            : null;
     const stats = context?.stats ?? null;
     const classification = context?.classification;
     const normalizedModel = context?.model ? normalizeModel(context.model) : null;
