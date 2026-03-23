@@ -259,13 +259,15 @@ async function main(): Promise<void> {
 
   // Auto-ETA evaluation (only when calibrated)
   if (stats) {
+    const isOngoing = transition === 'same_work_item' || cumulativeSeconds > 0;
+
     if (isDisableRequest) {
       prefs.auto_eta = false;
       prefs.auto_eta_explicitly_set = true;
       prefs.updated_at = new Date().toISOString();
       savePreferencesV2(prefs);
       contextParts.push('[claude-eta] Auto-ETA disabled. Re-enable anytime with /eta auto on.');
-    } else {
+    } else if (!isOngoing) {
       // Use hoisted project meta for the auto-eta accuracy gate
       const rawAccuracy = projectMeta?.eta_accuracy?.by_classification ?? {};
       const etaAccuracy: Record<string, { hits: number; misses: number }> = {};

@@ -96,6 +96,74 @@ describe('supabase', () => {
       assert.equal('record_unit' in bodies[1][0], false);
       assert.equal(bodies[1][0].source_turn_count, 1);
     });
+
+    it('retries without source_turn_count and record_unit when the server schema is older', async () => {
+      const bodies = [];
+      global.fetch = async (_url, options) => {
+        bodies.push(JSON.parse(options.body));
+        if (bodies.length === 1) {
+          return new Response(
+            JSON.stringify({
+              code: 'PGRST204',
+              message: "Could not find the 'source_turn_count' column of 'velocity_records' in the schema cache",
+            }),
+            { status: 400, headers: { 'Content-Type': 'application/json' } },
+          );
+        }
+
+        return new Response('', { status: 201 });
+      };
+
+      const result = await insertVelocityRecords([
+        {
+          task_type: 'other',
+          duration_seconds: 30,
+          source_turn_count: 1,
+          record_unit: 'work_item',
+          dedup_key: 'abc123',
+        },
+      ]);
+
+      assert.equal(result.error, null);
+      assert.equal(bodies.length, 2);
+      assert.equal('source_turn_count' in bodies[1][0], false);
+      assert.equal('record_unit' in bodies[1][0], false);
+      assert.equal(bodies[1][0].dedup_key, 'abc123');
+    });
+
+    it('retries without dedup_key, source_turn_count, and record_unit when the server schema is older', async () => {
+      const bodies = [];
+      global.fetch = async (_url, options) => {
+        bodies.push(JSON.parse(options.body));
+        if (bodies.length === 1) {
+          return new Response(
+            JSON.stringify({
+              code: 'PGRST204',
+              message: "Could not find the 'dedup_key' column of 'velocity_records' in the schema cache",
+            }),
+            { status: 400, headers: { 'Content-Type': 'application/json' } },
+          );
+        }
+
+        return new Response('', { status: 201 });
+      };
+
+      const result = await insertVelocityRecords([
+        {
+          task_type: 'other',
+          duration_seconds: 30,
+          source_turn_count: 1,
+          record_unit: 'work_item',
+          dedup_key: 'abc123',
+        },
+      ]);
+
+      assert.equal(result.error, null);
+      assert.equal(bodies.length, 2);
+      assert.equal('dedup_key' in bodies[1][0], false);
+      assert.equal('source_turn_count' in bodies[1][0], false);
+      assert.equal('record_unit' in bodies[1][0], false);
+    });
   });
 
   describe('fetchBaselines', () => {

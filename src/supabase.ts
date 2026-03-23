@@ -67,6 +67,18 @@ export async function insertVelocityRecords(records: object[]): Promise<Supabase
       result = await postVelocityRecords(stripField(records, 'record_unit'));
     }
 
+    // Backward-compat for servers that have not yet applied the source_turn_count migration.
+    if (!result.ok && isMissingColumnError(result.body, 'source_turn_count')) {
+      const stripped = stripField(stripField(records, 'source_turn_count'), 'record_unit');
+      result = await postVelocityRecords(stripped);
+    }
+
+    // Backward-compat for servers that have not yet applied the dedup_key migration.
+    if (!result.ok && isMissingColumnError(result.body, 'dedup_key')) {
+      const stripped = stripField(stripField(stripField(records, 'dedup_key'), 'source_turn_count'), 'record_unit');
+      result = await postVelocityRecords(stripped);
+    }
+
     if (!result.ok) {
       return { data: null, error: `${result.status}: ${result.body}` };
     }
