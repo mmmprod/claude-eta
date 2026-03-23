@@ -123,19 +123,31 @@ describe('updateEtaAccuracy', () => {
 });
 
 describe('isEtaIntervalHit', () => {
-  it('returns true when the actual duration is inside the interval', async () => {
+  it('returns true when actual is inside [low, high]', async () => {
     const { isEtaIntervalHit } = await loadEtaAccuracyModule();
     assert.equal(isEtaIntervalHit(90, { low: 60, high: 120 }), true);
   });
 
-  it('returns false when the actual duration is below the lower bound', async () => {
+  it('returns true when actual is below low (still under p80 upper bound)', async () => {
     const { isEtaIntervalHit } = await loadEtaAccuracyModule();
-    assert.equal(isEtaIntervalHit(5, { low: 60, high: 120 }), false);
+    // p80 upper-bound semantics: 5 <= 120 → hit
+    assert.equal(isEtaIntervalHit(5, { low: 60, high: 120 }), true);
   });
 
-  it('returns false when the actual duration is above the upper bound', async () => {
+  it('returns false when actual exceeds the upper bound', async () => {
     const { isEtaIntervalHit } = await loadEtaAccuracyModule();
     assert.equal(isEtaIntervalHit(180, { low: 60, high: 120 }), false);
+  });
+
+  it('returns true at exact upper bound', async () => {
+    const { isEtaIntervalHit } = await loadEtaAccuracyModule();
+    assert.equal(isEtaIntervalHit(120, { low: 60, high: 120 }), true);
+  });
+
+  it('handles swapped low/high gracefully', async () => {
+    const { isEtaIntervalHit } = await loadEtaAccuracyModule();
+    // high = max(200, 100) = 200, actual 150 <= 200 → true
+    assert.equal(isEtaIntervalHit(150, { low: 200, high: 100 }), true);
   });
 });
 
