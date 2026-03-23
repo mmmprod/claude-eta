@@ -1,0 +1,76 @@
+name: Refresh ETA demo
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'scripts/eta-demo-script.sh'
+      - 'scripts/build-eta-gif.sh'
+      - '.github/workflows/eta-demo.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/eta-demo-script.sh'
+      - 'scripts/build-eta-gif.sh'
+      - '.github/workflows/eta-demo.yml'
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  verify:
+    if: ${{ github.event_name == 'pull_request' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.x'
+
+      - name: Install asciinema
+        run: python3 -m pip install --user asciinema
+
+      - name: Add user bin to PATH
+        run: echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Rebuild ETA demo assets
+        run: ./scripts/build-eta-gif.sh
+
+      - name: Fail if generated assets are out of date
+        run: git diff --exit-code -- docs/eta-demo.cast docs/eta-demo.gif docs/eta-demo.mp4
+
+  refresh:
+    if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.x'
+
+      - name: Install asciinema
+        run: python3 -m pip install --user asciinema
+
+      - name: Add user bin to PATH
+        run: echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Rebuild ETA demo assets
+        run: ./scripts/build-eta-gif.sh
+
+      - name: Commit regenerated assets
+        run: |
+          if git diff --quiet -- docs/eta-demo.cast docs/eta-demo.gif docs/eta-demo.mp4; then
+            echo "ETA demo assets already up to date"
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/eta-demo.cast docs/eta-demo.gif docs/eta-demo.mp4
+          git commit -m "docs: refresh ETA demo assets"
+          git push

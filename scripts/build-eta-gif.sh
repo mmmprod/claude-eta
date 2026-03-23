@@ -2,12 +2,65 @@
 
 # Record and convert the ETA demo to GIF
 #
-# Prerequisites: asciinema, agg (https://github.com/asciinema/agg)
+# Prerequisites: asciinema, ffmpeg (optional for MP4)
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+TOOLS_DIR="$REPO_ROOT/.tools"
+AGG_VERSION="${AGG_VERSION:-v1.7.0}"
+
+require_command() {
+  local name="$1"
+  if ! command -v "$name" >/dev/null 2>&1; then
+    echo "Missing required command: $name" >&2
+    exit 1
+  fi
+}
+
+resolve_agg_asset() {
+  local os arch
+  os="$(uname -s)"
+  arch="$(uname -m)"
+
+  case "$os/$arch" in
+    Linux/x86_64) echo "agg-x86_64-unknown-linux-gnu" ;;
+    Linux/aarch64|Linux/arm64) echo "agg-aarch64-unknown-linux-gnu" ;;
+    Darwin/x86_64) echo "agg-x86_64-apple-darwin" ;;
+    Darwin/arm64) echo "agg-aarch64-apple-darwin" ;;
+    *)
+      echo "Unsupported platform for auto-downloaded agg: $os/$arch" >&2
+      exit 1
+      ;;
+  esac
+}
+
+ensure_agg() {
+  if command -v agg >/dev/null 2>&1; then
+    command -v agg
+    return 0
+  fi
+
+  require_command curl
+  mkdir -p "$TOOLS_DIR"
+
+  local asset url target
+  asset="$(resolve_agg_asset)"
+  target="$TOOLS_DIR/${asset}-${AGG_VERSION}"
+
+  if [ ! -x "$target" ]; then
+    url="https://github.com/asciinema/agg/releases/download/${AGG_VERSION}/${asset}"
+    echo "Downloading agg ${AGG_VERSION} (${asset})..." >&2
+    curl -fsSL "$url" -o "$target"
+    chmod +x "$target"
+  fi
+
+  echo "$target"
+}
+
+require_command asciinema
+AGG_BIN="$(ensure_agg)"
 
 echo "Recording..."
 asciinema rec "$REPO_ROOT/docs/eta-demo.cast" \
@@ -17,7 +70,7 @@ asciinema rec "$REPO_ROOT/docs/eta-demo.cast" \
   --overwrite
 
 echo "Converting to GIF..."
-agg "$REPO_ROOT/docs/eta-demo.cast" \
+"$AGG_BIN" "$REPO_ROOT/docs/eta-demo.cast" \
   "$REPO_ROOT/docs/eta-demo.gif" \
   --cols 80 \
   --rows 24 \
