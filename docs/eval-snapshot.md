@@ -27,6 +27,7 @@ npm run build
 node dist/cli/eta.js eval "$(pwd)"
 ```
 
-Results depend on local per-project completed task history under `${CLAUDE_PLUGIN_DATA}/projects/`.
+Results depend on local per-project completed task history under the data directory resolved by `src/paths.ts`:
+`${CLAUDE_PLUGIN_DATA}/projects/` when `CLAUDE_PLUGIN_DATA` is set, otherwise the auto-detected runtime path under `~/.claude/plugins/data/claude-eta*/projects/`, with `~/.claude/plugins/claude-eta/projects/` as the local-dev fallback.
 
 These numbers come from the author's development history on this repository.
