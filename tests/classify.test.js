@@ -182,7 +182,10 @@ describe('decidePromptTransition', () => {
   });
 
   it('same classification with additive marker + shared topic stays same_work_item via similarity', () => {
-    const existing = makeActiveTurn({ classification: 'bugfix', prompt_summary: 'couvrir aussi session_id manque dans Stop' });
+    const existing = makeActiveTurn({
+      classification: 'bugfix',
+      prompt_summary: 'couvrir aussi session_id manque dans Stop',
+    });
     assert.equal(
       decidePromptTransition('tu peux aussi couvrir le cas où session_id manque dans Stop ?', 'bugfix', existing),
       'same_work_item',
@@ -203,7 +206,10 @@ describe('decidePromptTransition', () => {
   });
 
   it('follow-up with SQL migration and shared topic stays same work item', () => {
-    const existing = makeActiveTurn({ classification: 'bugfix', prompt_summary: 'fais migration correspondante pour schema' });
+    const existing = makeActiveTurn({
+      classification: 'bugfix',
+      prompt_summary: 'fais migration correspondante pour schema',
+    });
     assert.equal(
       decidePromptTransition('ensuite fais la migration SQL correspondante pour ce fix', 'bugfix', existing),
       'same_work_item',
@@ -275,7 +281,10 @@ describe('decidePromptTransition — similarity fallback', () => {
   });
 
   it('ensuite + pour ce fix + shared topic → same_work_item', () => {
-    const existing = makeActiveTurn({ classification: 'bugfix', prompt_summary: 'fix migration SQL schema correspondante' });
+    const existing = makeActiveTurn({
+      classification: 'bugfix',
+      prompt_summary: 'fix migration SQL schema correspondante',
+    });
     const prompt = 'ensuite fais la migration SQL correspondante pour ce fix';
     assert.equal(decidePromptTransition(prompt, classifyPrompt(prompt), existing), 'same_work_item');
   });
@@ -298,7 +307,10 @@ describe('decidePromptTransition — similarity fallback', () => {
 
 describe('decidePromptTransition — weak vs strong patterns', () => {
   it('weak additive marker + different classification → new_work_item (cross-classification fusion bug)', () => {
-    const existing = makeActiveTurn({ classification: 'bugfix', prompt_summary: 'fix login redirect bug in auth middleware' });
+    const existing = makeActiveTurn({
+      classification: 'bugfix',
+      prompt_summary: 'fix login redirect bug in auth middleware',
+    });
     const prompt = 'ajoute aussi un endpoint analytics admin dashboard';
     // "ajoute aussi" is a weak pattern, classification changes bugfix→feature → falls through to similarity
     // cls mismatch (0) + additive (0.2) + no word overlap (0) = 0.2 < 0.5 → new_work_item
@@ -344,12 +356,7 @@ describe('computeSimilarityScore — updated weights', () => {
   });
 
   it('cls + additive without overlap = 0.35, below threshold', () => {
-    const score = computeSimilarityScore(
-      'gère aussi les erreurs réseau',
-      'bugfix',
-      'bugfix',
-      'fix auth validation',
-    );
+    const score = computeSimilarityScore('gère aussi les erreurs réseau', 'bugfix', 'bugfix', 'fix auth validation');
     // cls (0.15) + additive (0.2) + no overlap = 0.35 < 0.5
     assert.ok(score < 0.5, `expected < 0.5 but got ${score}`);
   });
