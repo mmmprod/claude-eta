@@ -1,5 +1,6 @@
 export interface UserPreferencesV2 {
     auto_eta: boolean;
+    auto_eta_explicitly_set: boolean;
     community_sharing: boolean;
     community_onboarding_seen: boolean;
     community_choice_made: boolean;

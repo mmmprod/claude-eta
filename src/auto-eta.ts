@@ -11,6 +11,7 @@ export const HIGH_VOL_INTERVAL_MULT = 1.5;
 export const HIGH_VOL_CONFIDENCE_PENALTY = 15;
 export const MAX_INTERVAL_RATIO = 5;
 export const COOLDOWN_INTERVAL = 5;
+export const AUTO_ACTIVATE_THRESHOLD = 10;
 export const ACCURACY_MIN_PREDICTIONS = 10;
 export const ACCURACY_MIN_RATE = 0.5;
 
@@ -38,8 +39,23 @@ export function checkDisableRequest(prompt: string): boolean {
 /** Minimal prefs shape needed by auto-eta — compatible with both v1 and v2 */
 export interface AutoEtaPrefs {
   auto_eta: boolean;
+  auto_eta_explicitly_set?: boolean;
   prompts_since_last_eta: number;
   last_eta_task_id?: string | null | undefined;
+}
+
+/** Check if auto-ETA should activate dynamically for this classification. Pure function. */
+export function shouldAutoActivate(
+  prefs: AutoEtaPrefs,
+  stats: ProjectStats,
+  classification: TaskClassification,
+): boolean {
+  if (prefs.auto_eta_explicitly_set) return false;
+  if (classification === 'other') return false;
+  const clsStats = stats.byClassification.find((s) => s.classification === classification);
+  if (!clsStats || clsStats.count < AUTO_ACTIVATE_THRESHOLD) return false;
+  if (clsStats.volatility === 'high') return false;
+  return true;
 }
 
 /** Evaluate whether to inject an auto-ETA. Pure function — no I/O. */

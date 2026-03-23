@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
-import { checkDisableRequest, evaluateAutoEta, MIN_TYPE_TASKS, COOLDOWN_INTERVAL } from '../dist/auto-eta.js';
+import { checkDisableRequest, evaluateAutoEta, shouldAutoActivate, AUTO_ACTIVATE_THRESHOLD, MIN_TYPE_TASKS, COOLDOWN_INTERVAL } from '../dist/auto-eta.js';
 import { fmtSec } from '../dist/stats.js';
 import { loadProject, saveProject, setLastEta, consumeLastEta } from '../dist/store.js';
 
@@ -335,5 +335,48 @@ describe('calibration-based confidence', () => {
     assert.ok(match, 'injection should contain a percentage');
     const pct = parseInt(match[1], 10);
     assert.ok(pct > 0 && pct <= 80, `expected confidence between 1 and 80, got ${pct}`);
+  });
+});
+
+// -- shouldAutoActivate (tests 17-22) --
+
+describe('shouldAutoActivate', () => {
+  const prefs = { auto_eta: false, prompts_since_last_eta: 0 };
+
+  it('returns false when count < AUTO_ACTIVATE_THRESHOLD', () => {
+    const stats = makeStats('bugfix', AUTO_ACTIVATE_THRESHOLD - 1, 'low');
+    assert.equal(shouldAutoActivate(prefs, stats, 'bugfix'), false);
+  });
+
+  it('returns true when count >= threshold and volatility is low', () => {
+    const stats = makeStats('bugfix', AUTO_ACTIVATE_THRESHOLD, 'low');
+    assert.equal(shouldAutoActivate(prefs, stats, 'bugfix'), true);
+  });
+
+  it('returns true when volatility is medium', () => {
+    const stats = makeStats('bugfix', AUTO_ACTIVATE_THRESHOLD, 'medium');
+    assert.equal(shouldAutoActivate(prefs, stats, 'bugfix'), true);
+  });
+
+  it('returns false when volatility is high', () => {
+    const stats = makeStats('bugfix', AUTO_ACTIVATE_THRESHOLD, 'high');
+    assert.equal(shouldAutoActivate(prefs, stats, 'bugfix'), false);
+  });
+
+  it('returns false when auto_eta_explicitly_set is true', () => {
+    const explicitPrefs = { auto_eta: false, auto_eta_explicitly_set: true, prompts_since_last_eta: 0 };
+    const stats = makeStats('bugfix', AUTO_ACTIVATE_THRESHOLD, 'low');
+    assert.equal(shouldAutoActivate(explicitPrefs, stats, 'bugfix'), false);
+  });
+
+  it('returns false for classification "other"', () => {
+    const stats = makeStats('other', AUTO_ACTIVATE_THRESHOLD, 'low');
+    assert.equal(shouldAutoActivate(prefs, stats, 'other'), false);
+  });
+
+  it('treats missing auto_eta_explicitly_set as false (allows activation)', () => {
+    const legacyPrefs = { auto_eta: false, prompts_since_last_eta: 0 };
+    const stats = makeStats('feature', AUTO_ACTIVATE_THRESHOLD, 'low');
+    assert.equal(shouldAutoActivate(legacyPrefs, stats, 'feature'), true);
   });
 });

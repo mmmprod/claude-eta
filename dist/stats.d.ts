@@ -46,6 +46,8 @@ export interface TaskEstimate {
 }
 /** Minimum completed tasks before real stats kick in */
 export declare const CALIBRATION_THRESHOLD = 5;
+/** Injected when auto-ETA is active — prescriptive, no "do not volunteer" (would contradict auto-injection) */
+export declare const PRESCRIPTIVE_ETA_GUIDANCE = "RULES FOR TIME ESTIMATES: Use ONLY the data above. Never guess durations. Format: \"[type] tasks take [p25]-[p75] (median [median], [N] measured).\"";
 /**
  * Hand-tuned initial priors for cold-start estimation.
  * These are rough order-of-magnitude values based on typical Claude Code tasks.
@@ -70,10 +72,13 @@ export declare function getDefaultEstimate(classification: TaskClassification, c
 }): TaskEstimate;
 export declare function fmtSec(seconds: number): string;
 /** Format stats as a concise context string for Claude injection */
-export declare function formatStatsContext(stats: ProjectStats, estimate?: TaskEstimate, estimateLabel?: string): string;
+export declare function formatStatsContext(stats: ProjectStats, estimate?: TaskEstimate, estimateLabel?: string, options?: {
+    autoEtaActive?: boolean;
+}): string;
 /** Format context during cold start (< CALIBRATION_THRESHOLD tasks) */
 export declare function formatColdStartContext(estimate: TaskEstimate, tasksCompleted: number, estimateLabel?: string, options?: {
     isCommunity?: boolean;
+    autoEtaActive?: boolean;
 }): string;
 /** One-line recap of the last completed task */
 export declare function formatTaskRecap(info: LastCompleted): string;

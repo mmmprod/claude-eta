@@ -342,6 +342,34 @@ describe('formatStatsContext', () => {
     assert.ok(ctx.includes('10 similar bugfix tasks'));
   });
 
+  it('uses prescriptive guidance when autoEtaActive is true', () => {
+    const stats = {
+      totalCompleted: 20,
+      overall: { median: 480, p25: 120, p75: 900, p80: 984 },
+      byClassification: [],
+      byClassificationModel: [],
+      byClassificationPhase: [],
+      byClassificationModelPhase: [],
+    };
+    const ctx = formatStatsContext(stats, undefined, undefined, { autoEtaActive: true });
+    assert.ok(ctx.includes('RULES FOR TIME ESTIMATES'));
+    assert.ok(!ctx.includes('Do not volunteer'));
+  });
+
+  it('uses passive guidance when autoEtaActive is false', () => {
+    const stats = {
+      totalCompleted: 20,
+      overall: { median: 480, p25: 120, p75: 900, p80: 984 },
+      byClassification: [],
+      byClassificationModel: [],
+      byClassificationPhase: [],
+      byClassificationModelPhase: [],
+    };
+    const ctx = formatStatsContext(stats, undefined, undefined, { autoEtaActive: false });
+    assert.ok(ctx.includes('Do not volunteer'));
+    assert.ok(!ctx.includes('RULES FOR TIME ESTIMATES'));
+  });
+
   it('notes high volatility in estimate', () => {
     const stats = {
       totalCompleted: 20,
@@ -399,5 +427,12 @@ describe('formatColdStartContext', () => {
     const estimate = getDefaultEstimate('feature', 3);
     const ctx = formatColdStartContext(estimate, 3);
     assert.ok(ctx.includes('3/5 tasks recorded'));
+  });
+
+  it('uses prescriptive guidance when autoEtaActive is true', () => {
+    const estimate = getDefaultEstimate('bugfix', 3);
+    const ctx = formatColdStartContext(estimate, 2, undefined, { autoEtaActive: true });
+    assert.ok(ctx.includes('RULES FOR TIME ESTIMATES'));
+    assert.ok(!ctx.includes('Do not volunteer'));
   });
 });

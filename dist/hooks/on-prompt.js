@@ -13,7 +13,7 @@ import { getSession, getActiveTurn, startTurn, closeTurn } from '../event-store.
 import { loadCompletedTurnsCompat } from '../compat.js';
 import { loadPreferencesV2, savePreferencesV2 } from '../preferences.js';
 import { setLastEtaV2, consumeLastCompletedV2 } from '../ephemeral.js';
-import { checkDisableRequest, evaluateAutoEta } from '../auto-eta.js';
+import { checkDisableRequest, evaluateAutoEta, shouldAutoActivate } from '../auto-eta.js';
 import { loadProjectMeta } from '../project-meta.js';
 import { getProjectStats } from '../stats-cache.js';
 import { classifyPrompt, summarizePrompt, decidePromptTransition } from '../classify.js';
@@ -52,6 +52,11 @@ async function main() {
     const existing = getActiveTurn(fp, sessionId, agentKey);
     const turns = loadCompletedTurnsCompat(cwd);
     const stats = getProjectStats(cwd);
+    // Load prefs once — used by both continuation and new-task branches
+    const prefs = loadPreferencesV2();
+    // Dynamic auto-activation: evaluated per-prompt, never persisted.
+    // Uses a separate variable so prefs stays unmodified for persist paths.
+    const effectiveAutoEta = prefs.auto_eta || (!!stats && shouldAutoActivate(prefs, stats, classification));
     const transition = decidePromptTransition(prompt, classification, existing);
     if (transition === 'continuation' && existing) {
         // ── Continuation: keep the active turn, inject phase-aware estimate ──
@@ -79,7 +84,7 @@ async function main() {
                     cumulativeWorkItemSeconds: existing.cumulative_work_item_seconds ?? 0,
                 });
             const legacy = toRemainingTaskEstimate(refined, existing.prompt_complexity);
-            contextParts.push(formatStatsContext(stats, legacy, 'Current remaining estimate'));
+            contextParts.push(formatStatsContext(stats, legacy, 'Current remaining estimate', { autoEtaActive: effectiveAutoEta }));
             if (features.phase !== 'explore') {
                 contextParts.push(`[claude-eta] Phase: ${features.phase}, elapsed ${fmtSec(elapsed)}, remaining ~${fmtSec(refined.remaining_p50)}–${fmtSec(refined.remaining_p80)}`);
             }
@@ -195,7 +200,7 @@ async function main() {
         const estimate = isOngoingWorkItem
             ? toRemainingTaskEstimate(displayEta, complexity)
             : toTaskEstimate(displayEta, complexity);
-        contextParts.push(formatStatsContext(stats, estimate, isOngoingWorkItem ? 'Current remaining estimate' : 'Current task estimate'));
+        contextParts.push(formatStatsContext(stats, estimate, isOngoingWorkItem ? 'Current remaining estimate' : 'Current task estimate', { autoEtaActive: effectiveAutoEta }));
     }
     else {
         const completedCount = turns.length;
@@ -203,13 +208,13 @@ async function main() {
         const estimate = isOngoingWorkItem
             ? toRemainingTaskEstimate(displayEta, complexity)
             : getDefaultEstimate(classification, complexity, { communityPriors });
-        contextParts.push(formatColdStartContext(estimate, completedCount, isOngoingWorkItem ? 'Current remaining estimate' : 'Current task estimate', { isCommunity: estimate.basis.startsWith('community ') }));
+        contextParts.push(formatColdStartContext(estimate, completedCount, isOngoingWorkItem ? 'Current remaining estimate' : 'Current task estimate', { isCommunity: estimate.basis.startsWith('community '), autoEtaActive: effectiveAutoEta }));
     }
     // Auto-ETA evaluation (only when calibrated)
     if (stats) {
-        const prefs = loadPreferencesV2();
         if (checkDisableRequest(prompt)) {
             prefs.auto_eta = false;
+            prefs.auto_eta_explicitly_set = true;
             prefs.updated_at = new Date().toISOString();
             savePreferencesV2(prefs);
             contextParts.push('[claude-eta] Auto-ETA disabled. Re-enable anytime with /eta auto on.');
@@ -225,7 +230,7 @@ async function main() {
                 };
             }
             const decision = evaluateAutoEta({
-                prefs,
+                prefs: { ...prefs, auto_eta: effectiveAutoEta },
                 stats,
                 etaAccuracy,
                 classification,

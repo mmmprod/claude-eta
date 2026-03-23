@@ -405,6 +405,7 @@ async function main() {
             const subArg = process.argv[3];
             if (subArg === 'on' || subArg === 'off') {
                 prefs.auto_eta = subArg === 'on';
+                prefs.auto_eta_explicitly_set = true;
                 prefs.updated_at = new Date().toISOString();
                 savePreferencesV2(prefs);
                 console.log(subArg === 'on'
