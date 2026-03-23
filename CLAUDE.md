@@ -178,13 +178,15 @@ tests/
 └── plugin-package.test.js        # 3 tests — manifest alignment, dist shipping
 ```
 
-Maintainer-only CLI surfaces stay hidden from normal `/claude-eta:eta help`. Enable them locally with `CLAUDE_ETA_INTERNAL=1` to use `/claude-eta:eta eval` and `/claude-eta:eta admin-export`.
+Maintainer-only CLI surfaces stay hidden from normal `/eta help`. Enable them locally with `CLAUDE_ETA_INTERNAL=1` to use `/eta eval` and `/eta admin-export`.
 
 ## Install the plugin locally (for development)
 
 ```bash
 npm run build
-claude plugin add --local /path/to/claude-eta
+claude plugin marketplace add ./
+claude plugin install claude-eta --scope local
+/reload-plugins
 ```
 
 After code changes, rebuild (`npm run build`) and restart Claude Code for hooks to pick up changes.
