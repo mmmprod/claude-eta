@@ -285,8 +285,8 @@ export function formatStatsContext(stats, estimate, estimateLabel = 'Current tas
     return lines.join('\n');
 }
 /** Format context during cold start (< CALIBRATION_THRESHOLD tasks) */
-export function formatColdStartContext(estimate, tasksCompleted, estimateLabel = 'Current task estimate') {
-    const isCommunity = estimate.confidence === 40; // community CalibrationLevel
+export function formatColdStartContext(estimate, tasksCompleted, estimateLabel = 'Current task estimate', options) {
+    const isCommunity = options?.isCommunity ?? estimate.basis.startsWith('community ');
     const calibrationLine = isCommunity
         ? `[claude-eta] Calibration: ${tasksCompleted}/${CALIBRATION_THRESHOLD} tasks recorded. Using community baselines until calibrated.`
         : `[claude-eta] Calibration: ${tasksCompleted}/${CALIBRATION_THRESHOLD} tasks recorded. Estimates become project-specific after ${CALIBRATION_THRESHOLD} tasks.`;

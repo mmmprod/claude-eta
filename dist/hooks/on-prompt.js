@@ -107,11 +107,12 @@ async function main() {
     const sessionMeta = getSession(fp, sessionId);
     const model = sessionMeta?.model ?? null;
     const promptSummary = summarizePrompt(prompt);
+    // Load project meta once — used for community priors and auto-eta accuracy
+    const projectMeta = loadProjectMeta(fp);
     // Load community baselines from disk cache (sync, <1ms)
     const baselines = loadCachedBaselines();
-    const projectLocBucket = loadProjectMeta(fp)?.loc_bucket ?? null;
     const communityPriors = baselines
-        ? baselinesToPriors(baselines, projectLocBucket, model)
+        ? baselinesToPriors(baselines, projectMeta?.loc_bucket ?? null, model)
         : null;
     // Create new turn via event-store
     const now = Date.now();
@@ -202,7 +203,7 @@ async function main() {
         const estimate = isOngoingWorkItem
             ? toRemainingTaskEstimate(displayEta, complexity)
             : getDefaultEstimate(classification, complexity, { communityPriors });
-        contextParts.push(formatColdStartContext(estimate, completedCount, isOngoingWorkItem ? 'Current remaining estimate' : 'Current task estimate'));
+        contextParts.push(formatColdStartContext(estimate, completedCount, isOngoingWorkItem ? 'Current remaining estimate' : 'Current task estimate', { isCommunity: estimate.basis.startsWith('community ') }));
     }
     // Auto-ETA evaluation (only when calibrated)
     if (stats) {
@@ -214,9 +215,8 @@ async function main() {
             contextParts.push('[claude-eta] Auto-ETA disabled. Re-enable anytime with /claude-eta:eta auto on.');
         }
         else {
-            // Load accuracy from project meta for the auto-eta gate
-            const meta = loadProjectMeta(fp);
-            const rawAccuracy = meta?.eta_accuracy?.by_classification ?? {};
+            // Use hoisted project meta for the auto-eta accuracy gate
+            const rawAccuracy = projectMeta?.eta_accuracy?.by_classification ?? {};
             const etaAccuracy = {};
             for (const [cls, entry] of Object.entries(rawAccuracy)) {
                 etaAccuracy[cls] = {

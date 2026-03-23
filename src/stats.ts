@@ -367,8 +367,9 @@ export function formatColdStartContext(
   estimate: TaskEstimate,
   tasksCompleted: number,
   estimateLabel = 'Current task estimate',
+  options?: { isCommunity?: boolean },
 ): string {
-  const isCommunity = estimate.confidence === 40; // community CalibrationLevel
+  const isCommunity = options?.isCommunity ?? estimate.basis.startsWith('community ');
   const calibrationLine = isCommunity
     ? `[claude-eta] Calibration: ${tasksCompleted}/${CALIBRATION_THRESHOLD} tasks recorded. Using community baselines until calibrated.`
     : `[claude-eta] Calibration: ${tasksCompleted}/${CALIBRATION_THRESHOLD} tasks recorded. Estimates become project-specific after ${CALIBRATION_THRESHOLD} tasks.`;
