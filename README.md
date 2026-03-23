@@ -53,7 +53,7 @@ MdAPE (median absolute % error) = 79.6% — expected for a single-user dataset, 
 
 </details>
 
-Run `/eta eval` on your own data.
+See [docs/eval-snapshot.md](docs/eval-snapshot.md) for the committed snapshot and reproduction command. Run `/eta eval` on your own data.
 
 ### Also catches repair loops
 
