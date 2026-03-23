@@ -126,7 +126,12 @@ export function estimateWithTrace(
   initial: EtaEstimate,
   elapsedSeconds: number,
   phase: TaskPhase,
-  context?: { stats?: ProjectStats | null; classification?: TaskClassification; model?: string | null; cumulativeWorkItemSeconds?: number },
+  context?: {
+    stats?: ProjectStats | null;
+    classification?: TaskClassification;
+    model?: string | null;
+    cumulativeWorkItemSeconds?: number;
+  },
 ): EtaEstimate {
   const phaseMultipliers: Record<TaskPhase, number> = {
     explore: 1.05,
