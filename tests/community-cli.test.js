@@ -33,13 +33,13 @@ function runEta(args, extraEnv = {}) {
 describe('/eta community CLI', () => {
   it('shows status and toggles the persistent sharing switch', () => {
     const initial = runEta(['community']);
-    assert.match(initial, /Upload switch: \*\*disabled\*\*/);
-    assert.match(initial, /Choice: \*\*pending\*\*/);
-    assert.match(initial, /Keep everything private: `\/claude-eta:eta community off`/);
-    assert.match(initial, /Allow manual anonymized uploads: `\/claude-eta:eta community on`/);
+    assert.match(initial, /Upload switch: disabled/);
+    assert.match(initial, /Choice: pending/);
+    assert.match(initial, /Keep everything private: `\/eta community off`/);
+    assert.match(initial, /Allow manual anonymized uploads: `\/eta community on`/);
 
     const enabled = runEta(['community', 'on']);
-    assert.match(enabled, /Community sharing \*\*enabled\*\*/);
+    assert.match(enabled, /Community sharing enabled/);
 
     const prefsPath = path.join(TEST_DATA_DIR, 'config', 'preferences.json');
     const enabledPrefs = JSON.parse(fs.readFileSync(prefsPath, 'utf-8'));
@@ -47,12 +47,12 @@ describe('/eta community CLI', () => {
     assert.equal(enabledPrefs.community_choice_made, true);
 
     const status = runEta(['community']);
-    assert.match(status, /Upload switch: \*\*enabled\*\*/);
-    assert.match(status, /Choice: \*\*manual uploads allowed\*\*/);
-    assert.match(status, /manual `\/claude-eta:eta contribute --confirm`/);
+    assert.match(status, /Upload switch: enabled/);
+    assert.match(status, /Choice: manual uploads allowed/);
+    assert.match(status, /manual `\/eta contribute --confirm`/);
 
     const disabled = runEta(['community', 'off']);
-    assert.match(disabled, /Community sharing \*\*disabled\*\*/);
+    assert.match(disabled, /Community sharing disabled/);
 
     const disabledPrefs = JSON.parse(fs.readFileSync(prefsPath, 'utf-8'));
     assert.equal(disabledPrefs.community_sharing, false);
@@ -61,14 +61,14 @@ describe('/eta community CLI', () => {
 
   it('shows current sharing state in help output', () => {
     const disabledHelp = runEta(['help']);
-    assert.match(disabledHelp, /Community sharing: \*\*choice pending \(currently local-only\)\*\*/);
-    assert.match(disabledHelp, /\/claude-eta:eta eval/);
-    assert.doesNotMatch(disabledHelp, /\/claude-eta:eta admin-export/);
+    assert.match(disabledHelp, /Community sharing: choice pending \(currently local-only\)/);
+    assert.match(disabledHelp, /\/eta eval/);
+    assert.doesNotMatch(disabledHelp, /\/eta admin-export/);
 
     runEta(['community', 'on']);
 
     const enabledHelp = runEta(['help']);
-    assert.match(enabledHelp, /Community sharing: \*\*enabled\*\*/);
+    assert.match(enabledHelp, /Community sharing: enabled/);
   });
 
   it('only exposes maintainer commands when CLAUDE_ETA_INTERNAL is enabled', () => {
@@ -77,8 +77,8 @@ describe('/eta community CLI', () => {
 
     const internalHelp = runEta(['help'], { CLAUDE_ETA_INTERNAL: '1' });
     assert.match(internalHelp, /Maintainer-only tools/);
-    assert.match(internalHelp, /\/claude-eta:eta eval/);
-    assert.match(internalHelp, /\/claude-eta:eta admin-export/);
+    assert.match(internalHelp, /\/eta eval/);
+    assert.match(internalHelp, /\/eta admin-export/);
 
     const internalAdmin = runEta(['admin-export'], { CLAUDE_ETA_INTERNAL: '1' });
     assert.match(internalAdmin, /## Admin Export/);

@@ -1,3 +1,7 @@
+/**
+ * Markdown formatting for insight results.
+ */
+import { c } from '../cli/colors.js';
 // ── Helpers ──────────────────────────────────────────────────
 function fmtDuration(seconds) {
     if (seconds < 60)
@@ -17,84 +21,89 @@ function col(s, len, align = 'left') {
 function sign(n) {
     return n > 0 ? `+${n}%` : `${n}%`;
 }
+function pctColor(n) {
+    if (n >= 0)
+        return c.yellow;
+    return c.green;
+}
 // ── Formatters per kind ──────────────────────────────────────
 function fmtErrorDuration(r) {
     const lines = [
-        `### Errors vs Duration`,
+        c.bold(`Errors vs Duration`),
         '',
-        `Tasks with errors take **${r.overheadPct > 0 ? sign(r.overheadPct) : `${r.overheadPct}%`}** ${r.overheadPct > 0 ? 'longer' : 'shorter'} (median).`,
+        `Tasks with errors take ${pctColor(r.overheadPct)(r.overheadPct > 0 ? sign(r.overheadPct) : `${r.overheadPct}%`)} ${r.overheadPct > 0 ? 'longer' : 'shorter'} (median).`,
         '',
-        `| Group            | Median   | Tasks |`,
-        `|------------------|----------|-------|`,
-        `| Without errors   | ${col(fmtDuration(r.medianWithoutErrors), 8)} | ${col(String(r.sampleSize - r.tasksWithErrors), 5, 'right')} |`,
-        `| With errors      | ${col(fmtDuration(r.medianWithErrors), 8)} | ${col(String(r.tasksWithErrors), 5, 'right')} |`,
+        c.dim(`| Group            | Median   | Tasks |`),
+        c.dim(`|------------------|----------|-------|`),
+        `| Without errors   | ${c.cyan(col(fmtDuration(r.medianWithoutErrors), 8))} | ${c.dim(col(String(r.sampleSize - r.tasksWithErrors), 5, 'right'))} |`,
+        `| With errors      | ${c.cyan(col(fmtDuration(r.medianWithErrors), 8))} | ${c.dim(col(String(r.tasksWithErrors), 5, 'right'))} |`,
     ];
     return lines.join('\n');
 }
 function fmtContextSwitch(r) {
     const verb = r.overheadPct > 0 ? 'slower' : 'faster';
     const lines = [
-        `### Context-Switch Cost`,
+        c.bold(`Context-Switch Cost`),
         '',
-        `Switching task type is **${sign(r.overheadPct)}** ${verb} than staying on the same type.`,
+        `Switching task type is ${pctColor(r.overheadPct)(sign(r.overheadPct))} ${verb} than staying on the same type.`,
         '',
-        `| Transition       | Median   | Pairs |`,
-        `|------------------|----------|-------|`,
-        `| Same type        | ${col(fmtDuration(r.medianSameType), 8)} | ${col(String(r.sameTypeCount), 5, 'right')} |`,
-        `| Different type   | ${col(fmtDuration(r.medianDiffType), 8)} | ${col(String(r.diffTypeCount), 5, 'right')} |`,
+        c.dim(`| Transition       | Median   | Pairs |`),
+        c.dim(`|------------------|----------|-------|`),
+        `| Same type        | ${c.cyan(col(fmtDuration(r.medianSameType), 8))} | ${c.dim(col(String(r.sameTypeCount), 5, 'right'))} |`,
+        `| Different type   | ${c.cyan(col(fmtDuration(r.medianDiffType), 8))} | ${c.dim(col(String(r.diffTypeCount), 5, 'right'))} |`,
     ];
     return lines.join('\n');
 }
 function fmtVolatilityCauses(r) {
     const lines = [
-        `### Volatility Root Causes (${r.classification})`,
+        `${c.bold('Volatility Root Causes')} ${c.dim(`(${r.classification})`)}`,
         '',
         `Correlation with duration in the most volatile type (${r.sampleSize} tasks):`,
         '',
-        `| Factor          | Correlation | Direction |`,
-        `|-----------------|-------------|-----------|`,
+        c.dim(`| Factor          | Correlation | Direction |`),
+        c.dim(`|-----------------|-------------|-----------|`),
     ];
     for (const f of r.factors) {
-        lines.push(`| ${col(f.factor, 15)} | ${col(String(f.correlation), 11, 'right')} | ${col(f.direction, 9)} |`);
+        lines.push(`| ${c.bold(col(f.factor, 15))} | ${c.cyan(col(String(f.correlation), 11, 'right'))} | ${c.dim(col(f.direction, 9))} |`);
     }
     return lines.join('\n');
 }
 function fmtFileOps(r) {
     const lines = [
-        `### File Operation Ratios`,
+        c.bold(`File Operation Ratios`),
         '',
-        `| Type      | Tasks | Avg Reads | Avg Edits | Avg Creates | Exploration |`,
-        `|-----------|-------|-----------|-----------|-------------|-------------|`,
+        c.dim(`| Type      | Tasks | Avg Reads | Avg Edits | Avg Creates | Exploration |`),
+        c.dim(`|-----------|-------|-----------|-----------|-------------|-------------|`),
     ];
-    for (const c of r.byClassification) {
-        lines.push(`| ${col(c.classification, 9)} | ${col(String(c.count), 5, 'right')} | ${col(String(c.avgReads), 9, 'right')} | ${col(String(c.avgEdits), 9, 'right')} | ${col(String(c.avgCreates), 11, 'right')} | ${col(String(c.explorationIndex), 11, 'right')} |`);
+    for (const row of r.byClassification) {
+        lines.push(`| ${c.bold(col(row.classification, 9))} | ${c.dim(col(String(row.count), 5, 'right'))} | ${c.cyan(col(String(row.avgReads), 9, 'right'))} | ${c.cyan(col(String(row.avgEdits), 9, 'right'))} | ${c.cyan(col(String(row.avgCreates), 11, 'right'))} | ${c.cyan(col(String(row.explorationIndex), 11, 'right'))} |`);
     }
     lines.push('', '_Exploration index = reads / writes. Higher = more reading before editing._');
     return lines.join('\n');
 }
 function fmtModelComparison(r) {
     const lines = [
-        `### Model Comparison`,
+        c.bold(`Model Comparison`),
         '',
-        `Fastest model: **${r.fastestModel}**`,
+        `Fastest model: ${c.green(r.fastestModel)}`,
         '',
-        `| Model                    | Tasks | Median Duration | Median Tools |`,
-        `|--------------------------|-------|-----------------|--------------|`,
+        c.dim(`| Model                    | Tasks | Median Duration | Median Tools |`),
+        c.dim(`|--------------------------|-------|-----------------|--------------|`),
     ];
     for (const m of r.byModel) {
-        lines.push(`| ${col(m.model, 24)} | ${col(String(m.count), 5, 'right')} | ${col(fmtDuration(m.medianDuration), 15)} | ${col(String(m.medianToolCalls), 12, 'right')} |`);
+        lines.push(`| ${c.bold(col(m.model, 24))} | ${c.dim(col(String(m.count), 5, 'right'))} | ${c.cyan(col(fmtDuration(m.medianDuration), 15))} | ${c.cyan(col(String(m.medianToolCalls), 12, 'right'))} |`);
     }
     return lines.join('\n');
 }
 function fmtEfficiency(r) {
     const lines = [
-        `### Efficiency by Type`,
+        c.bold(`Efficiency by Type`),
         '',
-        `| Type      | Tasks | Secs/Tool | Tools/File |`,
-        `|-----------|-------|-----------|------------|`,
+        c.dim(`| Type      | Tasks | Secs/Tool | Tools/File |`),
+        c.dim(`|-----------|-------|-----------|------------|`),
     ];
-    for (const c of r.byClassification) {
-        lines.push(`| ${col(c.classification, 9)} | ${col(String(c.count), 5, 'right')} | ${col(String(c.medianSecsPerTool), 9, 'right')} | ${col(String(c.medianToolsPerFile), 10, 'right')} |`);
+    for (const row of r.byClassification) {
+        lines.push(`| ${c.bold(col(row.classification, 9))} | ${c.dim(col(String(row.count), 5, 'right'))} | ${c.cyan(col(String(row.medianSecsPerTool), 9, 'right'))} | ${c.cyan(col(String(row.medianToolsPerFile), 10, 'right'))} |`);
     }
     return lines.join('\n');
 }
@@ -105,45 +114,45 @@ function fmtSessionFatigue(r) {
             ? 'Tasks get faster later in sessions'
             : 'Duration stays stable across sessions';
     const lines = [
-        `### Session Fatigue`,
+        c.bold(`Session Fatigue`),
         '',
-        `${trend} (ratio: **${r.fatigueRatio}x**).`,
+        `${trend} (ratio: ${c.cyan(`${r.fatigueRatio}x`)}).`,
         '',
-        `| Position | Avg Duration | Tasks |`,
-        `|----------|--------------|-------|`,
+        c.dim(`| Position | Avg Duration | Tasks |`),
+        c.dim(`|----------|--------------|-------|`),
     ];
     for (const p of r.avgByPosition) {
         const label = p.position >= 5 ? '5+' : String(p.position);
-        lines.push(`| ${col(label, 8)} | ${col(fmtDuration(p.avgDuration), 12)} | ${col(String(p.count), 5, 'right')} |`);
+        lines.push(`| ${c.bold(col(label, 8))} | ${c.cyan(col(fmtDuration(p.avgDuration), 12))} | ${c.dim(col(String(p.count), 5, 'right'))} |`);
     }
     return lines.join('\n');
 }
 function fmtTimeOfDay(r) {
     const lines = [
-        `### Time of Day`,
+        c.bold(`Time of Day`),
         '',
-        `Fastest period: **${r.fastestPeriod}**`,
+        `Fastest period: ${c.green(r.fastestPeriod)}`,
         '',
-        `| Period     | Hours | Tasks | Median Duration |`,
-        `|------------|-------|-------|-----------------|`,
+        c.dim(`| Period     | Hours | Tasks | Median Duration |`),
+        c.dim(`|------------|-------|-------|-----------------|`),
     ];
     for (const p of r.byPeriod) {
-        lines.push(`| ${col(p.period, 10)} | ${col(p.hours, 5)} | ${col(String(p.count), 5, 'right')} | ${col(fmtDuration(p.medianDuration), 15)} |`);
+        lines.push(`| ${c.bold(col(p.period, 10))} | ${c.dim(col(p.hours, 5))} | ${c.dim(col(String(p.count), 5, 'right'))} | ${c.cyan(col(fmtDuration(p.medianDuration), 15))} |`);
     }
     return lines.join('\n');
 }
 function fmtWeeklyTrends(r) {
     const dirLabel = r.direction === 'improving' ? 'Getting faster' : r.direction === 'degrading' ? 'Getting slower' : 'Stable';
     const lines = [
-        `### Weekly Trends`,
+        c.bold(`Weekly Trends`),
         '',
-        `Direction: **${dirLabel}** (${sign(r.changeRate)} change in median duration).`,
+        `Direction: ${r.direction === 'improving' ? c.green(dirLabel) : r.direction === 'degrading' ? c.red(dirLabel) : c.dim(dirLabel)} (${pctColor(r.changeRate)(sign(r.changeRate))} change in median duration).`,
         '',
-        `| Week    | Tasks | Median   | Total    |`,
-        `|---------|-------|----------|----------|`,
+        c.dim(`| Week    | Tasks | Median   | Total    |`),
+        c.dim(`|---------|-------|----------|----------|`),
     ];
     for (const w of r.weeks) {
-        lines.push(`| ${col(w.label, 7)} | ${col(String(w.count), 5, 'right')} | ${col(fmtDuration(w.medianDuration), 8)} | ${col(fmtDuration(w.totalDuration), 8)} |`);
+        lines.push(`| ${c.bold(col(w.label, 7))} | ${c.dim(col(String(w.count), 5, 'right'))} | ${c.cyan(col(fmtDuration(w.medianDuration), 8))} | ${c.cyan(col(fmtDuration(w.totalDuration), 8))} |`);
     }
     return lines.join('\n');
 }
@@ -176,7 +185,7 @@ export function formatInsightsReport(results) {
     if (results.length === 0) {
         return 'Not enough data for insights yet. Keep working and check back when you have more task history.';
     }
-    const sections = [`## Insights (${results.length} of 9 available)\n`];
+    const sections = [`${c.bold('Insights')} ${c.dim(`(${results.length} of 9 available)`)}\n`];
     for (const r of results) {
         sections.push(formatInsight(r));
     }

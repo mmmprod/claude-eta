@@ -37,9 +37,9 @@ describe('SessionStart hook onboarding', () => {
 
     assert.match(output, /Data is 100% local/);
     assert.match(output, /Privacy: local-only by default/);
-    assert.match(output, /`\/claude-eta:eta community off` to stay private/);
-    assert.match(output, /`\/claude-eta:eta community on`/);
-    assert.match(output, /`\/claude-eta:eta compare` is read-only/);
+    assert.match(output, /`\/eta community off` to stay private/);
+    assert.match(output, /`\/eta community on`/);
+    assert.match(output, /`\/eta compare` is read-only/);
 
     const prefsPath = path.join(TEST_DATA_DIR, 'config', 'preferences.json');
     const prefs = JSON.parse(fs.readFileSync(prefsPath, 'utf-8'));

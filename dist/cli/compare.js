@@ -1,5 +1,5 @@
 /**
- * /claude-eta:eta compare — Compare local stats against community baselines.
+ * /eta compare — Compare local stats against community baselines.
  * Fetches from Supabase with a local 6h cache fallback.
  */
 import { normalizeModel } from '../anonymize.js';
@@ -10,16 +10,31 @@ import { resolveProjectIdentity } from '../identity.js';
 import { loadPreferencesV2 } from '../preferences.js';
 import { loadProjectMeta } from '../project-meta.js';
 import { computeStats, fmtSec } from '../stats.js';
+import { c } from './colors.js';
 const DOMINANT_MODEL_MIN_SHARE = 0.75;
+function col(s, len, align = 'left') {
+    const truncated = s.length > len ? s.slice(0, len) : s;
+    return align === 'left' ? truncated.padEnd(len) : truncated.padStart(len);
+}
 function ratio(local, community) {
     if (community === 0)
         return '-';
     const r = local / community;
     if (r < 0.8)
-        return `**${r.toFixed(2)}x faster**`;
+        return `${r.toFixed(2)}x faster`;
     if (r > 1.2)
         return `${r.toFixed(2)}x slower`;
     return '~same';
+}
+function ratioColor(local, community) {
+    if (community === 0)
+        return (text) => text;
+    const r = local / community;
+    if (r < 1.2)
+        return c.green;
+    if (r < 2)
+        return c.yellow;
+    return c.red;
 }
 function groupTasksByClassification(tasks) {
     const groups = new Map();
@@ -127,39 +142,39 @@ export async function showCompare(cwd) {
     const { fp } = resolveProjectIdentity(cwd);
     const projectLocBucket = loadProjectMeta(fp)?.loc_bucket ?? null;
     if (!localStats) {
-        console.log('Not enough local data yet (need 5+ completed tasks).');
-        console.log('`/claude-eta:eta compare` is read-only and never uploads your task data.');
+        console.log(c.yellow('Not enough local data yet (need 5+ completed tasks).'));
+        console.log('`/eta compare` is read-only and never uploads your task data.');
         if (consentPrompt)
             console.log(`\n${consentPrompt}`);
         return;
     }
     const baselines = await getBaselinesWithCache();
     if (!baselines || baselines.length === 0) {
-        console.log('Community baselines unavailable. Try again later.');
+        console.log(c.red('Community baselines unavailable. Try again later.'));
         return;
     }
     const rows = buildCompareRows(tasks, baselines, projectLocBucket);
     const localTypes = new Set(rows.map((row) => row.task_type));
     const communityOnly = pickCommunityOnlyBaselines(baselines, localTypes, projectLocBucket);
     if (rows.length === 0 && communityOnly.length === 0) {
-        console.log('Community baselines available but no compatible aggregates yet.');
+        console.log(c.yellow('Community baselines available but no compatible aggregates yet.'));
         return;
     }
-    console.log(`## Your Stats vs Community\n`);
+    console.log(`\n${c.bold('Your Stats vs Community')}\n`);
     console.log('Read-only fetch: this command never uploads your task data.');
-    console.log(`Community upload switch: **${prefs.community_sharing ? 'enabled' : 'disabled'}**.`);
-    console.log(`Matching order: \`type+loc+model\` → \`type+model\` → \`type+loc\` → \`global\`${projectLocBucket ? ` (local repo bucket: \`${projectLocBucket}\`)` : ''}.\n`);
+    console.log(`Community upload switch: ${prefs.community_sharing ? c.green('enabled') : c.yellow('disabled')}.`);
+    console.log(`Matching order: \`type+loc+model\` -> \`type+model\` -> \`type+loc\` -> \`global\`${projectLocBucket ? ` (local repo bucket: \`${projectLocBucket}\`)` : ''}.\n`);
     if (rows.length > 0) {
-        console.log(`| Type      | Your Median | Community | Ratio           | Baseline              | Community N |`);
-        console.log(`|-----------|-------------|-----------|-----------------|-----------------------|-------------|`);
+        console.log(`  ${c.dim(col('Type', 9))}  ${c.dim(col('Your median', 11))}  ${c.dim(col('Community', 9))}  ${c.dim(col('Ratio', 15))}  ${c.dim(col('Baseline', 21))}  ${c.dim(col('N', 5))}`);
         for (const row of rows) {
-            console.log(`| ${row.task_type.padEnd(9)} | ${fmtSec(row.local_median_seconds).padEnd(11)} | ${fmtSec(row.community_median_seconds).padEnd(9)} | ${ratio(row.local_median_seconds, row.community_median_seconds).padEnd(15)} | ${scopeLabel(row.baseline_match).padEnd(21)} | ${String(row.community_sample_count).padEnd(11)} |`);
+            const ratioText = ratio(row.local_median_seconds, row.community_median_seconds);
+            console.log(`  ${c.bold(col(row.task_type, 9))}  ${c.cyan(col(fmtSec(row.local_median_seconds), 11))}  ${c.cyan(col(fmtSec(row.community_median_seconds), 9))}  ${ratioColor(row.local_median_seconds, row.community_median_seconds)(col(ratioText, 15))}  ${c.dim(col(scopeLabel(row.baseline_match), 21))}  ${c.dim(col(String(row.community_sample_count), 5, 'right'))}`);
         }
     }
     if (communityOnly.length > 0) {
-        console.log(`\n### Community baselines (no robust local baseline)`);
+        console.log(`\n${c.bold('Community Baselines')} ${c.dim('(no robust local baseline)')}`);
         for (const baseline of communityOnly) {
-            console.log(`- **${baseline.task_type}**: median ${fmtSec(baseline.match.record.median_seconds)} (${baseline.match.record.sample_count} samples, ${scopeLabel(baseline.match)})`);
+            console.log(`- ${c.bold(baseline.task_type)}: median ${c.cyan(fmtSec(baseline.match.record.median_seconds))} ${c.dim(`(${baseline.match.record.sample_count} samples, ${scopeLabel(baseline.match)})`)}`);
         }
     }
     if (consentPrompt) {

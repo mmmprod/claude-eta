@@ -1,5 +1,5 @@
 /**
- * /claude-eta:eta contribute — Preview, confirm, and upload anonymized records.
+ * /eta contribute — Preview, confirm, and upload anonymized records.
  * Opt-in only. Shows exactly what will be sent before sending.
  * Deduplicates: only sends tasks not previously contributed.
  */
@@ -13,6 +13,7 @@ import { loadProjectMeta } from '../project-meta.js';
 import { getCommunityDir } from '../paths.js';
 import { loadPreferencesV2 } from '../preferences.js';
 import { anonymizeTask } from './export.js';
+import { c } from './colors.js';
 import { insertVelocityRecords } from '../supabase.js';
 const LEGACY_STATE_PATH = path.join(os.homedir(), '.claude', 'plugins', 'claude-eta', 'data', '_contribute_state.json');
 const STATE_PATH = path.join(getCommunityDir(), '_contribute_state.json');
@@ -117,18 +118,18 @@ function ensureCommunitySharingEnabled() {
         return true;
     const consentPrompt = consumeCommunityConsentPrompt();
     if (prefs.community_choice_made) {
-        console.log('Community sharing is disabled.');
+        console.log(c.yellow('Community sharing is disabled.'));
         console.log('You chose local-only mode. Local estimates still learn from your private data only.');
-        console.log('Enable uploads later with `/claude-eta:eta community on`, then run `/claude-eta:eta contribute` to preview what would be sent.');
+        console.log('Enable uploads later with `/eta community on`, then run `/eta contribute` to preview what would be sent.');
         return false;
     }
-    console.log('Community sharing is disabled until you choose a mode.');
+    console.log(c.yellow('Community sharing is disabled until you choose a mode.'));
     console.log('Local estimates still learn from your private data only.');
     if (consentPrompt) {
         console.log(`\n${consentPrompt}`);
     }
     else {
-        console.log('Review your options with `/claude-eta:eta community`, then run `/claude-eta:eta contribute` to preview what would be sent.');
+        console.log('Review your options with `/eta community`, then run `/eta contribute` to preview what would be sent.');
     }
     return false;
 }
@@ -137,44 +138,42 @@ export async function showContribute(cwd, pluginVersion) {
         return;
     const { records } = getNewRecords(cwd, pluginVersion);
     if (records.length === 0) {
-        console.log('No new tasks to contribute (all previously contributed or no completed tasks).');
+        console.log(c.dim('No new tasks to contribute (all previously contributed or no completed tasks).'));
         return;
     }
     const state = loadState();
-    console.log(`## Contribute to Community Baselines\n`);
-    console.log('Sharing status: enabled (manual upload mode).');
-    console.log('Disable uploads anytime with `/claude-eta:eta community off`.\n');
-    console.log(`**${records.length}** new anonymized records ready to contribute.`);
+    console.log(`\n${c.bold('Contribute to Community Baselines')}\n`);
+    console.log(`${c.dim('Sharing status:')} ${c.green('enabled')} ${c.dim('(manual upload mode)')}.`);
+    console.log('Disable uploads anytime with `/eta community off`.\n');
+    console.log(`${c.cyan(String(records.length))} new anonymized records ready to contribute.`);
     if (state && state.last_contributed_at) {
-        console.log(`Last contribution: ${state.last_contributed_at} (${state.last_contributed_count} records)`);
-        console.log(`Previously contributed: ${state.contributed_work_item_ids.length} tasks`);
+        console.log(`${c.dim('Last contribution:')} ${state.last_contributed_at} ${c.dim(`(${state.last_contributed_count} records)`)}`);
+        console.log(`${c.dim('Previously contributed:')} ${c.cyan(String(state.contributed_work_item_ids.length))} tasks`);
     }
-    console.log('\n### Sample record\n');
-    console.log('```json');
-    console.log(JSON.stringify(records[0], null, 2));
-    console.log('```');
-    console.log('\n### What is sent');
+    console.log(`\n${c.bold('Sample Record')}\n`);
+    console.log(c.cyan(JSON.stringify(records[0], null, 2)));
+    console.log(`\n${c.bold('What Is Sent')}`);
     console.log('- Task type, duration, tool/file counts, model (normalized), project hash');
-    console.log('\n### What is NOT sent');
+    console.log(`\n${c.bold('What Is Not Sent')}`);
     console.log('- Prompt text, file paths, project name, code, conversation content');
-    console.log('\n**To confirm**, run this command again with `--confirm`:\n' + '`/claude-eta:eta contribute --confirm`');
+    console.log(`\n${c.bold('To confirm')}, run this command again with \`--confirm\`:\n${c.cyan('/eta contribute --confirm')}`);
 }
 export async function executeContribute(cwd, pluginVersion) {
     if (!ensureCommunitySharingEnabled())
         return;
     const { records, taskIds } = getNewRecords(cwd, pluginVersion);
     if (records.length === 0) {
-        console.log('No new tasks to contribute (all previously contributed or no completed tasks).');
+        console.log(c.dim('No new tasks to contribute (all previously contributed or no completed tasks).'));
         return;
     }
-    console.log(`Uploading ${records.length} new anonymized records...`);
+    console.log(`${c.bold('Uploading')} ${c.cyan(String(records.length))} new anonymized records...`);
     const { error } = await insertVelocityRecords(records);
     if (error) {
-        console.log(`\nUpload failed: ${error}`);
+        console.log(`\n${c.red(`Upload failed: ${error}`)}`);
         console.log('Your data has not been sent. Try again later.');
         return;
     }
     saveState(records.length, taskIds);
-    console.log(`\nDone. ${records.length} records contributed. Thank you!`);
+    console.log(`\n${c.green(`Done. ${records.length} records contributed.`)}`);
 }
 //# sourceMappingURL=contribute.js.map

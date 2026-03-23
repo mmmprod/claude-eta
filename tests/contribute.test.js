@@ -121,8 +121,8 @@ describe('showContribute', () => {
 
     assert.ok(logs.some((line) => line.includes('Community sharing is disabled until you choose a mode.')));
     assert.ok(logs.some((line) => line.includes('Choose your community mode:')));
-    assert.ok(logs.some((line) => line.includes('/claude-eta:eta community off')));
-    assert.ok(logs.some((line) => line.includes('/claude-eta:eta community on')));
+    assert.ok(logs.some((line) => line.includes('/eta community off')));
+    assert.ok(logs.some((line) => line.includes('/eta community on')));
     assert.ok(!logs.some((line) => line.includes('new anonymized records ready to contribute')));
 
     const prefsPath = path.join(TEST_DATA_DIR, 'config', 'preferences.json');
