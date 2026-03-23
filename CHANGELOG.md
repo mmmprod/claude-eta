@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.16.3](https://github.com/mmmprod/claude-eta/compare/claude-eta-v0.16.2...claude-eta-v0.16.3) (2026-03-23)
+
+
+### Performance Improvements
+
+* **hooks:** cache project stats and tighten hot-path timeouts ([#98](https://github.com/mmmprod/claude-eta/issues/98)) ([1488880](https://github.com/mmmprod/claude-eta/commit/14888804b860e93e738aeac7a6c6259032188b91))
+
 ## [0.16.2](https://github.com/mmmprod/claude-eta/compare/claude-eta-v0.16.1...claude-eta-v0.16.2) (2026-03-23)
 
 
