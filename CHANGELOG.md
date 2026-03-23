@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.2](https://github.com/mmmprod/claude-eta/compare/claude-eta-v1.3.1...claude-eta-v1.3.2) (2026-03-23)
+
+
+### Bug Fixes
+
+* **auto-eta:** colorize injected eta line ([#117](https://github.com/mmmprod/claude-eta/issues/117)) ([7c06680](https://github.com/mmmprod/claude-eta/commit/7c066803cff3f504b6eb3456acdf59711e5f23a9))
+
 ## [1.3.1](https://github.com/mmmprod/claude-eta/compare/claude-eta-v1.3.0...claude-eta-v1.3.1) (2026-03-23)
 
 
