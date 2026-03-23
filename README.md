@@ -80,6 +80,21 @@ The key difference: in a loop, the same error keeps returning. claude-eta finger
 error content, normalizing away paths, numbers, and quoted values so structurally identical
 failures match.
 
+## Claude can't estimate time. claude-eta teaches it.
+
+Claude says "2 days" for a 12-minute task because it has zero feedback loop
+between what it promises and what actually happens. claude-eta creates that loop.
+
+After 5 tasks, Claude receives your real velocity data before responding:
+project medians, confidence intervals, per-type volatility. It stops guessing.
+
+`/eta auto on` enables Claude to show an ETA at the start of each response,
+calibrated on your history, with an accuracy self-check that auto-disables
+if predictions drop below 50%.
+
+The loop detector proves the plugin sees what Claude does. The ETA proves it
+learns from what it sees. Same mechanism: observe -> inject, applied twice.
+
 ## Why not just `--max-turns`?
 
 | | `--max-turns` | claude-eta |
@@ -109,15 +124,6 @@ Everything is local by default. No cloud. No telemetry. No upload unless you exp
 See [SECURITY.md](SECURITY.md) for the full storage and community-data details.
 
 ## Advanced
-
-<details>
-<summary>Auto-ETA (opt-in estimated duration at response start)</summary>
-
-`/eta auto on` enables automatic ETA injection when claude-eta has enough local calibration for the task type.
-
-`/eta auto` shows whether the feature is active and how accurate its recent interval coverage has been.
-
-</details>
 
 <details>
 <summary>Community baselines</summary>
