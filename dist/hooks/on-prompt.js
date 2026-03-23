@@ -203,7 +203,7 @@ async function main() {
         const estimate = isOngoingWorkItem
             ? toRemainingTaskEstimate(displayEta, complexity)
             : getDefaultEstimate(classification, complexity, { communityPriors });
-        contextParts.push(formatColdStartContext(estimate, completedCount, isOngoingWorkItem ? 'Current remaining estimate' : 'Current task estimate', { isCommunity: !!communityPriors }));
+        contextParts.push(formatColdStartContext(estimate, completedCount, isOngoingWorkItem ? 'Current remaining estimate' : 'Current task estimate', { isCommunity: estimate.basis.startsWith('community ') }));
     }
     // Auto-ETA evaluation (only when calibrated)
     if (stats) {

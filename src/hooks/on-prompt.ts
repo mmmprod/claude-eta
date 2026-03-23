@@ -243,7 +243,7 @@ async function main(): Promise<void> {
         estimate,
         completedCount,
         isOngoingWorkItem ? 'Current remaining estimate' : 'Current task estimate',
-        { isCommunity: !!communityPriors },
+        { isCommunity: estimate.basis.startsWith('community ') },
       ),
     );
   }
