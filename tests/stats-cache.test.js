@@ -89,9 +89,18 @@ function getCachePath(fp) {
   return path.join(TEST_DATA_DIR, 'projects', fp, 'cache', 'project-stats.json');
 }
 
+function getHistorySignaturePath(fp) {
+  return path.join(TEST_DATA_DIR, 'projects', fp, 'cache', 'completed-history-signature.json');
+}
+
 async function loadModule() {
   const ts = Date.now() + Math.random();
   return await import(`../dist/stats-cache.js?t=${ts}`);
+}
+
+async function loadHistorySignatureModule() {
+  const ts = Date.now() + Math.random();
+  return await import(`../dist/history-signature.js?t=${ts}`);
 }
 
 describe('getProjectStats', () => {
@@ -118,10 +127,24 @@ describe('getProjectStats', () => {
     assert.equal(second.totalCompleted, 999, 'second call should come from the disk cache');
   });
 
-  it('invalidates the cache when completed history changes', async () => {
+  it('bootstraps a managed history signature for existing completed logs', async () => {
+    const fp = writeCompletedTurns(Array.from({ length: 5 }, (_, index) => makeCompletedTurn(index)));
+    const { getProjectStats } = await loadModule();
+
+    assert.equal(fs.existsSync(getHistorySignaturePath(fp)), false);
+
+    getProjectStats(TEST_CWD);
+
+    const signatureRecord = JSON.parse(fs.readFileSync(getHistorySignaturePath(fp), 'utf-8'));
+    assert.match(signatureRecord.signature, /^v2:/);
+    assert.equal(signatureRecord.source, 'bootstrap');
+  });
+
+  it('invalidates the cache when the managed history signature changes', async () => {
     const initialTurns = Array.from({ length: 5 }, (_, index) => makeCompletedTurn(index));
     const fp = writeCompletedTurns(initialTurns);
     const { getProjectStats } = await loadModule();
+    const { markProjectHistoryChanged } = await loadHistorySignatureModule();
 
     const first = getProjectStats(TEST_CWD);
     assert.ok(first, 'first stats computation should succeed');
@@ -139,6 +162,7 @@ describe('getProjectStats', () => {
     fs.writeFileSync(cachePath, JSON.stringify(cached));
 
     writeCompletedTurns([...initialTurns, makeCompletedTurn(5)]);
+    markProjectHistoryChanged(fp);
 
     const second = getProjectStats(TEST_CWD);
     assert.notEqual(second.totalCompleted, 999, 'cache should be recomputed when completed logs change');

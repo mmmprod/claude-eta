@@ -317,6 +317,29 @@ describe('closeTurn', () => {
     assert.equal(parsed.turn_id, state.turn_id);
   });
 
+  it('updates the managed history signature when completed history changes', async () => {
+    const { startTurn, closeTurn } = await loadModule();
+    const { readHistorySignature } = await import('../dist/history-signature.js');
+
+    const firstState = makeActiveTurn({ project_fp: 'historyfp1234567', session_id: 'sess-history-1' });
+    const secondState = makeActiveTurn({ project_fp: 'historyfp1234567', session_id: 'sess-history-2' });
+
+    assert.equal(readHistorySignature(firstState.project_fp), null);
+
+    startTurn(firstState);
+    closeTurn(firstState.project_fp, firstState.session_id, firstState.agent_key, 'stop');
+    const firstSignature = readHistorySignature(firstState.project_fp);
+
+    assert.match(firstSignature, /^v2rev:/);
+
+    startTurn(secondState);
+    closeTurn(secondState.project_fp, secondState.session_id, secondState.agent_key, 'stop');
+    const secondSignature = readHistorySignature(secondState.project_fp);
+
+    assert.match(secondSignature, /^v2rev:/);
+    assert.notEqual(secondSignature, firstSignature);
+  });
+
   it('returns null if no active turn', async () => {
     const { closeTurn } = await loadModule();
     assert.equal(closeTurn('fp', 'sess', 'main', 'stop'), null);

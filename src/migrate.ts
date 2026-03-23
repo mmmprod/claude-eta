@@ -7,6 +7,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { TaskEntry, ProjectData } from './types.js';
+import { markProjectHistoryChanged } from './history-signature.js';
 import {
   findLegacyFile,
   getProjectDir,
@@ -104,6 +105,8 @@ export function migrateLegacyProject(
       const lines = tasks.map((t) => JSON.stringify(taskEntryToCompletedTurn(t, projectFp, displayName)));
       fs.appendFileSync(completedPath, lines.join('\n') + '\n');
     }
+
+    markProjectHistoryChanged(projectFp);
   }
 
   return { migratedCount: completedTasks.length };

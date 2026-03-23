@@ -6,6 +6,7 @@
  */
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { markProjectHistoryChanged } from './history-signature.js';
 import { findLegacyFile, getProjectDir, getCompletedDir, ensureDir, ensureProjectDirs, getProjectMetaPath, } from './paths.js';
 import { taskEntryToCompletedTurn } from './convert.js';
 import { normalizeEtaAccuracy } from './project-meta.js';
@@ -81,6 +82,7 @@ export function migrateLegacyProject(projectFp, legacySlug, displayName, cwdReal
             const lines = tasks.map((t) => JSON.stringify(taskEntryToCompletedTurn(t, projectFp, displayName)));
             fs.appendFileSync(completedPath, lines.join('\n') + '\n');
         }
+        markProjectHistoryChanged(projectFp);
     }
     return { migratedCount: completedTasks.length };
 }

@@ -2,12 +2,13 @@
  * Project stats cache for historical ETA calibration.
  *
  * Goal: avoid reparsing all completed turns on every phase transition.
- * Cache invalidation is driven by a lightweight history signature derived from
- * completed-log metadata (or the legacy JSON file before migration).
+ * Cache invalidation is driven by an O(1) history signature maintained on the
+ * managed write path (or the legacy JSON file before migration).
  */
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { loadCompletedTurnsCompat, turnsToAnalyticsTasks } from './compat.js';
+import { bootstrapHistorySignature, readHistorySignature } from './history-signature.js';
 import { resolveProjectIdentity } from './identity.js';
 import { needsMigration, legacySlug } from './migrate.js';
 import { findLegacyFile, getCacheDir, getCompletedDir, ensureDir, atomicWrite } from './paths.js';
@@ -26,7 +27,7 @@ function getCachePath(projectFp: string): string {
   return path.join(getCacheDir(projectFp), CACHE_FILENAME);
 }
 
-function buildV2HistorySignature(projectFp: string): string {
+function scanV2HistorySignature(projectFp: string): string {
   const completedDir = getCompletedDir(projectFp);
   try {
     const entries = fs
@@ -61,10 +62,21 @@ function buildLegacyHistorySignature(displayName: string): string {
 
 function buildHistorySignature(cwd: string): { projectFp: string; signature: string } {
   const { fp, displayName } = resolveProjectIdentity(cwd);
-  const signature = needsMigration(fp, legacySlug(displayName))
-    ? buildLegacyHistorySignature(displayName)
-    : buildV2HistorySignature(fp);
-  return { projectFp: fp, signature };
+  if (needsMigration(fp, legacySlug(displayName))) {
+    return {
+      projectFp: fp,
+      signature: buildLegacyHistorySignature(displayName),
+    };
+  }
+
+  const managedSignature = readHistorySignature(fp);
+  if (managedSignature) {
+    return { projectFp: fp, signature: managedSignature };
+  }
+
+  const bootstrapSignature = scanV2HistorySignature(fp);
+  bootstrapHistorySignature(fp, bootstrapSignature);
+  return { projectFp: fp, signature: bootstrapSignature };
 }
 
 function readCache(projectFp: string): CachedProjectStats | null {

@@ -10,6 +10,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { randomUUID } from 'node:crypto';
+import { markProjectHistoryChanged } from './history-signature.js';
 import { loadProjectMeta } from './project-meta.js';
 import { ensureDir, ensureProjectDirs, getActiveTurnPath, getEventLogPath, getCompletedLogPath, getSessionMetaPath, getCompletedDir, getActiveDir, getClosingDir, getLocksDir, atomicWrite, atomicWriteIfAbsent, } from './paths.js';
 /** Canonical mapping from StopReason to TurnEventType */
@@ -441,6 +442,7 @@ export function closeTurn(projectFp, sessionId, agentKey, reason, extras) {
         const completedPath = getCompletedLogPath(projectFp, sessionId, agentKey);
         ensureDir(path.dirname(completedPath));
         fs.appendFileSync(completedPath, JSON.stringify(completed) + '\n');
+        markProjectHistoryChanged(projectFp);
         // Step 5: Append closing event (non-fatal)
         try {
             ensureDir(path.dirname(getEventLogPath(projectFp, sessionId, agentKey)));
