@@ -64,8 +64,10 @@ export declare function scorePromptComplexity(prompt: string): number;
 export declare function estimateTask(stats: ProjectStats, classification: string, complexity: number, context?: {
     model?: string | null;
 }): TaskEstimate;
-/** Estimate from initial priors (cold start, before real data exists) */
-export declare function getDefaultEstimate(classification: TaskClassification, complexity: number): TaskEstimate;
+/** Estimate from initial priors or community baselines (cold start, before real data exists) */
+export declare function getDefaultEstimate(classification: TaskClassification, complexity: number, context?: {
+    communityPriors?: import('./baselines-cache.js').CommunityPriors | null;
+}): TaskEstimate;
 export declare function fmtSec(seconds: number): string;
 /** Format stats as a concise context string for Claude injection */
 export declare function formatStatsContext(stats: ProjectStats, estimate?: TaskEstimate, estimateLabel?: string): string;

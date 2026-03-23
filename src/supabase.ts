@@ -94,14 +94,14 @@ export interface BaselineRecord {
 }
 
 /** SELECT all rows from baselines_cache. */
-export async function fetchBaselines(): Promise<SupabaseResponse<BaselineRecord[]>> {
+export async function fetchBaselines(timeoutMs?: number): Promise<SupabaseResponse<BaselineRecord[]>> {
   try {
     const h = { ...headers(), Accept: 'application/json' };
 
     const res = await fetch(`${SUPABASE_URL}/rest/v1/baselines_cache?select=*`, {
       method: 'GET',
       headers: h,
-      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+      signal: AbortSignal.timeout(timeoutMs ?? FETCH_TIMEOUT_MS),
     });
 
     if (!res.ok) {

@@ -24,6 +24,6 @@ export interface BaselineRecord {
     computed_at: string;
 }
 /** SELECT all rows from baselines_cache. */
-export declare function fetchBaselines(): Promise<SupabaseResponse<BaselineRecord[]>>;
+export declare function fetchBaselines(timeoutMs?: number): Promise<SupabaseResponse<BaselineRecord[]>>;
 export {};
 //# sourceMappingURL=supabase.d.ts.map

@@ -9,7 +9,8 @@
 import type { TaskClassification } from './types.js';
 import type { ProjectStats } from './stats.js';
 import type { TaskPhase } from './features.js';
-export type CalibrationLevel = 'cold' | 'warming' | 'project' | 'project+trace';
+import type { CommunityPriors } from './baselines-cache.js';
+export type CalibrationLevel = 'cold' | 'community' | 'warming' | 'project' | 'project+trace';
 export interface EtaEstimate {
     /** Estimated p50 wall time in seconds */
     p50_wall: number;
@@ -39,6 +40,7 @@ export interface EtaEstimate {
  */
 export declare function estimateInitial(stats: ProjectStats | null, classification: TaskClassification, complexity: number, context?: {
     model?: string | null;
+    communityPriors?: CommunityPriors | null;
 }): EtaEstimate;
 /**
  * Refine an estimate with live trace data.

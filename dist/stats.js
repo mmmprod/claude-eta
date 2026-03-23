@@ -251,9 +251,9 @@ export function estimateTask(stats, classification, complexity, context) {
     const est = estimateInitial(stats, classification, complexity, context);
     return toTaskEstimate(est, complexity);
 }
-/** Estimate from initial priors (cold start, before real data exists) */
-export function getDefaultEstimate(classification, complexity) {
-    const est = estimateInitial(null, classification, complexity);
+/** Estimate from initial priors or community baselines (cold start, before real data exists) */
+export function getDefaultEstimate(classification, complexity, context) {
+    const est = estimateInitial(null, classification, complexity, context);
     return toTaskEstimate(est, complexity);
 }
 // ── Formatting ────────────────────────────────────────────────
@@ -286,10 +286,17 @@ export function formatStatsContext(stats, estimate, estimateLabel = 'Current tas
 }
 /** Format context during cold start (< CALIBRATION_THRESHOLD tasks) */
 export function formatColdStartContext(estimate, tasksCompleted, estimateLabel = 'Current task estimate') {
+    const isCommunity = estimate.confidence === 40; // community CalibrationLevel
+    const calibrationLine = isCommunity
+        ? `[claude-eta] Calibration: ${tasksCompleted}/${CALIBRATION_THRESHOLD} tasks recorded. Using community baselines until calibrated.`
+        : `[claude-eta] Calibration: ${tasksCompleted}/${CALIBRATION_THRESHOLD} tasks recorded. Estimates become project-specific after ${CALIBRATION_THRESHOLD} tasks.`;
+    const guidanceLine = isCommunity
+        ? 'Use these community baselines to calibrate any time estimates. Do not volunteer time estimates unless the user asks.'
+        : 'Use these initial priors to calibrate any time estimates. Do not volunteer time estimates unless the user asks.';
     const lines = [
-        `[claude-eta] Calibration: ${tasksCompleted}/${CALIBRATION_THRESHOLD} tasks recorded. Estimates become project-specific after ${CALIBRATION_THRESHOLD} tasks.`,
+        calibrationLine,
         `→ ${estimateLabel}: ${fmtSec(estimate.low)}–${fmtSec(estimate.high)} (${estimate.confidence}% confidence, ${estimate.basis} — not calibrated to this project yet)`,
-        'Use these initial priors to calibrate any time estimates. Do not volunteer time estimates unless the user asks.',
+        guidanceLine,
     ];
     return lines.join('\n');
 }

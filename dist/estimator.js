@@ -20,13 +20,21 @@ const W_PHASE_MODEL = 4; // Weight denominator for classification+model+phase da
  *   w = n / (n + W), where n = sample count, W = shrinkage denominator
  */
 export function estimateInitial(stats, classification, complexity, context) {
-    // Initial priors (cold start)
-    const prior = INITIAL_PRIORS[classification] ?? INITIAL_PRIORS.other;
+    // Resolve prior: community baseline → INITIAL_PRIORS
+    const communityPrior = context?.communityPriors?.[classification];
+    const hardcodedPrior = INITIAL_PRIORS[classification] ?? INITIAL_PRIORS.other;
+    const prior = communityPrior
+        ? { low: communityPrior.low, median: communityPrior.median, high: communityPrior.high }
+        : hardcodedPrior;
+    const priorCalibration = communityPrior ? 'community' : 'cold';
+    const priorBasis = communityPrior
+        ? `community ${classification} baseline (${communityPrior.sample_count} samples)`
+        : `initial ${classification} prior`;
     const defaultP50 = prior.median;
     const defaultP80 = prior.high;
     if (!stats) {
-        // No local data at all — pure cold start
-        return makeEstimate(defaultP50, defaultP80, `initial ${classification} prior`, 'cold', complexity);
+        // No local data at all — use community baseline or cold start
+        return makeEstimate(defaultP50, defaultP80, priorBasis, priorCalibration, complexity);
     }
     // Global local stats
     const nGlobal = stats.totalCompleted;
@@ -154,6 +162,8 @@ function calibrationToConfidence(cal) {
     switch (cal) {
         case 'cold':
             return 30;
+        case 'community':
+            return 40;
         case 'warming':
             return 50;
         case 'project':

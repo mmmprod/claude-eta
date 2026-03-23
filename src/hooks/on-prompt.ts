@@ -29,6 +29,7 @@ import {
   formatTaskRecap,
   fmtSec,
 } from '../stats.js';
+import { loadCachedBaselines, baselinesToPriors, type CommunityPriors } from '../baselines-cache.js';
 import type { ActiveTurnState } from '../types.js';
 
 /** Output hook response with optional additionalContext */
@@ -131,6 +132,13 @@ async function main(): Promise<void> {
 
   const promptSummary = summarizePrompt(prompt);
 
+  // Load community baselines from disk cache (sync, <1ms)
+  const baselines = loadCachedBaselines();
+  const projectLocBucket = loadProjectMeta(fp)?.loc_bucket ?? null;
+  const communityPriors: CommunityPriors | null = baselines
+    ? baselinesToPriors(baselines, projectLocBucket, model)
+    : null;
+
   // Create new turn via event-store
   const now = Date.now();
   const state: ActiveTurnState = {
@@ -180,7 +188,7 @@ async function main(): Promise<void> {
   };
 
   // Cache ETA snapshot before startTurn so it's persisted in a single write
-  const initialEta = estimateInitial(stats, classification, complexity, { model });
+  const initialEta = estimateInitial(stats, classification, complexity, { model, communityPriors });
   const remainingP50 = Math.max(0, initialEta.p50_wall - cumulativeSeconds);
   const remainingP80 = Math.max(1, initialEta.p80_wall - cumulativeSeconds);
   state.cached_eta = {
@@ -227,7 +235,7 @@ async function main(): Promise<void> {
     const isOngoingWorkItem = transition === 'same_work_item' || cumulativeSeconds > 0;
     const estimate = isOngoingWorkItem
       ? toRemainingTaskEstimate(displayEta, complexity)
-      : getDefaultEstimate(classification, complexity);
+      : getDefaultEstimate(classification, complexity, { communityPriors });
     contextParts.push(
       formatColdStartContext(
         estimate,
@@ -245,7 +253,7 @@ async function main(): Promise<void> {
       prefs.auto_eta = false;
       prefs.updated_at = new Date().toISOString();
       savePreferencesV2(prefs);
-      contextParts.push('[claude-eta] Auto-ETA disabled. Re-enable anytime with /eta auto on.');
+      contextParts.push('[claude-eta] Auto-ETA disabled. Re-enable anytime with /claude-eta:eta auto on.');
     } else {
       // Load accuracy from project meta for the auto-eta gate
       const meta = loadProjectMeta(fp);

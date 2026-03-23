@@ -309,9 +309,13 @@ export function estimateTask(
   return toTaskEstimate(est, complexity);
 }
 
-/** Estimate from initial priors (cold start, before real data exists) */
-export function getDefaultEstimate(classification: TaskClassification, complexity: number): TaskEstimate {
-  const est = estimateInitial(null, classification, complexity);
+/** Estimate from initial priors or community baselines (cold start, before real data exists) */
+export function getDefaultEstimate(
+  classification: TaskClassification,
+  complexity: number,
+  context?: { communityPriors?: import('./baselines-cache.js').CommunityPriors | null },
+): TaskEstimate {
+  const est = estimateInitial(null, classification, complexity, context);
   return toTaskEstimate(est, complexity);
 }
 
@@ -364,10 +368,18 @@ export function formatColdStartContext(
   tasksCompleted: number,
   estimateLabel = 'Current task estimate',
 ): string {
+  const isCommunity = estimate.confidence === 40; // community CalibrationLevel
+  const calibrationLine = isCommunity
+    ? `[claude-eta] Calibration: ${tasksCompleted}/${CALIBRATION_THRESHOLD} tasks recorded. Using community baselines until calibrated.`
+    : `[claude-eta] Calibration: ${tasksCompleted}/${CALIBRATION_THRESHOLD} tasks recorded. Estimates become project-specific after ${CALIBRATION_THRESHOLD} tasks.`;
+  const guidanceLine = isCommunity
+    ? 'Use these community baselines to calibrate any time estimates. Do not volunteer time estimates unless the user asks.'
+    : 'Use these initial priors to calibrate any time estimates. Do not volunteer time estimates unless the user asks.';
+
   const lines: string[] = [
-    `[claude-eta] Calibration: ${tasksCompleted}/${CALIBRATION_THRESHOLD} tasks recorded. Estimates become project-specific after ${CALIBRATION_THRESHOLD} tasks.`,
+    calibrationLine,
     `→ ${estimateLabel}: ${fmtSec(estimate.low)}–${fmtSec(estimate.high)} (${estimate.confidence}% confidence, ${estimate.basis} — not calibrated to this project yet)`,
-    'Use these initial priors to calibrate any time estimates. Do not volunteer time estimates unless the user asks.',
+    guidanceLine,
   ];
   return lines.join('\n');
 }
