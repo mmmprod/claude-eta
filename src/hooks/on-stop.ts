@@ -10,12 +10,14 @@ import type { StopStdin } from '../types.js';
 import { readStdin } from '../stdin.js';
 import { resolveProjectIdentity } from '../identity.js';
 import { getActiveTurn, closeTurn, setActiveTurn } from '../event-store.js';
-import { loadCompletedTurnsCompat, turnsToAnalyticsTasks } from '../compat.js';
 import { setLastCompletedV2, consumeLastEtaV2 } from '../ephemeral.js';
-import { computeStats, fmtSec } from '../stats.js';
+import { fmtSec } from '../stats.js';
+import { getProjectStats } from '../stats-cache.js';
 import { extractDurations, findBullshitEstimate, resolveDetectorReference } from '../detector.js';
 import { updateEtaAccuracy } from '../project-meta.js';
 import { detectRepairLoop } from '../loop-detector.js';
+import { isEtaIntervalHit } from '../eta-accuracy.js';
+import { appendProjectDebugLog } from '../debug-log.js';
 import type { ErrorFingerprint } from '../types.js';
 
 function blockWithCorrection(reason: string): void {
@@ -50,7 +52,18 @@ async function main(): Promise<void> {
         recordRecap(fp, sessionId, completed, savedFingerprints);
       }
       consumeLastEtaV2(fp, sessionId);
-    } catch {
+    } catch (error) {
+      appendProjectDebugLog(
+        fp,
+        'stop-hook-errors.log',
+        JSON.stringify({
+          ts: new Date().toISOString(),
+          session_id: sessionId,
+          agent_key: agentKey,
+          phase: 'stop_hook_active',
+          error: error instanceof Error ? (error.stack ?? error.message) : String(error),
+        }),
+      );
       // Swallow — loop prevention is more important than clean close
     }
     return;
@@ -78,10 +91,7 @@ async function main(): Promise<void> {
   // ── Bullshit detector ──────────────────────────────────────
   const message = stdin.last_assistant_message ?? '';
   if (message) {
-    const turns = loadCompletedTurnsCompat(cwd);
-    const tasks = turnsToAnalyticsTasks(turns);
-    const stats = computeStats(tasks);
-
+    const stats = getProjectStats(cwd);
     if (stats) {
       // Resolve reference: classification-specific first, then global
       const ref = resolveDetectorReference(stats, active.classification);
@@ -119,7 +129,7 @@ async function main(): Promise<void> {
   if (completed) {
     const lastEta = consumeLastEtaV2(fp, sessionId);
     if (lastEta && lastEta.task_id === completed.work_item_id) {
-      const hit = completed.wall_seconds <= lastEta.high;
+      const hit = isEtaIntervalHit(completed.wall_seconds, lastEta);
       updateEtaAccuracy(fp, completed.classification, hit);
     }
   }

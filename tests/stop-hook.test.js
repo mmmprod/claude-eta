@@ -263,7 +263,7 @@ describe('Stop hook integration', () => {
     assert.ok(!output.includes('Repair loop detected'));
   });
 
-  it('records fast task (below p50) as coverage hit, not miss', () => {
+  it('records fast task below the lower ETA bound as a miss', () => {
     const fp = getTestFp();
     const turnId = 'turn-fast-finish';
 
@@ -315,7 +315,7 @@ describe('Stop hook integration', () => {
       }),
     );
 
-    // Run the stop hook — task finishes in ~5s, well below p50=60
+    // Run the stop hook — task finishes in ~5s, below the ETA interval lower bound.
     runStopHook({
       last_assistant_message: 'Fixed the bug.',
       stop_hook_active: false,
@@ -323,13 +323,75 @@ describe('Stop hook integration', () => {
       cwd: TEST_CWD,
     });
 
-    // Read project meta and check that the accuracy was recorded as a HIT
+    // Read project meta and check that the accuracy was recorded as a MISS
     const meta = JSON.parse(fs.readFileSync(path.join(metaDir, 'meta.json'), 'utf-8'));
     assert.ok(meta.eta_accuracy, 'eta_accuracy should be populated');
     const bugfixAcc = meta.eta_accuracy.by_classification?.bugfix;
     assert.ok(bugfixAcc, 'bugfix accuracy entry should exist');
     assert.equal(bugfixAcc.interval80_total, 1, 'should have 1 total observation');
-    assert.equal(bugfixAcc.interval80_hits, 1, 'fast finish (below p50) should be a HIT, not a miss');
+    assert.equal(bugfixAcc.interval80_hits, 0, 'a completion below the lower ETA bound should be a miss');
+  });
+
+  it('records in-interval completion as a hit', () => {
+    const fp = getTestFp();
+    const turnId = 'turn-in-range';
+
+    seedActiveTurn(fp, SESSION_ID, 'main', {
+      turn_id: turnId,
+      work_item_id: turnId,
+      classification: 'bugfix',
+      started_at: new Date(Date.now() - 90000).toISOString(),
+      started_at_ms: Date.now() - 90000,
+    });
+
+    const metaDir = path.join(TEST_DATA_DIR, 'projects', fp);
+    fs.mkdirSync(metaDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(metaDir, 'meta.json'),
+      JSON.stringify({
+        project_fp: fp,
+        display_name: 'test-stop-hook-project',
+        cwd_realpath: TEST_CWD,
+        created: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        legacy_slug: null,
+        file_count: null,
+        file_count_bucket: null,
+        loc_bucket: null,
+        repo_metrics_updated_at: null,
+        eta_accuracy: null,
+      }),
+    );
+
+    const cacheDir = path.join(TEST_DATA_DIR, 'projects', fp, 'cache');
+    fs.mkdirSync(cacheDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(cacheDir, `ephemeral-${SESSION_ID}.json`),
+      JSON.stringify({
+        last_eta: {
+          low: 60,
+          high: 120,
+          classification: 'bugfix',
+          task_id: turnId,
+          timestamp: new Date().toISOString(),
+        },
+        last_completed: null,
+        updated_at: new Date().toISOString(),
+      }),
+    );
+
+    runStopHook({
+      last_assistant_message: 'Finished in range.',
+      stop_hook_active: false,
+      session_id: SESSION_ID,
+      cwd: TEST_CWD,
+    });
+
+    const meta = JSON.parse(fs.readFileSync(path.join(metaDir, 'meta.json'), 'utf-8'));
+    const bugfixAcc = meta.eta_accuracy.by_classification?.bugfix;
+    assert.ok(bugfixAcc, 'bugfix accuracy entry should exist');
+    assert.equal(bugfixAcc.interval80_total, 1, 'should have 1 total observation');
+    assert.equal(bugfixAcc.interval80_hits, 1, 'a completion inside the ETA interval should be a hit');
   });
 
   it('records accuracy against work_item_id for multi-turn work items', () => {
@@ -341,8 +403,8 @@ describe('Stop hook integration', () => {
       turn_id: turnId,
       work_item_id: workItemId,
       classification: 'bugfix',
-      started_at: new Date(Date.now() - 5000).toISOString(),
-      started_at_ms: Date.now() - 5000,
+      started_at: new Date(Date.now() - 90000).toISOString(),
+      started_at_ms: Date.now() - 90000,
     });
 
     const metaDir = path.join(TEST_DATA_DIR, 'projects', fp);
@@ -392,6 +454,10 @@ describe('Stop hook integration', () => {
     const bugfixAcc = meta.eta_accuracy.by_classification?.bugfix;
     assert.ok(bugfixAcc, 'bugfix accuracy entry should exist');
     assert.equal(bugfixAcc.interval80_total, 1, 'multi-turn work items should count toward accuracy');
-    assert.equal(bugfixAcc.interval80_hits, 1, 'the multi-turn observation should be recorded as a hit');
+    assert.equal(
+      bugfixAcc.interval80_hits,
+      1,
+      'the multi-turn observation should be recorded as a hit when in interval',
+    );
   });
 });

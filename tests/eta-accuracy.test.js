@@ -27,6 +27,11 @@ async function loadAutoEtaModule() {
   return await import(`../dist/auto-eta.js?t=${ts}`);
 }
 
+async function loadEtaAccuracyModule() {
+  const ts = Date.now() + Math.random();
+  return await import(`../dist/eta-accuracy.js?t=${ts}`);
+}
+
 function createMeta(fp) {
   const meta = {
     project_fp: fp,
@@ -114,6 +119,23 @@ describe('updateEtaAccuracy', () => {
     assert.equal(meta.eta_accuracy.by_classification.bugfix.interval80_total, 2);
     assert.equal(meta.eta_accuracy.by_classification.refactor.interval80_hits, 0);
     assert.equal(meta.eta_accuracy.by_classification.refactor.interval80_total, 1);
+  });
+});
+
+describe('isEtaIntervalHit', () => {
+  it('returns true when the actual duration is inside the interval', async () => {
+    const { isEtaIntervalHit } = await loadEtaAccuracyModule();
+    assert.equal(isEtaIntervalHit(90, { low: 60, high: 120 }), true);
+  });
+
+  it('returns false when the actual duration is below the lower bound', async () => {
+    const { isEtaIntervalHit } = await loadEtaAccuracyModule();
+    assert.equal(isEtaIntervalHit(5, { low: 60, high: 120 }), false);
+  });
+
+  it('returns false when the actual duration is above the upper bound', async () => {
+    const { isEtaIntervalHit } = await loadEtaAccuracyModule();
+    assert.equal(isEtaIntervalHit(180, { low: 60, high: 120 }), false);
   });
 });
 
