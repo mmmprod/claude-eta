@@ -69,8 +69,8 @@ async function main() {
             repo_metrics_updated_at: repoMetrics.computedAt,
         });
     }
-    // Refresh community baselines cache (async, 3s timeout, swallows errors)
-    await refreshBaselinesCache();
+    // Refresh community baselines cache (fire-and-forget, 3s timeout, swallows errors)
+    refreshBaselinesCache().catch(() => { });
     const communityOnboardingNote = consumeCommunityOnboardingNote();
     if (completed === 0) {
         let message = `[claude-eta] Plugin active — tracking task durations. Data is 100% local.\n` +

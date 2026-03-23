@@ -80,8 +80,8 @@ async function main(): Promise<void> {
     });
   }
 
-  // Refresh community baselines cache (async, 3s timeout, swallows errors)
-  await refreshBaselinesCache();
+  // Refresh community baselines cache (fire-and-forget, 3s timeout, swallows errors)
+  refreshBaselinesCache().catch(() => {});
 
   const communityOnboardingNote = consumeCommunityOnboardingNote();
 

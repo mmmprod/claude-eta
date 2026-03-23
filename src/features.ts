@@ -6,6 +6,15 @@ import type { ActiveTurnState } from './types.js';
 
 export type TaskPhase = 'explore' | 'edit' | 'validate' | 'validate_failed' | 'repair_loop';
 
+/** Phase-specific multipliers for remaining-time estimation. Single source of truth. */
+export const PHASE_MULTIPLIERS: Record<TaskPhase, number> = {
+  explore: 1.05,
+  edit: 1,
+  validate: 0.95,
+  validate_failed: 1.0,
+  repair_loop: 1.15,
+};
+
 export interface TraceFeatures {
   elapsed_wall_ms: number;
   tool_calls: number;
@@ -59,14 +68,7 @@ export function recomputeRemaining(
   elapsedSeconds: number,
   phase: TaskPhase,
 ): { remaining_p50: number; remaining_p80: number } {
-  const phaseMultipliers: Record<TaskPhase, number> = {
-    explore: 1.05,
-    edit: 1,
-    validate: 0.95,
-    validate_failed: 1.0,
-    repair_loop: 1.15,
-  };
-  const mult = phaseMultipliers[phase];
+  const mult = PHASE_MULTIPLIERS[phase];
   const remainP50 = Math.max(0, Math.round((cachedEta.p50_wall - elapsedSeconds) * mult));
   const remainP80 = Math.max(
     remainP50 + (remainP50 === 0 ? 0 : 1),

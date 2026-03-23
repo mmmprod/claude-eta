@@ -49,7 +49,7 @@ export declare function getProjectMetaPath(projectFp: string): string;
 export declare function getSchemaVersionPath(): string;
 /** Ensure a directory exists (recursive, no-op if exists) */
 export declare function ensureDir(dirPath: string): void;
-/** Atomic write: write to temp file, then rename (prevents corruption from concurrent access) */
+/** Atomic write: write to temp file, fsync, then rename (prevents corruption from concurrent access or power loss) */
 export declare function atomicWrite(filePath: string, data: string): void;
 /** Atomic create: writes only when the target file does not already exist. */
 export declare function atomicWriteIfAbsent(filePath: string, data: string): boolean;

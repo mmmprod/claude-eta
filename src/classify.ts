@@ -128,13 +128,21 @@ export function decidePromptTransition(
 const ADDITIVE_MARKERS =
   /\b(also|aussi|ensuite|and also|ajoute aussi|même fix|same fix|for this fix|pour ce fix|sur le même)\b/i;
 
-/** Extract content words (>3 chars, lowercased) as a Set for Jaccard comparison */
+/** Common short words that inflate Jaccard similarity without indicating topic overlap.
+ *  Classification markers (fix, bug) are excluded because they match across unrelated tasks. */
+const SIMILARITY_STOP_WORDS = new Set([
+  'the', 'and', 'for', 'not', 'but', 'can', 'has', 'was', 'are', 'all', 'any', 'its',
+  'fix', 'bug', 'les', 'des', 'une', 'par', 'sur', 'que', 'qui', 'est', 'dans',
+]);
+
+/** Extract content words (>2 chars, lowercased, excluding stop words) as a Set for Jaccard comparison.
+ *  Threshold of 2 keeps short technical terms (api, css, sql, tsx, url). */
 function contentWords(text: string): Set<string> {
   return new Set(
     text
       .toLowerCase()
       .split(/\W+/)
-      .filter((w) => w.length > 3),
+      .filter((w) => w.length > 2 && !SIMILARITY_STOP_WORDS.has(w)),
   );
 }
 

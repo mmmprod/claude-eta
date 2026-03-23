@@ -3,6 +3,7 @@
  * Fetches from Supabase with a local 6h cache fallback.
  */
 import { normalizeModel } from '../anonymize.js';
+import { selectBestBaseline } from '../baseline-match.js';
 import { getBaselinesWithCache } from '../baselines-cache.js';
 import { loadCompletedTurnsCompat, turnsToAnalyticsTasks } from '../compat.js';
 import { consumeCommunityConsentPrompt } from '../community-consent.js';
@@ -11,6 +12,8 @@ import { loadPreferencesV2 } from '../preferences.js';
 import { loadProjectMeta } from '../project-meta.js';
 import { computeStats, fmtSec } from '../stats.js';
 import { c } from './colors.js';
+// Re-export from canonical location for backward compatibility
+export { selectBestBaseline } from '../baseline-match.js';
 const DOMINANT_MODEL_MIN_SHARE = 0.75;
 function col(s, len, align = 'left') {
     const truncated = s.length > len ? s.slice(0, len) : s;
@@ -66,26 +69,6 @@ export function selectDominantModel(tasks) {
     });
     const [topModel, topCount] = ranked[0];
     return topCount / tasks.length >= DOMINANT_MODEL_MIN_SHARE ? topModel : null;
-}
-export function selectBestBaseline(baselines, taskType, projectLocBucket, model) {
-    const exact = (loc, candidateModel) => baselines.find((baseline) => baseline.task_type === taskType && baseline.project_loc_bucket === loc && baseline.model === candidateModel) ?? null;
-    if (projectLocBucket && model) {
-        const hit = exact(projectLocBucket, model);
-        if (hit)
-            return { kind: 'type+loc+model', record: hit };
-    }
-    if (model) {
-        const hit = exact(null, model);
-        if (hit)
-            return { kind: 'type+model', record: hit };
-    }
-    if (projectLocBucket) {
-        const hit = exact(projectLocBucket, null);
-        if (hit)
-            return { kind: 'type+loc', record: hit };
-    }
-    const hit = exact(null, null);
-    return hit ? { kind: 'global', record: hit } : null;
 }
 export function buildCompareRows(tasks, baselines, projectLocBucket) {
     const stats = computeStats(tasks);

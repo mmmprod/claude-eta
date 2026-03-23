@@ -174,7 +174,13 @@ function isTurnAlreadyCompleted(projectFp: string, sessionId: string, agentKey: 
   try {
     const content = fs.readFileSync(completedPath, 'utf-8');
     for (const line of content.split('\n')) {
-      if (line.includes(`"turn_id":"${turnId}"`)) return true;
+      if (!line.trim()) continue;
+      try {
+        const record = JSON.parse(line) as { turn_id?: string };
+        if (record.turn_id === turnId) return true;
+      } catch {
+        // Skip malformed lines
+      }
     }
   } catch {
     // No completed file yet

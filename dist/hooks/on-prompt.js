@@ -51,7 +51,7 @@ async function main() {
     // Load stats once — used by both continuation and new-task branches
     const existing = getActiveTurn(fp, sessionId, agentKey);
     const turns = loadCompletedTurnsCompat(cwd);
-    const stats = getProjectStats(cwd);
+    const stats = getProjectStats(cwd, turns);
     // Load prefs once — used by both continuation and new-task branches
     const prefs = loadPreferencesV2();
     // Evaluate disable request early so effectiveAutoEta reflects it

@@ -1,3 +1,4 @@
+import { PHASE_MULTIPLIERS } from './features.js';
 import { INITIAL_PRIORS, CALIBRATION_THRESHOLD } from './stats.js';
 import { normalizeModel } from './anonymize.js';
 // ── Shrinkage weights ────────────────────────────────────────
@@ -72,18 +73,11 @@ export function estimateInitial(stats, classification, complexity, context) {
  * Uses elapsed time and phase to adjust remaining time.
  */
 export function estimateWithTrace(initial, elapsedSeconds, phase, context) {
-    const phaseMultipliers = {
-        explore: 1.05,
-        edit: 1,
-        validate: 0.95,
-        validate_failed: 1.0,
-        repair_loop: 1.15,
-    };
     const effectiveElapsed = elapsedSeconds + (context?.cumulativeWorkItemSeconds ?? 0);
     const baselineP50 = Math.max(0, initial.p50_wall - effectiveElapsed);
     const baselineP80 = Math.max(0, initial.p80_wall - effectiveElapsed);
-    let remainP50 = Math.max(0, Math.round(baselineP50 * phaseMultipliers[phase]));
-    let remainP80 = Math.max(remainP50 + (remainP50 === 0 ? 0 : 1), Math.round(baselineP80 * phaseMultipliers[phase]));
+    let remainP50 = Math.max(0, Math.round(baselineP50 * PHASE_MULTIPLIERS[phase]));
+    let remainP80 = Math.max(remainP50 + (remainP50 === 0 ? 0 : 1), Math.round(baselineP80 * PHASE_MULTIPLIERS[phase]));
     let basis = initial.basis;
     const phaseBucket = phase === 'validate' || phase === 'validate_failed'
         ? 'validate'

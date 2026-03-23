@@ -50,11 +50,19 @@ export function getLocalSalt(): string {
   try {
     return fs.readFileSync(saltPath, 'utf-8').trim();
   } catch {
-    // First run — generate a random salt
+    // First run — generate a random salt (atomic to handle concurrent processes)
     const salt = crypto.randomUUID();
     ensureDir(path.dirname(saltPath));
-    fs.writeFileSync(saltPath, salt, 'utf-8');
-    return salt;
+    try {
+      fs.writeFileSync(saltPath, salt, { flag: 'wx' });
+      return salt;
+    } catch (err) {
+      // Another process won the race — read their salt
+      if ((err as NodeJS.ErrnoException).code === 'EEXIST') {
+        return fs.readFileSync(saltPath, 'utf-8').trim();
+      }
+      throw err;
+    }
   }
 }
 

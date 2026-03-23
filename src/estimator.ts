@@ -8,7 +8,7 @@
  */
 import type { TaskClassification } from './types.js';
 import type { ProjectStats } from './stats.js';
-import type { TaskPhase } from './features.js';
+import { type TaskPhase, PHASE_MULTIPLIERS } from './features.js';
 import type { CommunityPriors } from './baselines-cache.js';
 import { INITIAL_PRIORS, CALIBRATION_THRESHOLD } from './stats.js';
 import { normalizeModel } from './anonymize.js';
@@ -142,18 +142,11 @@ export function estimateWithTrace(
     cumulativeWorkItemSeconds?: number;
   },
 ): EtaEstimate {
-  const phaseMultipliers: Record<TaskPhase, number> = {
-    explore: 1.05,
-    edit: 1,
-    validate: 0.95,
-    validate_failed: 1.0,
-    repair_loop: 1.15,
-  };
   const effectiveElapsed = elapsedSeconds + (context?.cumulativeWorkItemSeconds ?? 0);
   const baselineP50 = Math.max(0, initial.p50_wall - effectiveElapsed);
   const baselineP80 = Math.max(0, initial.p80_wall - effectiveElapsed);
-  let remainP50 = Math.max(0, Math.round(baselineP50 * phaseMultipliers[phase]));
-  let remainP80 = Math.max(remainP50 + (remainP50 === 0 ? 0 : 1), Math.round(baselineP80 * phaseMultipliers[phase]));
+  let remainP50 = Math.max(0, Math.round(baselineP50 * PHASE_MULTIPLIERS[phase]));
+  let remainP80 = Math.max(remainP50 + (remainP50 === 0 ? 0 : 1), Math.round(baselineP80 * PHASE_MULTIPLIERS[phase]));
   let basis = initial.basis;
 
   const phaseBucket =

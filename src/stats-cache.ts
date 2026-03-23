@@ -97,13 +97,18 @@ function writeCache(projectFp: string, cache: CachedProjectStats): void {
   }
 }
 
-/** Return historical project stats using a signature-validated cache. */
-export function getProjectStats(cwd: string): ProjectStats | null {
+/** Return historical project stats using a signature-validated cache.
+ *  Pass preloadedTurns to avoid a redundant JSONL re-read when the caller
+ *  has already loaded turns (e.g. on-prompt.ts). */
+export function getProjectStats(
+  cwd: string,
+  preloadedTurns?: import('./types.js').CompletedTurn[],
+): ProjectStats | null {
   const { projectFp, signature } = buildHistorySignature(cwd);
   const cached = readCache(projectFp);
   if (cached?.signature === signature) return cached.stats;
 
-  const turns = loadCompletedTurnsCompat(cwd);
+  const turns = preloadedTurns ?? loadCompletedTurnsCompat(cwd);
   const tasks = turnsToAnalyticsTasks(turns);
   const stats = computeStats(tasks);
 
