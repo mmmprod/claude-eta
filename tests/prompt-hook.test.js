@@ -112,6 +112,26 @@ function seedLegacyData(tasks) {
   );
 }
 
+function seedPreferences(overrides = {}) {
+  const configDir = path.join(TEST_DATA_DIR, 'config');
+  fs.mkdirSync(configDir, { recursive: true });
+  fs.writeFileSync(
+    path.join(configDir, 'preferences.json'),
+    JSON.stringify({
+      auto_eta: false,
+      auto_eta_explicitly_set: false,
+      community_sharing: false,
+      community_onboarding_seen: false,
+      community_choice_made: false,
+      community_consent_prompt_seen: false,
+      prompts_since_last_eta: 0,
+      last_eta_task_id: null,
+      updated_at: new Date().toISOString(),
+      ...overrides,
+    }),
+  );
+}
+
 function makeLegacyTask(overrides = {}) {
   return {
     task_id: 'task-' + Math.random().toString(36).slice(2),
@@ -239,5 +259,28 @@ describe('UserPromptSubmit hook work-item continuity', () => {
       ),
       context,
     );
+  });
+
+  it('does not inject Auto-ETA on ongoing work items', () => {
+    seedLegacyData(Array.from({ length: 10 }, () => makeLegacyTask()));
+    seedPreferences({ auto_eta: true, auto_eta_explicitly_set: true });
+    const { activePath } = seedActiveTurn({
+      classification: 'bugfix',
+      prompt_summary: 'fix erreurs réseau dans compare',
+      prompt_complexity: 2,
+      started_at: new Date(Date.now() - 260000).toISOString(),
+      started_at_ms: Date.now() - 260000,
+      model: 'claude-sonnet-4-20250514',
+    });
+
+    const context = getAdditionalContext(
+      runPrompt('gère aussi les erreurs réseau dans compare et les cas limites du parser existant'),
+    );
+    const active = JSON.parse(fs.readFileSync(activePath, 'utf8'));
+
+    assert.equal(active.work_item_id, 'wi-existing');
+    assert.ok(context.includes('Current remaining estimate:'), context);
+    assert.doesNotMatch(context, /⏱ Estimated:/u);
+    assert.doesNotMatch(context, /\[claude-eta auto-eta]/);
   });
 });
