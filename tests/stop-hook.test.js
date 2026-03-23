@@ -454,6 +454,10 @@ describe('Stop hook integration', () => {
     const bugfixAcc = meta.eta_accuracy.by_classification?.bugfix;
     assert.ok(bugfixAcc, 'bugfix accuracy entry should exist');
     assert.equal(bugfixAcc.interval80_total, 1, 'multi-turn work items should count toward accuracy');
-    assert.equal(bugfixAcc.interval80_hits, 1, 'the multi-turn observation should be recorded as a hit when in interval');
+    assert.equal(
+      bugfixAcc.interval80_hits,
+      1,
+      'the multi-turn observation should be recorded as a hit when in interval',
+    );
   });
 });

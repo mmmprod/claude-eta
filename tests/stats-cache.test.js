@@ -78,7 +78,10 @@ function writeCompletedTurns(turns) {
   const fp = getProjectFp(TEST_CWD);
   const completedDir = path.join(TEST_DATA_DIR, 'projects', fp, 'completed');
   fs.mkdirSync(completedDir, { recursive: true });
-  fs.writeFileSync(path.join(completedDir, 'sess-1__main.jsonl'), turns.map((turn) => JSON.stringify(turn)).join('\n') + '\n');
+  fs.writeFileSync(
+    path.join(completedDir, 'sess-1__main.jsonl'),
+    turns.map((turn) => JSON.stringify(turn)).join('\n') + '\n',
+  );
   return fp;
 }
 

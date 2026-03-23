@@ -61,7 +61,7 @@ async function main(): Promise<void> {
           session_id: sessionId,
           agent_key: agentKey,
           phase: 'stop_hook_active',
-          error: error instanceof Error ? error.stack ?? error.message : String(error),
+          error: error instanceof Error ? (error.stack ?? error.message) : String(error),
         }),
       );
       // Swallow — loop prevention is more important than clean close
