@@ -239,6 +239,8 @@ describe('detectPhase', () => {
       live_remaining_p50: null,
       live_remaining_p80: null,
       live_phase: null,
+      files_edited_after_first_failure: 0,
+      first_bash_failure_at_ms: null,
       ...overrides,
     };
   }
@@ -255,9 +257,47 @@ describe('detectPhase', () => {
     assert.equal(detectPhase(makeState({ first_edit_at_ms: Date.now(), first_bash_at_ms: Date.now() })), 'validate');
   });
 
-  it('returns repair_loop after bash failure + edits', () => {
+  it('returns repair_loop after bash failure + post-failure edits', () => {
     assert.equal(
-      detectPhase(makeState({ first_edit_at_ms: Date.now(), bash_failures: 1, files_edited: 2 })),
+      detectPhase(
+        makeState({
+          first_edit_at_ms: Date.now(),
+          bash_failures: 1,
+          files_edited: 3,
+          files_edited_after_first_failure: 1,
+          first_bash_failure_at_ms: Date.now(),
+        }),
+      ),
+      'repair_loop',
+    );
+  });
+
+  it('returns validate_failed after bash failure with no post-failure edits', () => {
+    assert.equal(
+      detectPhase(
+        makeState({
+          first_edit_at_ms: Date.now(),
+          bash_failures: 1,
+          files_edited: 2,
+          files_edited_after_first_failure: 0,
+          first_bash_failure_at_ms: Date.now(),
+        }),
+      ),
+      'validate_failed',
+    );
+  });
+
+  it('returns repair_loop only when edits happen after failure', () => {
+    assert.equal(
+      detectPhase(
+        makeState({
+          first_edit_at_ms: Date.now(),
+          bash_failures: 1,
+          files_edited: 3,
+          files_edited_after_first_failure: 1,
+          first_bash_failure_at_ms: Date.now(),
+        }),
+      ),
       'repair_loop',
     );
   });

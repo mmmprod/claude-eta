@@ -31,6 +31,7 @@ export function recomputeRemaining(cachedEta, elapsedSeconds, phase) {
         explore: 1.05,
         edit: 1,
         validate: 0.95,
+        validate_failed: 1.0,
         repair_loop: 1.15,
     };
     const mult = phaseMultipliers[phase];
@@ -66,9 +67,12 @@ export function detectPhase(state) {
     // No edits yet → exploring
     if (state.first_edit_at_ms === null)
         return 'explore';
-    // Has bash failures AND edits came after bash → repair loop
-    if (state.bash_failures > 0 && state.files_edited > 0)
+    // Has bash failures AND post-failure edits → repair loop
+    if (state.bash_failures > 0 && (state.files_edited_after_first_failure ?? 0) > 0)
         return 'repair_loop';
+    // Has bash failures but no post-failure edits → validate_failed
+    if (state.bash_failures > 0)
+        return 'validate_failed';
     // Has bash calls → validating
     if (state.first_bash_at_ms !== null)
         return 'validate';
