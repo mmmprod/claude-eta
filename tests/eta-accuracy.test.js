@@ -122,32 +122,32 @@ describe('updateEtaAccuracy', () => {
   });
 });
 
-describe('isEtaIntervalHit', () => {
+describe('isEtaUpperBoundHit', () => {
   it('returns true when actual is inside [low, high]', async () => {
-    const { isEtaIntervalHit } = await loadEtaAccuracyModule();
-    assert.equal(isEtaIntervalHit(90, { low: 60, high: 120 }), true);
+    const { isEtaUpperBoundHit } = await loadEtaAccuracyModule();
+    assert.equal(isEtaUpperBoundHit(90, { low: 60, high: 120 }), true);
   });
 
   it('returns true when actual is below low (still under p80 upper bound)', async () => {
-    const { isEtaIntervalHit } = await loadEtaAccuracyModule();
+    const { isEtaUpperBoundHit } = await loadEtaAccuracyModule();
     // p80 upper-bound semantics: 5 <= 120 → hit
-    assert.equal(isEtaIntervalHit(5, { low: 60, high: 120 }), true);
+    assert.equal(isEtaUpperBoundHit(5, { low: 60, high: 120 }), true);
   });
 
   it('returns false when actual exceeds the upper bound', async () => {
-    const { isEtaIntervalHit } = await loadEtaAccuracyModule();
-    assert.equal(isEtaIntervalHit(180, { low: 60, high: 120 }), false);
+    const { isEtaUpperBoundHit } = await loadEtaAccuracyModule();
+    assert.equal(isEtaUpperBoundHit(180, { low: 60, high: 120 }), false);
   });
 
   it('returns true at exact upper bound', async () => {
-    const { isEtaIntervalHit } = await loadEtaAccuracyModule();
-    assert.equal(isEtaIntervalHit(120, { low: 60, high: 120 }), true);
+    const { isEtaUpperBoundHit } = await loadEtaAccuracyModule();
+    assert.equal(isEtaUpperBoundHit(120, { low: 60, high: 120 }), true);
   });
 
   it('handles swapped low/high gracefully', async () => {
-    const { isEtaIntervalHit } = await loadEtaAccuracyModule();
+    const { isEtaUpperBoundHit } = await loadEtaAccuracyModule();
     // high = max(200, 100) = 200, actual 150 <= 200 → true
-    assert.equal(isEtaIntervalHit(150, { low: 200, high: 100 }), true);
+    assert.equal(isEtaUpperBoundHit(150, { low: 200, high: 100 }), true);
   });
 });
 

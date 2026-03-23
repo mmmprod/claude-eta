@@ -76,7 +76,7 @@ function renderActiveTask(cwd, precomputedFp) {
     const phase = activeTurn.live_phase ?? 'explore';
     console.log(`\n${c.bold('Active task')}: "${activeTurn.prompt_summary}" ${c.dim(`(${activeTurn.classification})`)}`);
     const parts = [`${c.dim('Phase:')} ${phase}`, `${c.dim('Elapsed:')} ${c.cyan(fmtDuration(elapsed))}`];
-    if (activeTurn.refined_eta) {
+    if (activeTurn.refined_eta && activeTurn.refined_eta.computed_at_ms) {
         const sinceRefine = activeTurn.refined_eta.computed_at_ms
             ? Math.max(0, Math.round((Date.now() - activeTurn.refined_eta.computed_at_ms) / 1000))
             : 0;

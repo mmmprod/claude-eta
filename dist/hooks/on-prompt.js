@@ -9,7 +9,7 @@
 import * as crypto from 'node:crypto';
 import { readStdin } from '../stdin.js';
 import { resolveProjectIdentity } from '../identity.js';
-import { getSession, getActiveTurn, startTurn, closeTurn } from '../event-store.js';
+import { getSession, getActiveTurn, setActiveTurn, startTurn, closeTurn } from '../event-store.js';
 import { loadCompletedTurnsCompat } from '../compat.js';
 import { loadPreferencesV2, savePreferencesV2 } from '../preferences.js';
 import { setLastEtaV2, consumeLastCompletedV2 } from '../ephemeral.js';
@@ -75,6 +75,9 @@ async function main() {
                 model: existing.model,
                 cumulativeWorkItemSeconds: existing.cumulative_work_item_seconds ?? 0,
             });
+            // Persist recalculated ETA so /eta CLI reads fresh values
+            existing.refined_eta = { p50: refined.remaining_p50, p80: refined.remaining_p80, computed_at_ms: Date.now() };
+            setActiveTurn(existing);
             const legacy = toRemainingTaskEstimate(refined, existing.prompt_complexity);
             contextParts.push(formatStatsContext(stats, legacy, 'Current remaining estimate', { autoEtaActive: effectiveAutoEta }));
             if (features.phase !== 'explore') {

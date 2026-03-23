@@ -16,7 +16,7 @@ import { getProjectStats } from '../stats-cache.js';
 import { extractDurations, findBullshitEstimate, resolveDetectorReference } from '../detector.js';
 import { updateEtaAccuracy } from '../project-meta.js';
 import { detectRepairLoop } from '../loop-detector.js';
-import { isEtaIntervalHit } from '../eta-accuracy.js';
+import { isEtaUpperBoundHit } from '../eta-accuracy.js';
 import { appendProjectDebugLog } from '../debug-log.js';
 import type { ErrorFingerprint } from '../types.js';
 
@@ -129,7 +129,7 @@ async function main(): Promise<void> {
   if (completed) {
     const lastEta = consumeLastEtaV2(fp, sessionId);
     if (lastEta && lastEta.task_id === completed.work_item_id) {
-      const hit = isEtaIntervalHit(completed.wall_seconds, lastEta);
+      const hit = isEtaUpperBoundHit(completed.wall_seconds, lastEta);
       updateEtaAccuracy(fp, completed.classification, hit);
     }
   }
