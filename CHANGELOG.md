@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.0.0] (2026-03-23)
+
+First public release.
+
+### Highlights
+
+- Loop detector: detects when Claude is stuck in a repair loop (same error 3+ times) and intervenes
+- Pre-emptive context injection: calibrates Claude's time estimates with real project data
+- Bullshit detector: catches and corrects absurd time estimates
+- 9 insight analyses on task history
+- Community baselines via opt-in anonymous contributions
+- Zero runtime dependencies, 100% local by default
+
 ## [0.16.3](https://github.com/mmmprod/claude-eta/compare/claude-eta-v0.16.2...claude-eta-v0.16.3) (2026-03-23)
 
 

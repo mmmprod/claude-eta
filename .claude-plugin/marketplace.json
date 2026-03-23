@@ -5,21 +5,21 @@
     "email": "mmmprod@users.noreply.github.com"
   },
   "metadata": {
-    "description": "AI-powered task duration tracker and predictor for Claude Code",
-    "version": "0.16.3"
+    "description": "Repair loop detector and ETA calibrator for Claude Code",
+    "version": "1.0.0"
   },
   "plugins": [
     {
       "name": "claude-eta",
       "source": "./",
-      "description": "Track how long your tasks actually take. Automatic timing via hooks, history, and per-project stats.",
+      "description": "Detect repair loops, calibrate ETA with project history, and correct absurd estimates inline.",
       "category": "productivity",
       "tags": [
+        "loop-detector",
+        "repair-loop",
         "eta",
-        "time",
-        "duration",
-        "tracking",
         "estimation",
+        "tracking",
         "productivity"
       ]
     }
