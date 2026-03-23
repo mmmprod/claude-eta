@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.7](https://github.com/mmmprod/claude-eta/compare/claude-eta-v1.3.6...claude-eta-v1.3.7) (2026-03-23)
+
+
+### Bug Fixes
+
+* **cli:** handle bare /eta invocation ([#128](https://github.com/mmmprod/claude-eta/issues/128)) ([a9f5ec6](https://github.com/mmmprod/claude-eta/commit/a9f5ec6a61de2b566e73c66055ebd143768145d2))
+
 ## [1.3.6](https://github.com/mmmprod/claude-eta/compare/claude-eta-v1.3.5...claude-eta-v1.3.6) (2026-03-23)
 
 
