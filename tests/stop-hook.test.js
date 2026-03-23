@@ -263,7 +263,7 @@ describe('Stop hook integration', () => {
     assert.ok(!output.includes('Repair loop detected'));
   });
 
-  it('records fast task below the lower ETA bound as a miss', () => {
+  it('records fast task below the lower ETA bound as a hit (p80 upper-bound semantics)', () => {
     const fp = getTestFp();
     const turnId = 'turn-fast-finish';
 
@@ -323,13 +323,14 @@ describe('Stop hook integration', () => {
       cwd: TEST_CWD,
     });
 
-    // Read project meta and check that the accuracy was recorded as a MISS
+    // Read project meta and check that the accuracy was recorded as a HIT
+    // p80 upper-bound semantics: 5s <= 120s (p80) → hit
     const meta = JSON.parse(fs.readFileSync(path.join(metaDir, 'meta.json'), 'utf-8'));
     assert.ok(meta.eta_accuracy, 'eta_accuracy should be populated');
     const bugfixAcc = meta.eta_accuracy.by_classification?.bugfix;
     assert.ok(bugfixAcc, 'bugfix accuracy entry should exist');
     assert.equal(bugfixAcc.interval80_total, 1, 'should have 1 total observation');
-    assert.equal(bugfixAcc.interval80_hits, 0, 'a completion below the lower ETA bound should be a miss');
+    assert.equal(bugfixAcc.interval80_hits, 1, 'a completion below the lower ETA bound is still under p80 → hit');
   });
 
   it('records in-interval completion as a hit', () => {
