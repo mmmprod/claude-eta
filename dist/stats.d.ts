@@ -46,8 +46,13 @@ export interface TaskEstimate {
 }
 /** Minimum completed tasks before real stats kick in */
 export declare const CALIBRATION_THRESHOLD = 5;
-/** Generic baselines (seconds) used before enough real data exists */
-export declare const DEFAULT_BASELINES: Record<TaskClassification, {
+/**
+ * Hand-tuned initial priors for cold-start estimation.
+ * These are rough order-of-magnitude values based on typical Claude Code tasks.
+ * They are progressively replaced by real project data via shrinkage blending.
+ * Will be superseded by community baselines when Layer 3 has sufficient volume.
+ */
+export declare const INITIAL_PRIORS: Record<TaskClassification, {
     low: number;
     median: number;
     high: number;
@@ -59,7 +64,7 @@ export declare function scorePromptComplexity(prompt: string): number;
 export declare function estimateTask(stats: ProjectStats, classification: string, complexity: number, context?: {
     model?: string | null;
 }): TaskEstimate;
-/** Estimate from generic baselines (cold start, before real data exists) */
+/** Estimate from initial priors (cold start, before real data exists) */
 export declare function getDefaultEstimate(classification: TaskClassification, complexity: number): TaskEstimate;
 export declare function fmtSec(seconds: number): string;
 /** Format stats as a concise context string for Claude injection */

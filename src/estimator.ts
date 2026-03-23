@@ -2,14 +2,14 @@
  * ETA Estimator v2 — shrinkage quantile estimation.
  *
  * Replaces the hardcoded confidence 80/60/30 and linear shift formula
- * with a data-driven model that smoothly blends local and default baselines.
+ * with a data-driven model that smoothly blends local data and initial priors.
  *
  * Pure functions — no I/O.
  */
 import type { TaskClassification } from './types.js';
 import type { ProjectStats } from './stats.js';
 import type { TaskPhase } from './features.js';
-import { DEFAULT_BASELINES, CALIBRATION_THRESHOLD } from './stats.js';
+import { INITIAL_PRIORS, CALIBRATION_THRESHOLD } from './stats.js';
 import { normalizeModel } from './anonymize.js';
 
 export type CalibrationLevel = 'cold' | 'warming' | 'project' | 'project+trace';
@@ -32,7 +32,7 @@ export interface EtaEstimate {
 }
 
 // ── Shrinkage weights ────────────────────────────────────────
-// These control how fast local data overrides the default baselines.
+// These control how fast local data overrides the initial priors.
 // Higher denominator = slower convergence = more conservative.
 
 const W_CLS = 8; // Weight denominator for classification-specific data
@@ -47,7 +47,7 @@ const W_PHASE_MODEL = 4; // Weight denominator for classification+model+phase da
  * Hierarchy (most specific → least specific):
  *   1. Classification-specific local stats (if enough data)
  *   2. Global local stats (all classifications)
- *   3. Default cold baselines
+ *   3. Initial cold priors
  *
  * Each level is blended with the next using shrinkage weights:
  *   w = n / (n + W), where n = sample count, W = shrinkage denominator
@@ -58,14 +58,14 @@ export function estimateInitial(
   complexity: number,
   context?: { model?: string | null },
 ): EtaEstimate {
-  // Default baselines (cold start)
-  const baseline = DEFAULT_BASELINES[classification] ?? DEFAULT_BASELINES.other;
-  const defaultP50 = baseline.median;
-  const defaultP80 = baseline.high;
+  // Initial priors (cold start)
+  const prior = INITIAL_PRIORS[classification] ?? INITIAL_PRIORS.other;
+  const defaultP50 = prior.median;
+  const defaultP80 = prior.high;
 
   if (!stats) {
     // No local data at all — pure cold start
-    return makeEstimate(defaultP50, defaultP80, `generic ${classification} baseline`, 'cold', complexity);
+    return makeEstimate(defaultP50, defaultP80, `initial ${classification} prior`, 'cold', complexity);
   }
 
   // Global local stats

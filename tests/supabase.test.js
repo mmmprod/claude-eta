@@ -1,16 +1,33 @@
 import { describe, it, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
+import * as path from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { insertVelocityRecords, fetchBaselines } from '../dist/supabase.js';
 
 let originalFetch;
+let originalSupabaseUrl;
+let originalSupabaseKey;
+
+const TEST_DIR = path.dirname(fileURLToPath(import.meta.url));
+const SUPABASE_MODULE_URL = pathToFileURL(path.join(TEST_DIR, '..', 'dist', 'supabase.js')).href;
+
+async function importFreshSupabase() {
+  return import(`${SUPABASE_MODULE_URL}?t=${Date.now()}-${Math.random().toString(36).slice(2)}`);
+}
 
 describe('supabase', () => {
   beforeEach(() => {
     originalFetch = global.fetch;
+    originalSupabaseUrl = process.env.CLAUDE_ETA_SUPABASE_URL;
+    originalSupabaseKey = process.env.CLAUDE_ETA_SUPABASE_KEY;
   });
 
   afterEach(() => {
     global.fetch = originalFetch;
+    if (originalSupabaseUrl == null) delete process.env.CLAUDE_ETA_SUPABASE_URL;
+    else process.env.CLAUDE_ETA_SUPABASE_URL = originalSupabaseUrl;
+    if (originalSupabaseKey == null) delete process.env.CLAUDE_ETA_SUPABASE_KEY;
+    else process.env.CLAUDE_ETA_SUPABASE_KEY = originalSupabaseKey;
   });
 
   describe('insertVelocityRecords', () => {
@@ -82,6 +99,29 @@ describe('supabase', () => {
   });
 
   describe('fetchBaselines', () => {
+    it('reads Supabase URL and anon key from env vars when present', async () => {
+      process.env.CLAUDE_ETA_SUPABASE_URL = 'https://supabase.self-hosted.example';
+      process.env.CLAUDE_ETA_SUPABASE_KEY = 'test-anon-key';
+
+      const calls = [];
+      global.fetch = async (url, options) => {
+        calls.push({ url, options });
+        return new Response('[]', {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      };
+
+      const { fetchBaselines: fetchBaselinesWithEnv } = await importFreshSupabase();
+      const result = await fetchBaselinesWithEnv();
+
+      assert.equal(result.error, null);
+      assert.equal(calls.length, 1);
+      assert.equal(calls[0].url, 'https://supabase.self-hosted.example/rest/v1/baselines_cache?select=*');
+      assert.equal(calls[0].options.headers.apikey, 'test-anon-key');
+      assert.equal(calls[0].options.headers.Authorization, 'Bearer test-anon-key');
+    });
+
     it('returns data array on success', async () => {
       const mockData = [{ task_type: 'other', median_seconds: 30 }];
       global.fetch = async () =>

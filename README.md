@@ -80,6 +80,24 @@ The key difference: in a loop, the same error keeps returning. claude-eta finger
 error content, normalizing away paths, numbers, and quoted values so structurally identical
 failures match.
 
+## Why not just `--max-turns`?
+
+| | `--max-turns` | claude-eta |
+|---|---|---|
+| Detection | Counts turns blindly | Fingerprints error content |
+| Trigger | After N turns (any turns) | After 3x same error |
+| Response | Kills the session | Injects correction context |
+| False positives | Cuts long legitimate sessions | Only fires on repeated identical errors |
+| Learning | None | Learns your project's patterns over time |
+
+`--max-turns 20` stops Claude after 20 turns whether it's stuck or productive.
+
+claude-eta only intervenes when the same error repeats, and instead of killing
+the session, it tells Claude what's going wrong and asks it to change strategy.
+
+They're complementary: use `--max-turns` as a hard ceiling, use claude-eta
+for intelligent early intervention.
+
 ## Privacy
 
 Everything is local by default. No cloud. No telemetry. No upload unless you explicitly opt in.
@@ -113,6 +131,19 @@ Only anonymized per-task aggregates are sent. Prompts, code, file paths, event l
 </details>
 
 <details>
+<summary>Self-hosting community baselines</summary>
+
+To point `/eta compare` and `/eta contribute` at your own Supabase project, set:
+
+- `CLAUDE_ETA_SUPABASE_URL`
+- `CLAUDE_ETA_SUPABASE_KEY`
+
+The shipped anon key is intentionally public and restricted to `INSERT velocity_records`
+and `SELECT baselines_cache`.
+
+</details>
+
+<details>
 <summary>Insights (9 analyses)</summary>
 
 `/eta insights` surfaces deeper patterns once enough task history exists:
@@ -130,6 +161,22 @@ Only anonymized per-task aggregates are sent. Prompts, code, file paths, event l
 `/eta`, `/eta history`, `/eta stats`, `/eta inspect`, `/eta insights`, `/eta eval`, `/eta compare`, `/eta export`, `/eta contribute`, `/eta community`, `/eta auto`, `/eta recap`, `/eta help`
 
 </details>
+
+## Performance
+
+claude-eta hooks run on every Claude Code lifecycle event. Measured overhead:
+
+| Hook | Avg latency | Frequency |
+|------|-------------|-----------|
+| PostToolUse | ~37ms | Every tool call |
+| PostToolUseFailure | ~37ms | Every tool failure |
+| UserPromptSubmit | ~42ms | Every prompt |
+| Stop | ~42ms | End of response |
+
+Benchmarked on Linux 6.6 WSL2 x86_64, 12th Gen Intel(R) Core(TM) i7-12700F, Node v20.20.0. Run `./scripts/bench-hooks.sh` to measure on yours.
+
+PostToolUse is the hot path. It reads and writes a single small JSON file (~1KB).
+No historical data is loaded. No stats are computed.
 
 ## Eval results
 
