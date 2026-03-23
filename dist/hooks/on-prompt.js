@@ -200,7 +200,9 @@ async function main() {
         const estimate = isOngoingWorkItem
             ? toRemainingTaskEstimate(displayEta, complexity)
             : toTaskEstimate(displayEta, complexity);
-        contextParts.push(formatStatsContext(stats, estimate, isOngoingWorkItem ? 'Current remaining estimate' : 'Current task estimate', { autoEtaActive: effectiveAutoEta }));
+        contextParts.push(formatStatsContext(stats, estimate, isOngoingWorkItem ? 'Current remaining estimate' : 'Current task estimate', {
+            autoEtaActive: effectiveAutoEta,
+        }));
     }
     else {
         const completedCount = turns.length;

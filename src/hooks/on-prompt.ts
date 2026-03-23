@@ -70,8 +70,7 @@ async function main(): Promise<void> {
 
   // Dynamic auto-activation: evaluated per-prompt, never persisted.
   // Uses a separate variable so prefs stays unmodified for persist paths.
-  const effectiveAutoEta =
-    prefs.auto_eta || (!!stats && shouldAutoActivate(prefs, stats, classification));
+  const effectiveAutoEta = prefs.auto_eta || (!!stats && shouldAutoActivate(prefs, stats, classification));
 
   const transition = decidePromptTransition(prompt, classification, existing);
 
@@ -104,7 +103,9 @@ async function main(): Promise<void> {
           });
 
       const legacy = toRemainingTaskEstimate(refined, existing.prompt_complexity);
-      contextParts.push(formatStatsContext(stats, legacy, 'Current remaining estimate', { autoEtaActive: effectiveAutoEta }));
+      contextParts.push(
+        formatStatsContext(stats, legacy, 'Current remaining estimate', { autoEtaActive: effectiveAutoEta }),
+      );
       if (features.phase !== 'explore') {
         contextParts.push(
           `[claude-eta] Phase: ${features.phase}, elapsed ${fmtSec(elapsed)}, remaining ~${fmtSec(refined.remaining_p50)}–${fmtSec(refined.remaining_p80)}`,
@@ -238,7 +239,9 @@ async function main(): Promise<void> {
       ? toRemainingTaskEstimate(displayEta, complexity)
       : toTaskEstimate(displayEta, complexity);
     contextParts.push(
-      formatStatsContext(stats, estimate, isOngoingWorkItem ? 'Current remaining estimate' : 'Current task estimate', { autoEtaActive: effectiveAutoEta }),
+      formatStatsContext(stats, estimate, isOngoingWorkItem ? 'Current remaining estimate' : 'Current task estimate', {
+        autoEtaActive: effectiveAutoEta,
+      }),
     );
   } else {
     const completedCount = turns.length;

@@ -3,7 +3,14 @@ import assert from 'node:assert/strict';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
-import { checkDisableRequest, evaluateAutoEta, shouldAutoActivate, AUTO_ACTIVATE_THRESHOLD, MIN_TYPE_TASKS, COOLDOWN_INTERVAL } from '../dist/auto-eta.js';
+import {
+  checkDisableRequest,
+  evaluateAutoEta,
+  shouldAutoActivate,
+  AUTO_ACTIVATE_THRESHOLD,
+  MIN_TYPE_TASKS,
+  COOLDOWN_INTERVAL,
+} from '../dist/auto-eta.js';
 import { fmtSec } from '../dist/stats.js';
 import { loadProject, saveProject, setLastEta, consumeLastEta } from '../dist/store.js';
 
