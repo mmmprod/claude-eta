@@ -62,7 +62,7 @@ describe('/eta community CLI', () => {
   it('shows current sharing state in help output', () => {
     const disabledHelp = runEta(['help']);
     assert.match(disabledHelp, /Community sharing: \*\*choice pending \(currently local-only\)\*\*/);
-    assert.doesNotMatch(disabledHelp, /\/eta eval/);
+    assert.match(disabledHelp, /\/eta eval/);
     assert.doesNotMatch(disabledHelp, /\/eta admin-export/);
 
     runEta(['community', 'on']);

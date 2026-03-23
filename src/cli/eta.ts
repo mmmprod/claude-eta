@@ -31,7 +31,7 @@ import type { AnalyticsTask, CompletedTurn, TaskEntry, TaskClassification } from
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const EXPORT_DIR = path.join(getPluginDataDir(), 'export');
-const INTERNAL_ONLY_MODES = new Set(['eval', 'admin-export']);
+const INTERNAL_ONLY_MODES = new Set(['admin-export']);
 
 function internalToolsEnabled(): boolean {
   return /^(1|true|yes)$/i.test(process.env.CLAUDE_ETA_INTERNAL ?? '');
@@ -403,6 +403,7 @@ async function main(): Promise<void> {
     console.log(`| \`/eta export\`                | Anonymize & save to local JSON                 |`);
     console.log(`| \`/eta contribute\`            | Preview what would be shared                   |`);
     console.log(`| \`/eta contribute --confirm\`  | Upload anonymized data (opt-in)                |`);
+    console.log(`| \`/eta eval\`                  | Walk-forward ETA calibration report            |`);
     console.log(`| \`/eta auto\`                  | Auto-ETA status and accuracy               |`);
     console.log(`| \`/eta auto on\`               | Enable Auto-ETA injection                  |`);
     console.log(`| \`/eta auto off\`              | Disable Auto-ETA injection                 |`);
@@ -413,7 +414,6 @@ async function main(): Promise<void> {
       console.log(`\nMaintainer-only tools (enabled via \`CLAUDE_ETA_INTERNAL=1\`):\n`);
       console.log(`| Command                      | Description                                    |`);
       console.log(`|------------------------------|------------------------------------------------|`);
-      console.log(`| \`/eta eval\`                  | Walk-forward ETA calibration report         |`);
       console.log(`| \`/eta admin-export\`          | Internal admin dashboard JSON/HTML export   |`);
     }
     console.log(`\nCommunity sharing: **${getCommunityHelpStatus(prefs)}**.`);
