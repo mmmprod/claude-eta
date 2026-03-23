@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.1](https://github.com/mmmprod/claude-eta/compare/claude-eta-v1.3.0...claude-eta-v1.3.1) (2026-03-23)
+
+
+### Bug Fixes
+
+* address 9 robustness issues from adversarial review ([#115](https://github.com/mmmprod/claude-eta/issues/115)) ([2e1073b](https://github.com/mmmprod/claude-eta/commit/2e1073b9f630d18bc9076a67a1db606b9e813eed))
+
 ## [1.3.0](https://github.com/mmmprod/claude-eta/compare/claude-eta-v1.2.0...claude-eta-v1.3.0) (2026-03-23)
 
 
