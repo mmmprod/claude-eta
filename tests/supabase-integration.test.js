@@ -3,6 +3,7 @@
  * Inserts a test record and verifies 201.
  * Test records use contributor_hash '0000...' and plugin_version '0.0.0-ci-test'
  * so the Edge Function can filter them from baselines aggregation.
+ * Includes the current export/contribute shape so schema drift is caught.
  *
  * Skipped when SKIP_INTEGRATION=1 (default in unit test runs).
  * Runs in CI via a dedicated job.
@@ -29,6 +30,8 @@ describe('Supabase integration', { skip: SKIP }, () => {
       project_loc_bucket: 'tiny',
       plugin_version: '0.0.0-ci-test',
       contributor_hash: '0000000000000000000000000000000000000000000000000000000000000000',
+      source_turn_count: 1,
+      record_unit: 'work_item',
     };
 
     const { error } = await insertVelocityRecords([testRecord]);
