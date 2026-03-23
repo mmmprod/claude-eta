@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.1](https://github.com/mmmprod/claude-eta/compare/claude-eta-v1.1.0...claude-eta-v1.1.1) (2026-03-23)
+
+
+### Bug Fixes
+
+* canonicalize eta command and cache community priors ([#108](https://github.com/mmmprod/claude-eta/issues/108)) ([52687c8](https://github.com/mmmprod/claude-eta/commit/52687c8fefbb4d73ea703f24e5c1b1a12c890cfa))
+
 ## [1.1.0](https://github.com/mmmprod/claude-eta/compare/claude-eta-v1.0.0...claude-eta-v1.1.0) (2026-03-23)
 
 
