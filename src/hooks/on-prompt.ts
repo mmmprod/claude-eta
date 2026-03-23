@@ -132,11 +132,13 @@ async function main(): Promise<void> {
 
   const promptSummary = summarizePrompt(prompt);
 
+  // Load project meta once — used for community priors and auto-eta accuracy
+  const projectMeta = loadProjectMeta(fp);
+
   // Load community baselines from disk cache (sync, <1ms)
   const baselines = loadCachedBaselines();
-  const projectLocBucket = loadProjectMeta(fp)?.loc_bucket ?? null;
   const communityPriors: CommunityPriors | null = baselines
-    ? baselinesToPriors(baselines, projectLocBucket, model)
+    ? baselinesToPriors(baselines, projectMeta?.loc_bucket ?? null, model)
     : null;
 
   // Create new turn via event-store
@@ -241,6 +243,7 @@ async function main(): Promise<void> {
         estimate,
         completedCount,
         isOngoingWorkItem ? 'Current remaining estimate' : 'Current task estimate',
+        { isCommunity: !!communityPriors },
       ),
     );
   }
@@ -255,9 +258,8 @@ async function main(): Promise<void> {
       savePreferencesV2(prefs);
       contextParts.push('[claude-eta] Auto-ETA disabled. Re-enable anytime with /claude-eta:eta auto on.');
     } else {
-      // Load accuracy from project meta for the auto-eta gate
-      const meta = loadProjectMeta(fp);
-      const rawAccuracy = meta?.eta_accuracy?.by_classification ?? {};
+      // Use hoisted project meta for the auto-eta accuracy gate
+      const rawAccuracy = projectMeta?.eta_accuracy?.by_classification ?? {};
       const etaAccuracy: Record<string, { hits: number; misses: number }> = {};
       for (const [cls, entry] of Object.entries(rawAccuracy)) {
         etaAccuracy[cls] = {

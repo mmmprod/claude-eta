@@ -366,15 +366,25 @@ describe('formatStatsContext', () => {
 });
 
 describe('formatColdStartContext', () => {
-  it('shows community baselines message when confidence is 40 (community)', () => {
+  it('shows community baselines message when isCommunity flag is set', () => {
     const communityPriors = {
       bugfix: { low: 15, median: 35, high: 77, sample_count: 142, match_kind: 'global' },
     };
     const estimate = getDefaultEstimate('bugfix', 3, { communityPriors });
-    const ctx = formatColdStartContext(estimate, 2);
+    const ctx = formatColdStartContext(estimate, 2, undefined, { isCommunity: true });
     assert.ok(ctx.includes('Using community baselines'));
     assert.ok(ctx.includes('community bugfix baseline'));
     assert.ok(ctx.includes('community baselines to calibrate'));
+  });
+
+  it('detects community from basis string when no explicit flag', () => {
+    const communityPriors = {
+      bugfix: { low: 15, median: 35, high: 77, sample_count: 142, match_kind: 'global' },
+    };
+    const estimate = getDefaultEstimate('bugfix', 3, { communityPriors });
+    // basis starts with "community " — auto-detected
+    const ctx = formatColdStartContext(estimate, 2);
+    assert.ok(ctx.includes('Using community baselines'));
   });
 
   it('shows initial priors message when no community data', () => {

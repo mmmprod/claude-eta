@@ -72,7 +72,9 @@ export declare function fmtSec(seconds: number): string;
 /** Format stats as a concise context string for Claude injection */
 export declare function formatStatsContext(stats: ProjectStats, estimate?: TaskEstimate, estimateLabel?: string): string;
 /** Format context during cold start (< CALIBRATION_THRESHOLD tasks) */
-export declare function formatColdStartContext(estimate: TaskEstimate, tasksCompleted: number, estimateLabel?: string): string;
+export declare function formatColdStartContext(estimate: TaskEstimate, tasksCompleted: number, estimateLabel?: string, options?: {
+    isCommunity?: boolean;
+}): string;
 /** One-line recap of the last completed task */
 export declare function formatTaskRecap(info: LastCompleted): string;
 export {};

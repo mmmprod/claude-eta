@@ -56,51 +56,58 @@ function getCachePath(): string {
   return path.join(getPluginDataDir(), 'cache', 'baselines.json');
 }
 
-// ── Sync I/O — safe for on-prompt hot path ───────────────────
+// ── Internal cache read (single file read) ───────────────────
 
-/** Read cached baselines from disk. Returns null if missing/corrupt. Never throws. */
-export function loadCachedBaselines(): BaselineRecord[] | null {
+/** Read + parse cache file once. Returns null if missing/corrupt. */
+function loadCache(): CachedBaselines | null {
   try {
     const raw = fs.readFileSync(getCachePath(), 'utf-8');
     const parsed = JSON.parse(raw) as CachedBaselines;
-    return Array.isArray(parsed.records) ? parsed.records : null;
+    if (!Array.isArray(parsed.records)) return null;
+    return parsed;
   } catch {
     return null;
   }
 }
 
+// ── Public sync I/O — safe for on-prompt hot path ────────────
+
+/** Read cached baselines from disk. Returns null if missing/corrupt. Never throws. */
+export function loadCachedBaselines(): BaselineRecord[] | null {
+  return loadCache()?.records ?? null;
+}
+
 /** Check whether the cache file exists and is fresh (< TTL). */
 export function isCacheFresh(): boolean {
-  try {
-    const raw = fs.readFileSync(getCachePath(), 'utf-8');
-    const parsed = JSON.parse(raw) as CachedBaselines;
-    return Date.now() - new Date(parsed.fetched_at).getTime() < CACHE_TTL_MS;
-  } catch {
-    return false;
-  }
+  const cached = loadCache();
+  if (!cached) return false;
+  return Date.now() - new Date(cached.fetched_at).getTime() < CACHE_TTL_MS;
 }
 
 function saveCache(records: BaselineRecord[]): void {
-  const cachePath = getCachePath();
-  ensureDir(path.dirname(cachePath));
-  atomicWrite(cachePath, JSON.stringify({ fetched_at: new Date().toISOString(), records }, null, 2));
+  try {
+    const cachePath = getCachePath();
+    ensureDir(path.dirname(cachePath));
+    atomicWrite(cachePath, JSON.stringify({ fetched_at: new Date().toISOString(), records }, null, 2));
+  } catch {
+    // Non-fatal: cache write failure should not crash hooks
+  }
 }
 
 // ── Async I/O — for session-start and compare ────────────────
 
 /**
- * Refresh the baselines cache if stale (>6h) or missing.
- * Uses a short timeout to avoid blocking session start.
- * Returns records on success, null on failure. Never throws.
+ * Fetch baselines with cache. Reads cache once, fetches if stale.
+ * @param timeoutMs — fetch timeout (default: Supabase default 10s)
  */
-export async function refreshBaselinesCache(): Promise<BaselineRecord[] | null> {
-  // Skip fetch if cache is fresh
-  if (isCacheFresh()) {
-    return loadCachedBaselines();
+async function fetchWithCache(timeoutMs?: number): Promise<BaselineRecord[] | null> {
+  const cached = loadCache();
+  if (cached && Date.now() - new Date(cached.fetched_at).getTime() < CACHE_TTL_MS) {
+    return cached.records;
   }
 
   try {
-    const { data, error } = await fetchBaselines(REFRESH_TIMEOUT_MS);
+    const { data, error } = await fetchBaselines(timeoutMs);
     if (data && !error) {
       saveCache(data);
       return data;
@@ -110,29 +117,17 @@ export async function refreshBaselinesCache(): Promise<BaselineRecord[] | null> 
   }
 
   // Fall back to stale cache if available
-  return loadCachedBaselines();
+  return cached?.records ?? null;
 }
 
-/**
- * Get baselines with cache — async variant for compare CLI.
- * Same logic as refreshBaselinesCache but uses the default fetch timeout.
- */
+/** Refresh cache with short timeout (3s) — for session-start hook. */
+export async function refreshBaselinesCache(): Promise<BaselineRecord[] | null> {
+  return fetchWithCache(REFRESH_TIMEOUT_MS);
+}
+
+/** Get baselines with cache — for compare CLI (uses default 10s timeout). */
 export async function getBaselinesWithCache(): Promise<BaselineRecord[] | null> {
-  if (isCacheFresh()) {
-    return loadCachedBaselines();
-  }
-
-  try {
-    const { data, error } = await fetchBaselines();
-    if (data && !error) {
-      saveCache(data);
-      return data;
-    }
-  } catch {
-    // Network failure — swallow
-  }
-
-  return loadCachedBaselines();
+  return fetchWithCache();
 }
 
 // ── Pure functions — no I/O ──────────────────────────────────
