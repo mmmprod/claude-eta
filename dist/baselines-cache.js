@@ -11,7 +11,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { getPluginDataDir, ensureDir, atomicWrite } from './paths.js';
 import { fetchBaselines } from './supabase.js';
-import { selectBestBaseline } from './cli/compare.js';
+import { selectBestBaseline } from './baseline-match.js';
 // ── Constants ────────────────────────────────────────────────
 const CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours
 const REFRESH_TIMEOUT_MS = 3_000; // 3s timeout for session-start refresh

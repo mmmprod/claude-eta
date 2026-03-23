@@ -11,7 +11,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { getPluginDataDir, ensureDir, atomicWrite } from './paths.js';
 import { fetchBaselines, type BaselineRecord } from './supabase.js';
-import { selectBestBaseline, type BaselineMatchKind } from './cli/compare.js';
+import { selectBestBaseline, type BaselineMatchKind } from './baseline-match.js';
 import type { TaskClassification } from './types.js';
 
 // ── Types ────────────────────────────────────────────────────

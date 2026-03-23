@@ -181,10 +181,16 @@ export function ensureDir(dirPath: string): void {
   fs.mkdirSync(dirPath, { recursive: true });
 }
 
-/** Atomic write: write to temp file, then rename (prevents corruption from concurrent access) */
+/** Atomic write: write to temp file, fsync, then rename (prevents corruption from concurrent access or power loss) */
 export function atomicWrite(filePath: string, data: string): void {
   const tmp = filePath + '.tmp.' + crypto.randomBytes(4).toString('hex');
-  fs.writeFileSync(tmp, data);
+  const fd = fs.openSync(tmp, 'w');
+  try {
+    fs.writeFileSync(fd, data);
+    fs.fsyncSync(fd);
+  } finally {
+    fs.closeSync(fd);
+  }
   fs.renameSync(tmp, filePath);
 }
 

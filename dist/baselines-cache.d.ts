@@ -1,5 +1,5 @@
 import { type BaselineRecord } from './supabase.js';
-import { type BaselineMatchKind } from './cli/compare.js';
+import { type BaselineMatchKind } from './baseline-match.js';
 import type { TaskClassification } from './types.js';
 /** A prior resolved from community baselines — same shape as INITIAL_PRIORS entries */
 export interface CommunityPrior {

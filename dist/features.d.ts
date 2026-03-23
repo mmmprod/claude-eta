@@ -4,6 +4,8 @@
  */
 import type { ActiveTurnState } from './types.js';
 export type TaskPhase = 'explore' | 'edit' | 'validate' | 'validate_failed' | 'repair_loop';
+/** Phase-specific multipliers for remaining-time estimation. Single source of truth. */
+export declare const PHASE_MULTIPLIERS: Record<TaskPhase, number>;
 export interface TraceFeatures {
     elapsed_wall_ms: number;
     tool_calls: number;

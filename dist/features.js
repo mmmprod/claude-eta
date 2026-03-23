@@ -1,3 +1,11 @@
+/** Phase-specific multipliers for remaining-time estimation. Single source of truth. */
+export const PHASE_MULTIPLIERS = {
+    explore: 1.05,
+    edit: 1,
+    validate: 0.95,
+    validate_failed: 1.0,
+    repair_loop: 1.15,
+};
 /** Extract trace features from an active turn state */
 export function extractFeatures(state) {
     const now = Date.now();
@@ -27,14 +35,7 @@ export function extractFeatures(state) {
  * Used by on-tool-use/on-tool-failure on every tool event.
  */
 export function recomputeRemaining(cachedEta, elapsedSeconds, phase) {
-    const phaseMultipliers = {
-        explore: 1.05,
-        edit: 1,
-        validate: 0.95,
-        validate_failed: 1.0,
-        repair_loop: 1.15,
-    };
-    const mult = phaseMultipliers[phase];
+    const mult = PHASE_MULTIPLIERS[phase];
     const remainP50 = Math.max(0, Math.round((cachedEta.p50_wall - elapsedSeconds) * mult));
     const remainP80 = Math.max(remainP50 + (remainP50 === 0 ? 0 : 1), Math.round((cachedEta.p80_wall - elapsedSeconds) * mult));
     return { remaining_p50: remainP50, remaining_p80: remainP80 };

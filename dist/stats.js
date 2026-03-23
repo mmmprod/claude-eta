@@ -66,7 +66,7 @@ export function computeStats(tasks) {
     // Group by classification
     const groups = new Map();
     for (const t of tasks) {
-        if (t.duration_seconds == null || t.duration_seconds <= 0)
+        if (t.duration_seconds == null || !Number.isFinite(t.duration_seconds) || t.duration_seconds <= 0)
             continue;
         const list = groups.get(t.classification) ?? [];
         list.push(t);
@@ -95,7 +95,7 @@ export function computeStats(tasks) {
     byClassification.sort((a, b) => b.count - a.count);
     const modelGroups = new Map();
     for (const task of tasks) {
-        if (task.duration_seconds == null || task.duration_seconds <= 0)
+        if (task.duration_seconds == null || !Number.isFinite(task.duration_seconds) || task.duration_seconds <= 0)
             continue;
         if (!task.model)
             continue;
@@ -136,7 +136,7 @@ export function computeStats(tasks) {
     const phaseGroups = new Map();
     const phaseModelGroups = new Map();
     for (const task of tasks) {
-        if (task.duration_seconds == null || task.duration_seconds <= 0)
+        if (task.duration_seconds == null || !Number.isFinite(task.duration_seconds) || task.duration_seconds <= 0)
             continue;
         const phaseSamples = [
             ['edit', task.first_edit_offset_seconds],

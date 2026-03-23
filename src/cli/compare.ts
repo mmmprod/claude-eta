@@ -3,6 +3,7 @@
  * Fetches from Supabase with a local 6h cache fallback.
  */
 import { normalizeModel } from '../anonymize.js';
+import { selectBestBaseline, type BaselineMatch } from '../baseline-match.js';
 import { getBaselinesWithCache } from '../baselines-cache.js';
 import { loadCompletedTurnsCompat, turnsToAnalyticsTasks } from '../compat.js';
 import { consumeCommunityConsentPrompt } from '../community-consent.js';
@@ -14,12 +15,8 @@ import type { BaselineRecord } from '../supabase.js';
 import type { AnalyticsTask, TaskClassification } from '../types.js';
 import { c } from './colors.js';
 
-export type BaselineMatchKind = 'type+loc+model' | 'type+model' | 'type+loc' | 'global';
-
-export interface BaselineMatch {
-  kind: BaselineMatchKind;
-  record: BaselineRecord;
-}
+// Re-export from canonical location for backward compatibility
+export { selectBestBaseline, type BaselineMatch, type BaselineMatchKind } from '../baseline-match.js';
 
 interface CommunityOnlyBaseline {
   task_type: string;
@@ -87,37 +84,6 @@ export function selectDominantModel(tasks: Pick<AnalyticsTask, 'model'>[]): stri
   });
   const [topModel, topCount] = ranked[0];
   return topCount / tasks.length >= DOMINANT_MODEL_MIN_SHARE ? topModel : null;
-}
-
-export function selectBestBaseline(
-  baselines: BaselineRecord[],
-  taskType: string,
-  projectLocBucket: string | null,
-  model: string | null,
-): BaselineMatch | null {
-  const exact = (loc: string | null, candidateModel: string | null) =>
-    baselines.find(
-      (baseline) =>
-        baseline.task_type === taskType && baseline.project_loc_bucket === loc && baseline.model === candidateModel,
-    ) ?? null;
-
-  if (projectLocBucket && model) {
-    const hit = exact(projectLocBucket, model);
-    if (hit) return { kind: 'type+loc+model', record: hit };
-  }
-
-  if (model) {
-    const hit = exact(null, model);
-    if (hit) return { kind: 'type+model', record: hit };
-  }
-
-  if (projectLocBucket) {
-    const hit = exact(projectLocBucket, null);
-    if (hit) return { kind: 'type+loc', record: hit };
-  }
-
-  const hit = exact(null, null);
-  return hit ? { kind: 'global', record: hit } : null;
 }
 
 export function buildCompareRows(

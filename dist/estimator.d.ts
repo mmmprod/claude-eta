@@ -8,7 +8,7 @@
  */
 import type { TaskClassification } from './types.js';
 import type { ProjectStats } from './stats.js';
-import type { TaskPhase } from './features.js';
+import { type TaskPhase } from './features.js';
 import type { CommunityPriors } from './baselines-cache.js';
 export type CalibrationLevel = 'cold' | 'community' | 'warming' | 'project' | 'project+trace';
 export interface EtaEstimate {
