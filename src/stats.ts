@@ -351,7 +351,9 @@ export function formatStatsContext(
     );
   }
 
-  lines.push('Use these project stats to calibrate any time estimates. Do not volunteer time estimates unless the user asks.');
+  lines.push(
+    'Use these project stats to calibrate any time estimates. Do not volunteer time estimates unless the user asks.',
+  );
 
   return lines.join('\n');
 }
