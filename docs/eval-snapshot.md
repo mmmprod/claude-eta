@@ -20,11 +20,13 @@ Generated with `/eta eval` on the claude-eta repository.
 
 ## Reproduce
 
+Run from the `claude-eta` repository root.
+
 ```bash
 npm run build
-node dist/cli/eta.js eval $(pwd)
+node dist/cli/eta.js eval "$(pwd)"
 ```
 
-Results depend on local completed task history under `${CLAUDE_PLUGIN_DATA}`.
+Results depend on local per-project completed task history under `${CLAUDE_PLUGIN_DATA}/projects/`.
 
 These numbers come from the author's development history on this repository.
