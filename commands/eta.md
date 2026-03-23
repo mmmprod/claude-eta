@@ -28,7 +28,7 @@ Available commands:
 - `/eta auto off` — Disable Auto-ETA
 - `/eta insights` — Deep pattern analysis
 - `/eta recap` — Today's activity summary
-- `/eta admin-export` — Full admin dashboard JSON (6 sections, all projects)
+- `/eta admin-export` — Full admin dashboard JSON (7 sections, all projects)
 - `/eta help` — List all commands
 
 If the script fails, explain that claude-eta might need to be rebuilt (`npm run build` in the plugin directory).

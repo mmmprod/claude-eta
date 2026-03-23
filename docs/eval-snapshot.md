@@ -1,11 +1,13 @@
-# Eval Snapshot — v1.3.5
+# Eval Snapshot — v1.3.6
 
-Generated with `/eta eval` on the claude-eta project itself.
+Generated with `/eta eval` on the claude-eta repository.
 
 ## Summary
 
 - Work items: 217
+
 - p80 coverage at prompt: 77.9%
+
 - MdAPE at prompt: 79.6%
 
 ## Full report
@@ -16,14 +18,13 @@ Generated with `/eta eval` on the claude-eta project itself.
 | After first edit | 95.0% | 67.6% |
 | After first bash | 80.4% | 74.4% |
 
-## How to reproduce
+## Reproduce
 
 ```bash
-cd claude-eta
 npm run build
 node dist/cli/eta.js eval $(pwd)
 ```
 
-Note: results depend on the local completed task history in
-`${CLAUDE_PLUGIN_DATA}/projects/`. These numbers come from the
-author's development history on this repository.
+Results depend on local completed task history under `${CLAUDE_PLUGIN_DATA}`.
+
+These numbers come from the author's development history on this repository.
