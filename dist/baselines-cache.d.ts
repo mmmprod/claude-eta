@@ -15,16 +15,9 @@ export type CommunityPriors = Partial<Record<TaskClassification, CommunityPrior>
 export declare function loadCachedBaselines(): BaselineRecord[] | null;
 /** Check whether the cache file exists and is fresh (< TTL). */
 export declare function isCacheFresh(): boolean;
-/**
- * Refresh the baselines cache if stale (>6h) or missing.
- * Uses a short timeout to avoid blocking session start.
- * Returns records on success, null on failure. Never throws.
- */
+/** Refresh cache with short timeout (3s) — for session-start hook. */
 export declare function refreshBaselinesCache(): Promise<BaselineRecord[] | null>;
-/**
- * Get baselines with cache — async variant for compare CLI.
- * Same logic as refreshBaselinesCache but uses the default fetch timeout.
- */
+/** Get baselines with cache — for compare CLI (uses default 10s timeout). */
 export declare function getBaselinesWithCache(): Promise<BaselineRecord[] | null>;
 /**
  * Map baselines → per-classification priors using the selectBestBaseline() hierarchy.
