@@ -180,7 +180,7 @@ export function computeSimilarityScore(
   // Same classification: +0.15
   if (promptClassification === existingClassification) score += 0.15;
 
-  // Word overlap (Jaccard on content words >3 chars, lowercased): up to +0.5
+  // Word overlap (Jaccard on content words 3+ chars, lowercased, stop words excluded): up to +0.5
   const wordsA = contentWords(prompt);
   const wordsB = contentWords(existingPromptSummary);
   if (wordsA.size > 0 && wordsB.size > 0) {
