@@ -210,14 +210,15 @@ async function main() {
                 etaAccuracy,
                 classification,
                 prompt,
-                taskId: turnId,
+                taskId: workItemId,
+                model,
             });
             switch (decision.action) {
                 case 'inject':
                     contextParts.push(decision.injection);
                     setLastEtaV2(fp, sessionId, decision.prediction);
                     prefs.prompts_since_last_eta = 0;
-                    prefs.last_eta_task_id = turnId;
+                    prefs.last_eta_task_id = workItemId;
                     prefs.updated_at = new Date().toISOString();
                     savePreferencesV2(prefs);
                     break;
