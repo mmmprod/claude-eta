@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.16.2](https://github.com/mmmprod/claude-eta/compare/claude-eta-v0.16.1...claude-eta-v0.16.2) (2026-03-23)
+
+
+### Bug Fixes
+
+* **auto-eta:** use workItemId and pass model to evaluateAutoEta ([#91](https://github.com/mmmprod/claude-eta/issues/91)) ([3369d78](https://github.com/mmmprod/claude-eta/commit/3369d787a2bcf823e1a5e0b07088586e3f6ab303))
+* **classify:** prevent cross-classification fusion in same_work_item scoring ([#94](https://github.com/mmmprod/claude-eta/issues/94)) ([f99a659](https://github.com/mmmprod/claude-eta/commit/f99a65918b7143e26abf65b746a3540932c73344))
+* **core:** add validate_failed phase to state machine ([#93](https://github.com/mmmprod/claude-eta/issues/93)) ([fde83a1](https://github.com/mmmprod/claude-eta/commit/fde83a1f89f2f073f39d3e404080cfab0ad69ab0))
+* **estimator:** account for cumulative work item time in multi-turn ETAs ([#90](https://github.com/mmmprod/claude-eta/issues/90)) ([d8020ac](https://github.com/mmmprod/claude-eta/commit/d8020acb2a7a1fcf7ddf74c727528bf7ae2288de))
+* **sql:** filter community baselines by record_unit ([#92](https://github.com/mmmprod/claude-eta/issues/92)) ([9252e1f](https://github.com/mmmprod/claude-eta/commit/9252e1f9b9a5f426a5bed42e4c445c27e5c463dc))
+
 ## [0.16.1](https://github.com/mmmprod/claude-eta/compare/claude-eta-v0.16.0...claude-eta-v0.16.1) (2026-03-21)
 
 
