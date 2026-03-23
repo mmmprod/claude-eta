@@ -5,12 +5,14 @@ on:
     branches: [main]
     paths:
       - 'scripts/eta-demo-script.sh'
+      - 'scripts/render-eta-demo-cast.mjs'
       - 'scripts/build-eta-gif.sh'
       - '.github/workflows/eta-demo.yml'
   push:
     branches: [main]
     paths:
       - 'scripts/eta-demo-script.sh'
+      - 'scripts/render-eta-demo-cast.mjs'
       - 'scripts/build-eta-gif.sh'
       - '.github/workflows/eta-demo.yml'
   workflow_dispatch: {}
@@ -25,21 +27,18 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-node@v6
         with:
-          python-version: '3.x'
-
-      - name: Install asciinema
-        run: python3 -m pip install --user asciinema
-
-      - name: Add user bin to PATH
-        run: echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          node-version: 22
 
       - name: Rebuild ETA demo assets
         run: ./scripts/build-eta-gif.sh
 
-      - name: Fail if generated assets are out of date
-        run: git diff --exit-code -- docs/eta-demo.cast docs/eta-demo.gif docs/eta-demo.mp4
+      - name: Ensure generated assets exist
+        run: test -s docs/eta-demo.cast && test -s docs/eta-demo.gif && test -s docs/eta-demo.mp4
+
+      - name: Fail if deterministic cast output changed
+        run: git diff --exit-code -- docs/eta-demo.cast
 
   refresh:
     if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
@@ -49,15 +48,9 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-node@v6
         with:
-          python-version: '3.x'
-
-      - name: Install asciinema
-        run: python3 -m pip install --user asciinema
-
-      - name: Add user bin to PATH
-        run: echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          node-version: 22
 
       - name: Rebuild ETA demo assets
         run: ./scripts/build-eta-gif.sh
