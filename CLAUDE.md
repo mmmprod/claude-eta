@@ -178,7 +178,7 @@ tests/
 └── plugin-package.test.js        # 3 tests — manifest alignment, dist shipping
 ```
 
-Maintainer-only CLI surfaces stay hidden from normal `/eta help`. Enable them locally with `CLAUDE_ETA_INTERNAL=1` to use `/eta eval` and `/eta admin-export`.
+Maintainer-only CLI surfaces stay hidden from normal `/claude-eta:eta help`. Enable them locally with `CLAUDE_ETA_INTERNAL=1` to use `/claude-eta:eta eval` and `/claude-eta:eta admin-export`.
 
 ## Install the plugin locally (for development)
 

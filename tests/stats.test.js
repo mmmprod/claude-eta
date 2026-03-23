@@ -1,6 +1,13 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { computeStats, formatStatsContext, scorePromptComplexity, estimateTask } from '../dist/stats.js';
+import {
+  computeStats,
+  formatStatsContext,
+  formatColdStartContext,
+  scorePromptComplexity,
+  estimateTask,
+  getDefaultEstimate,
+} from '../dist/stats.js';
 
 function makeTask(overrides = {}) {
   return {
@@ -355,5 +362,32 @@ describe('formatStatsContext', () => {
     };
     const ctx = formatStatsContext(stats, estimate);
     assert.ok(ctx.includes('high volatility'));
+  });
+});
+
+describe('formatColdStartContext', () => {
+  it('shows community baselines message when confidence is 40 (community)', () => {
+    const communityPriors = {
+      bugfix: { low: 15, median: 35, high: 77, sample_count: 142, match_kind: 'global' },
+    };
+    const estimate = getDefaultEstimate('bugfix', 3, { communityPriors });
+    const ctx = formatColdStartContext(estimate, 2);
+    assert.ok(ctx.includes('Using community baselines'));
+    assert.ok(ctx.includes('community bugfix baseline'));
+    assert.ok(ctx.includes('community baselines to calibrate'));
+  });
+
+  it('shows initial priors message when no community data', () => {
+    const estimate = getDefaultEstimate('bugfix', 3);
+    const ctx = formatColdStartContext(estimate, 2);
+    assert.ok(ctx.includes('Estimates become project-specific'));
+    assert.ok(ctx.includes('initial bugfix prior'));
+    assert.ok(ctx.includes('initial priors to calibrate'));
+  });
+
+  it('shows calibration progress', () => {
+    const estimate = getDefaultEstimate('feature', 3);
+    const ctx = formatColdStartContext(estimate, 3);
+    assert.ok(ctx.includes('3/5 tasks recorded'));
   });
 });

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * CLI for /eta command — reads project data and outputs formatted stats.
+ * CLI for /claude-eta:eta command — reads project data and outputs formatted stats.
  *
  * Usage:
  *   node dist/cli/eta.js [session|history|stats] [cwd]
@@ -260,7 +260,7 @@ function showRecap(tasks) {
 function showAuto(cwd) {
     const prefs = loadPreferencesV2();
     console.log(`## Auto-ETA Status\n`);
-    console.log(`Master switch: **${prefs.auto_eta ? 'enabled' : 'disabled'}**${prefs.auto_eta ? '' : ' (enable with `/eta auto on`)'}\n`);
+    console.log(`Master switch: **${prefs.auto_eta ? 'enabled' : 'disabled'}**${prefs.auto_eta ? '' : ' (enable with `/claude-eta:eta auto on`)'}\n`);
     // Read accuracy from v2 project meta
     const { fp } = resolveProjectIdentity(cwd);
     const meta = loadProjectMeta(fp);
@@ -292,15 +292,15 @@ function showCommunity() {
     console.log(`Choice: **${getCommunityChoiceLabel(prefs)}**`);
     console.log(`Current mode: **${getCommunityModeLabel(prefs)}**`);
     console.log('Local learning stays active either way.');
-    console.log('`/eta compare` is read-only and does not upload your task data.');
+    console.log('`/claude-eta:eta compare` is read-only and does not upload your task data.');
     if (!prefs.community_choice_made) {
         console.log(`\n${renderCommunityConsentFlow()}`);
     }
     else if (prefs.community_sharing) {
-        console.log('\nAnonymized uploads are allowed, but they still require a manual `/eta contribute --confirm` each time.');
+        console.log('\nAnonymized uploads are allowed, but they still require a manual `/claude-eta:eta contribute --confirm` each time.');
     }
     else {
-        console.log('\nYou explicitly chose local-only mode. No anonymized records can be uploaded unless you later run `/eta community on`.');
+        console.log('\nYou explicitly chose local-only mode. No anonymized records can be uploaded unless you later run `/claude-eta:eta community on`.');
     }
 }
 // ── Main ──────────────────────────────────────────────────────
@@ -314,7 +314,7 @@ async function main() {
     const prefs = loadPreferencesV2();
     const internalMode = internalToolsEnabled();
     if (INTERNAL_ONLY_MODES.has(mode) && !internalMode) {
-        console.log('Unknown command. Run `/eta help` for the public command list.');
+        console.log('Unknown command. Run `/claude-eta:eta help` for the public command list.');
         return;
     }
     // Help
@@ -322,34 +322,34 @@ async function main() {
         console.log(`## claude-eta commands\n`);
         console.log(`| Command                      | Description                                    |`);
         console.log(`|------------------------------|------------------------------------------------|`);
-        console.log(`| \`/eta\`                       | Current session stats                          |`);
-        console.log(`| \`/eta history\`               | Last 20 tasks with durations                   |`);
-        console.log(`| \`/eta stats\`                 | Averages by task type                          |`);
-        console.log(`| \`/eta inspect\`               | What data is stored (transparency)             |`);
-        console.log(`| \`/eta compare\`               | Your stats vs community baselines              |`);
-        console.log(`| \`/eta community\`             | Community sharing status and consent flow      |`);
-        console.log(`| \`/eta community on\`          | Explicitly allow anonymized community uploads  |`);
-        console.log(`| \`/eta community off\`         | Explicitly stay local-only                     |`);
-        console.log(`| \`/eta export\`                | Anonymize & save to local JSON                 |`);
-        console.log(`| \`/eta contribute\`            | Preview what would be shared                   |`);
-        console.log(`| \`/eta contribute --confirm\`  | Upload anonymized data (opt-in)                |`);
-        console.log(`| \`/eta eval\`                  | Walk-forward ETA calibration report            |`);
-        console.log(`| \`/eta auto\`                  | Auto-ETA status and accuracy               |`);
-        console.log(`| \`/eta auto on\`               | Enable Auto-ETA injection                  |`);
-        console.log(`| \`/eta auto off\`              | Disable Auto-ETA injection                 |`);
-        console.log(`| \`/eta insights\`              | Deep patterns in your task data             |`);
-        console.log(`| \`/eta recap\`                 | Today's activity summary                    |`);
-        console.log(`| \`/eta help\`                  | This help                                      |`);
+        console.log(`| \`/claude-eta:eta\`            | Current session stats                          |`);
+        console.log(`| \`/claude-eta:eta history\`    | Last 20 tasks with durations                   |`);
+        console.log(`| \`/claude-eta:eta stats\`      | Averages by task type                          |`);
+        console.log(`| \`/claude-eta:eta inspect\`    | What data is stored (transparency)             |`);
+        console.log(`| \`/claude-eta:eta compare\`    | Your stats vs community baselines              |`);
+        console.log(`| \`/claude-eta:eta community\`  | Community sharing status and consent flow      |`);
+        console.log(`| \`/claude-eta:eta community on\` | Explicitly allow anonymized community uploads |`);
+        console.log(`| \`/claude-eta:eta community off\` | Explicitly stay local-only                  |`);
+        console.log(`| \`/claude-eta:eta export\`     | Anonymize & save to local JSON                 |`);
+        console.log(`| \`/claude-eta:eta contribute\` | Preview what would be shared                   |`);
+        console.log(`| \`/claude-eta:eta contribute --confirm\` | Upload anonymized data (opt-in)       |`);
+        console.log(`| \`/claude-eta:eta eval\`       | Walk-forward ETA calibration report            |`);
+        console.log(`| \`/claude-eta:eta auto\`       | Auto-ETA status and accuracy                   |`);
+        console.log(`| \`/claude-eta:eta auto on\`    | Enable Auto-ETA injection                      |`);
+        console.log(`| \`/claude-eta:eta auto off\`   | Disable Auto-ETA injection                     |`);
+        console.log(`| \`/claude-eta:eta insights\`   | Deep patterns in your task data                |`);
+        console.log(`| \`/claude-eta:eta recap\`      | Today's activity summary                       |`);
+        console.log(`| \`/claude-eta:eta help\`       | This help                                      |`);
         if (internalMode) {
             console.log(`\nMaintainer-only tools (enabled via \`CLAUDE_ETA_INTERNAL=1\`):\n`);
             console.log(`| Command                      | Description                                    |`);
             console.log(`|------------------------------|------------------------------------------------|`);
-            console.log(`| \`/eta admin-export\`          | Internal admin dashboard JSON/HTML export   |`);
+            console.log(`| \`/claude-eta:eta admin-export\` | Internal admin dashboard JSON/HTML export |`);
         }
         console.log(`\nCommunity sharing: **${getCommunityHelpStatus(prefs)}**.`);
-        console.log('\nAll data is 100% local by default. Community uploads stay blocked until the user enables them with `/eta community on`.');
+        console.log('\nAll data is 100% local by default. Community uploads stay blocked until the user enables them with `/claude-eta:eta community on`.');
         if (!prefs.community_choice_made) {
-            console.log('Run `/eta community` to make the local-only vs community-sharing choice explicit.');
+            console.log('Run `/claude-eta:eta community` to make the local-only vs community-sharing choice explicit.');
         }
         console.log(FEEDBACK_LINE);
         return;
@@ -374,8 +374,8 @@ async function main() {
             if (subArg === 'on' || subArg === 'off') {
                 setCommunitySharingPreference(subArg === 'on');
                 console.log(subArg === 'on'
-                    ? 'Community sharing **enabled**. You explicitly opted into manual anonymized uploads. Review with `/eta contribute`, send with `/eta contribute --confirm`.'
-                    : 'Community sharing **disabled**. You explicitly chose local-only mode. No anonymized records can be uploaded unless you later re-enable them with `/eta community on`.');
+                    ? 'Community sharing **enabled**. You explicitly opted into manual anonymized uploads. Review with `/claude-eta:eta contribute`, send with `/claude-eta:eta contribute --confirm`.'
+                    : 'Community sharing **disabled**. You explicitly chose local-only mode. No anonymized records can be uploaded unless you later re-enable them with `/claude-eta:eta community on`.');
                 console.log(FEEDBACK_LINE);
                 return;
             }
@@ -403,7 +403,7 @@ async function main() {
                 console.log(FEEDBACK_LINE);
                 return;
             }
-            // `/eta auto` (status) falls through to sync section below
+            // `/claude-eta:eta auto` (status) falls through to sync section below
             break;
         }
     }
@@ -425,11 +425,11 @@ async function main() {
     if (tasks.length === 0) {
         if (mode === 'session') {
             showSession(cwd, tasks);
-            console.log(`\nPrivacy mode: **${prefs.community_choice_made ? (prefs.community_sharing ? 'community uploads enabled (manual confirm required)' : 'local-only chosen') : 'choice pending (currently local-only)'}**. Use \`/eta community\` to manage sharing.`);
+            console.log(`\nPrivacy mode: **${prefs.community_choice_made ? (prefs.community_sharing ? 'community uploads enabled (manual confirm required)' : 'local-only chosen') : 'choice pending (currently local-only)'}**. Use \`/claude-eta:eta community\` to manage sharing.`);
             return;
         }
         console.log('No tasks tracked yet. claude-eta is recording — data will appear after your first completed task.');
-        console.log(`Privacy mode: **${prefs.community_choice_made ? (prefs.community_sharing ? 'community uploads enabled (manual confirm required)' : 'local-only chosen') : 'choice pending (currently local-only)'}**. Use \`/eta community\` to manage sharing.`);
+        console.log(`Privacy mode: **${prefs.community_choice_made ? (prefs.community_sharing ? 'community uploads enabled (manual confirm required)' : 'local-only chosen') : 'choice pending (currently local-only)'}**. Use \`/claude-eta:eta community\` to manage sharing.`);
         return;
     }
     switch (mode) {

@@ -1,5 +1,5 @@
 /**
- * /eta contribute — Preview, confirm, and upload anonymized records.
+ * /claude-eta:eta contribute — Preview, confirm, and upload anonymized records.
  * Opt-in only. Shows exactly what will be sent before sending.
  * Deduplicates: only sends tasks not previously contributed.
  */
@@ -135,7 +135,7 @@ function ensureCommunitySharingEnabled(): boolean {
     console.log('Community sharing is disabled.');
     console.log('You chose local-only mode. Local estimates still learn from your private data only.');
     console.log(
-      'Enable uploads later with `/eta community on`, then run `/eta contribute` to preview what would be sent.',
+      'Enable uploads later with `/claude-eta:eta community on`, then run `/claude-eta:eta contribute` to preview what would be sent.',
     );
     return false;
   }
@@ -145,7 +145,9 @@ function ensureCommunitySharingEnabled(): boolean {
   if (consentPrompt) {
     console.log(`\n${consentPrompt}`);
   } else {
-    console.log('Review your options with `/eta community`, then run `/eta contribute` to preview what would be sent.');
+    console.log(
+      'Review your options with `/claude-eta:eta community`, then run `/claude-eta:eta contribute` to preview what would be sent.',
+    );
   }
   return false;
 }
@@ -164,7 +166,7 @@ export async function showContribute(cwd: string, pluginVersion: string): Promis
 
   console.log(`## Contribute to Community Baselines\n`);
   console.log('Sharing status: enabled (manual upload mode).');
-  console.log('Disable uploads anytime with `/eta community off`.\n');
+  console.log('Disable uploads anytime with `/claude-eta:eta community off`.\n');
   console.log(`**${records.length}** new anonymized records ready to contribute.`);
 
   if (state && state.last_contributed_at) {
@@ -182,7 +184,9 @@ export async function showContribute(cwd: string, pluginVersion: string): Promis
   console.log('\n### What is NOT sent');
   console.log('- Prompt text, file paths, project name, code, conversation content');
 
-  console.log('\n**To confirm**, run this command again with `--confirm`:\n' + '`/eta contribute --confirm`');
+  console.log(
+    '\n**To confirm**, run this command again with `--confirm`:\n' + '`/claude-eta:eta contribute --confirm`',
+  );
 }
 
 export async function executeContribute(cwd: string, pluginVersion: string): Promise<void> {

@@ -1,4 +1,4 @@
-import { type BaselineRecord } from '../supabase.js';
+import type { BaselineRecord } from '../supabase.js';
 import type { AnalyticsTask, TaskClassification } from '../types.js';
 export type BaselineMatchKind = 'type+loc+model' | 'type+model' | 'type+loc' | 'global';
 export interface BaselineMatch {

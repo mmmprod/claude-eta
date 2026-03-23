@@ -12,10 +12,11 @@ import { computeStats, formatStatsContext, CALIBRATION_THRESHOLD } from '../stat
 import { getRepoMetrics } from '../repo-metrics.js';
 import { upsertProjectMeta } from '../project-meta.js';
 import { loadPreferencesV2, savePreferencesV2 } from '../preferences.js';
+import { refreshBaselinesCache } from '../baselines-cache.js';
 import type { SessionMeta, SessionStartStdin } from '../types.js';
 
 const COMMUNITY_ONBOARDING_NOTE =
-  'Privacy: local-only by default. If community features matter later, choose `/eta community off` to stay private or `/eta community on` to allow manual anonymized uploads. `/eta compare` is read-only.';
+  'Privacy: local-only by default. If community features matter later, choose `/claude-eta:eta community off` to stay private or `/claude-eta:eta community on` to allow manual anonymized uploads. `/claude-eta:eta compare` is read-only.';
 
 function consumeCommunityOnboardingNote(): string | null {
   const prefs = loadPreferencesV2();
@@ -79,6 +80,9 @@ async function main(): Promise<void> {
     });
   }
 
+  // Refresh community baselines cache (async, 3s timeout, swallows errors)
+  await refreshBaselinesCache();
+
   const communityOnboardingNote = consumeCommunityOnboardingNote();
 
   if (completed === 0) {
@@ -110,7 +114,7 @@ async function main(): Promise<void> {
 
   if (completed >= CALIBRATION_THRESHOLD && completed <= CALIBRATION_THRESHOLD + 2) {
     context +=
-      '\nTip: run `/eta compare` to see how your pace compares to the community, or `/eta help` for all commands.';
+      '\nTip: run `/claude-eta:eta compare` to see how your pace compares to the community, or `/claude-eta:eta help` for all commands.';
   }
 
   process.stdout.write(context);

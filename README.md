@@ -55,7 +55,7 @@ Loop detector: 0 reconstructed loops across 9 persisted Bash-failure histories o
 
 </details>
 
-Run `/eta eval` on your own data.
+Run `/claude-eta:eta eval` on your own data.
 
 ### Also catches repair loops
 
@@ -84,6 +84,10 @@ claude plugin marketplace add mmmprod/claude-eta
 claude plugin install claude-eta
 ```
 
+In any already-open Claude Code session, run `/reload-plugins` before trying `/claude-eta:eta`.
+
+`/claude-eta:eta` is the canonical plugin command. `/eta` only works if you separately created a global alias in `~/.claude/commands/eta.md`.
+
 Fallback from a local checkout:
 
 ```bash
@@ -99,10 +103,10 @@ Current Claude Code uses `claude plugin install`, not `claude plugin add`.
 
 After 5+ completed tasks, run:
 
-- `/eta` for session stats
-- `/eta stats` for your averages by task type
-- `/eta insights` for 9 analyses on your task history
-- `/eta eval` for the offline walk-forward accuracy report
+- `/claude-eta:eta` for session stats
+- `/claude-eta:eta stats` for your averages by task type
+- `/claude-eta:eta insights` for 9 analyses on your task history
+- `/claude-eta:eta eval` for the offline walk-forward accuracy report
 
 ## Why not just `--max-turns`?
 
@@ -126,9 +130,9 @@ for intelligent early intervention.
 
 Everything is local by default. No cloud. No telemetry. No upload unless you explicitly opt in.
 
-`/eta inspect` shows the current stored view.
+`/claude-eta:eta inspect` shows the current stored view.
 
-`/eta contribute` is manual and opt-in only. It previews exactly what would be sent before upload.
+`/claude-eta:eta contribute` is manual and opt-in only. It previews exactly what would be sent before upload.
 
 See [SECURITY.md](SECURITY.md) for the full storage and community-data details.
 
@@ -170,18 +174,18 @@ failures match.
 <details>
 <summary>Auto-ETA (opt-in estimated duration at response start)</summary>
 
-`/eta auto on` enables automatic ETA injection when claude-eta has enough local calibration for the task type.
+`/claude-eta:eta auto on` enables automatic ETA injection when claude-eta has enough local calibration for the task type.
 
-`/eta auto` shows whether the feature is active and how accurate its recent interval coverage has been.
+`/claude-eta:eta auto` shows whether the feature is active and how accurate its recent interval coverage has been.
 
 </details>
 
 <details>
 <summary>Community baselines</summary>
 
-`/eta compare` is read-only and fetches aggregate community baselines.
+`/claude-eta:eta compare` is read-only and fetches aggregate community baselines.
 
-`/eta contribute` stays blocked until you explicitly run `/eta community on`.
+`/claude-eta:eta contribute` stays blocked until you explicitly run `/claude-eta:eta community on`.
 
 Only anonymized per-task aggregates are sent. Prompts, code, file paths, event logs, and project names are not uploaded.
 
@@ -190,7 +194,7 @@ Only anonymized per-task aggregates are sent. Prompts, code, file paths, event l
 <details>
 <summary>Self-hosting community baselines</summary>
 
-To point `/eta compare` and `/eta contribute` at your own Supabase project, set:
+To point `/claude-eta:eta compare` and `/claude-eta:eta contribute` at your own Supabase project, set:
 
 - `CLAUDE_ETA_SUPABASE_URL`
 - `CLAUDE_ETA_SUPABASE_KEY`
@@ -203,7 +207,7 @@ and `SELECT baselines_cache`.
 <details>
 <summary>Insights (9 analyses)</summary>
 
-`/eta insights` surfaces deeper patterns once enough task history exists:
+`/claude-eta:eta insights` surfaces deeper patterns once enough task history exists:
 
 - task type breakdowns
 - tool and file-operation correlations
@@ -215,7 +219,7 @@ and `SELECT baselines_cache`.
 <details>
 <summary>All commands</summary>
 
-`/eta`, `/eta history`, `/eta stats`, `/eta inspect`, `/eta insights`, `/eta eval`, `/eta compare`, `/eta export`, `/eta contribute`, `/eta community`, `/eta auto`, `/eta recap`, `/eta help`
+`/claude-eta:eta`, `/claude-eta:eta history`, `/claude-eta:eta stats`, `/claude-eta:eta inspect`, `/claude-eta:eta insights`, `/claude-eta:eta eval`, `/claude-eta:eta compare`, `/claude-eta:eta export`, `/claude-eta:eta contribute`, `/claude-eta:eta community`, `/claude-eta:eta auto`, `/claude-eta:eta recap`, `/claude-eta:eta help`
 
 </details>
 

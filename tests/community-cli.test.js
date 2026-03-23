@@ -35,8 +35,8 @@ describe('/eta community CLI', () => {
     const initial = runEta(['community']);
     assert.match(initial, /Upload switch: \*\*disabled\*\*/);
     assert.match(initial, /Choice: \*\*pending\*\*/);
-    assert.match(initial, /Keep everything private: `\/eta community off`/);
-    assert.match(initial, /Allow manual anonymized uploads: `\/eta community on`/);
+    assert.match(initial, /Keep everything private: `\/claude-eta:eta community off`/);
+    assert.match(initial, /Allow manual anonymized uploads: `\/claude-eta:eta community on`/);
 
     const enabled = runEta(['community', 'on']);
     assert.match(enabled, /Community sharing \*\*enabled\*\*/);
@@ -49,7 +49,7 @@ describe('/eta community CLI', () => {
     const status = runEta(['community']);
     assert.match(status, /Upload switch: \*\*enabled\*\*/);
     assert.match(status, /Choice: \*\*manual uploads allowed\*\*/);
-    assert.match(status, /manual `\/eta contribute --confirm`/);
+    assert.match(status, /manual `\/claude-eta:eta contribute --confirm`/);
 
     const disabled = runEta(['community', 'off']);
     assert.match(disabled, /Community sharing \*\*disabled\*\*/);
@@ -62,8 +62,8 @@ describe('/eta community CLI', () => {
   it('shows current sharing state in help output', () => {
     const disabledHelp = runEta(['help']);
     assert.match(disabledHelp, /Community sharing: \*\*choice pending \(currently local-only\)\*\*/);
-    assert.match(disabledHelp, /\/eta eval/);
-    assert.doesNotMatch(disabledHelp, /\/eta admin-export/);
+    assert.match(disabledHelp, /\/claude-eta:eta eval/);
+    assert.doesNotMatch(disabledHelp, /\/claude-eta:eta admin-export/);
 
     runEta(['community', 'on']);
 
@@ -77,8 +77,8 @@ describe('/eta community CLI', () => {
 
     const internalHelp = runEta(['help'], { CLAUDE_ETA_INTERNAL: '1' });
     assert.match(internalHelp, /Maintainer-only tools/);
-    assert.match(internalHelp, /\/eta eval/);
-    assert.match(internalHelp, /\/eta admin-export/);
+    assert.match(internalHelp, /\/claude-eta:eta eval/);
+    assert.match(internalHelp, /\/claude-eta:eta admin-export/);
 
     const internalAdmin = runEta(['admin-export'], { CLAUDE_ETA_INTERNAL: '1' });
     assert.match(internalAdmin, /## Admin Export/);

@@ -1,50 +1,16 @@
 /**
- * /eta compare — Compare local stats against community baselines.
+ * /claude-eta:eta compare — Compare local stats against community baselines.
  * Fetches from Supabase with a local 6h cache fallback.
  */
-import * as fs from 'node:fs';
-import * as path from 'node:path';
 import { normalizeModel } from '../anonymize.js';
+import { getBaselinesWithCache } from '../baselines-cache.js';
 import { loadCompletedTurnsCompat, turnsToAnalyticsTasks } from '../compat.js';
 import { consumeCommunityConsentPrompt } from '../community-consent.js';
 import { resolveProjectIdentity } from '../identity.js';
-import { getPluginDataDir } from '../paths.js';
 import { loadPreferencesV2 } from '../preferences.js';
 import { loadProjectMeta } from '../project-meta.js';
 import { computeStats, fmtSec } from '../stats.js';
-import { fetchBaselines } from '../supabase.js';
-const CACHE_PATH = path.join(getPluginDataDir(), 'cache', 'baselines.json');
-const CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours
 const DOMINANT_MODEL_MIN_SHARE = 0.75;
-function loadCache() {
-    try {
-        return JSON.parse(fs.readFileSync(CACHE_PATH, 'utf-8'));
-    }
-    catch {
-        return null;
-    }
-}
-function saveCache(records) {
-    fs.mkdirSync(path.dirname(CACHE_PATH), { recursive: true });
-    fs.writeFileSync(CACHE_PATH, JSON.stringify({ fetched_at: new Date().toISOString(), records }, null, 2), 'utf-8');
-}
-async function getBaselines() {
-    const cache = loadCache();
-    // Use cache if fresh (skip unnecessary network call)
-    if (cache && Date.now() - new Date(cache.fetched_at).getTime() < CACHE_TTL_MS) {
-        return cache.records;
-    }
-    // Cache stale or missing — fetch
-    const { data, error } = await fetchBaselines();
-    if (data && !error) {
-        saveCache(data);
-        return data;
-    }
-    // Network failed — stale cache as last resort
-    if (cache)
-        return cache.records;
-    return null;
-}
 function ratio(local, community) {
     if (community === 0)
         return '-';
@@ -162,12 +128,12 @@ export async function showCompare(cwd) {
     const projectLocBucket = loadProjectMeta(fp)?.loc_bucket ?? null;
     if (!localStats) {
         console.log('Not enough local data yet (need 5+ completed tasks).');
-        console.log('`/eta compare` is read-only and never uploads your task data.');
+        console.log('`/claude-eta:eta compare` is read-only and never uploads your task data.');
         if (consentPrompt)
             console.log(`\n${consentPrompt}`);
         return;
     }
-    const baselines = await getBaselines();
+    const baselines = await getBaselinesWithCache();
     if (!baselines || baselines.length === 0) {
         console.log('Community baselines unavailable. Try again later.');
         return;

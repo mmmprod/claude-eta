@@ -133,6 +133,61 @@ describe('estimateInitial', () => {
   });
 });
 
+// ── community priors ─────────────────────────────────────────
+
+describe('estimateInitial with communityPriors', () => {
+  const communityPriors = {
+    bugfix: { low: 15, median: 35, high: 77, sample_count: 142, match_kind: 'global' },
+    feature: { low: 21, median: 55, high: 120, sample_count: 87, match_kind: 'type+model' },
+  };
+
+  it('uses community prior instead of INITIAL_PRIORS when no stats', () => {
+    const est = estimateInitial(null, 'bugfix', 3, { communityPriors });
+    assert.equal(est.calibration, 'community');
+    assert.ok(est.basis.includes('community bugfix baseline'));
+    assert.ok(est.basis.includes('142 samples'));
+    // Should use community median (35), not INITIAL_PRIORS bugfix median (600)
+    assert.equal(est.p50_wall, 35);
+    assert.equal(est.p80_wall, 77);
+  });
+
+  it('falls back to INITIAL_PRIORS for classifications not in communityPriors', () => {
+    const est = estimateInitial(null, 'refactor', 3, { communityPriors });
+    assert.equal(est.calibration, 'cold');
+    assert.ok(est.basis.includes('initial refactor prior'));
+    assert.equal(est.p50_wall, INITIAL_PRIORS.refactor.median);
+  });
+
+  it('cold calibration when communityPriors is null', () => {
+    const est = estimateInitial(null, 'bugfix', 3, { communityPriors: null });
+    assert.equal(est.calibration, 'cold');
+  });
+
+  it('community priors are used in shrinkage blend when stats exist', () => {
+    const stats = {
+      totalCompleted: 3,
+      overall: { median: 100, p25: 50, p75: 200, p80: 220 },
+      byClassification: [],
+      byClassificationModel: [],
+      byClassificationPhase: [],
+      byClassificationModelPhase: [],
+    };
+    const withCommunity = estimateInitial(stats, 'bugfix', 3, { communityPriors });
+    const withoutCommunity = estimateInitial(stats, 'bugfix', 3);
+    // With community priors (bugfix median=35), estimate should be much lower than
+    // without (INITIAL_PRIORS bugfix median=600)
+    assert.ok(withCommunity.p50_wall < withoutCommunity.p50_wall);
+  });
+
+  it('community confidence maps to 40%', () => {
+    const est = estimateInitial(null, 'feature', 3, { communityPriors });
+    assert.equal(est.calibration, 'community');
+    // calibrationToConfidence('community') = 40 is internal, test via toTaskEstimate
+    const legacy = toTaskEstimate(est, 3);
+    assert.equal(legacy.confidence, 40);
+  });
+});
+
 // ── estimateWithTrace ────────────────────────────────────────
 
 describe('estimateWithTrace', () => {

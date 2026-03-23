@@ -15,9 +15,9 @@ export function getCommunityModeLabel(prefs) {
 export function renderCommunityConsentFlow() {
     return [
         'Choose your community mode:',
-        '1. Keep everything private: `/eta community off`',
-        '2. Allow manual anonymized uploads: `/eta community on`',
-        '`/eta compare` stays read-only either way.',
+        '1. Keep everything private: `/claude-eta:eta community off`',
+        '2. Allow manual anonymized uploads: `/claude-eta:eta community on`',
+        '`/claude-eta:eta compare` stays read-only either way.',
         'You can change this later at any time.',
     ].join('\n');
 }

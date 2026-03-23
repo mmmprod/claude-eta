@@ -56,13 +56,13 @@ export async function insertVelocityRecords(records) {
     }
 }
 /** SELECT all rows from baselines_cache. */
-export async function fetchBaselines() {
+export async function fetchBaselines(timeoutMs) {
     try {
         const h = { ...headers(), Accept: 'application/json' };
         const res = await fetch(`${SUPABASE_URL}/rest/v1/baselines_cache?select=*`, {
             method: 'GET',
             headers: h,
-            signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+            signal: AbortSignal.timeout(timeoutMs ?? FETCH_TIMEOUT_MS),
         });
         if (!res.ok) {
             const body = await res.text();
