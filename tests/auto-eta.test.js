@@ -203,6 +203,15 @@ describe('injection format', () => {
     assert.ok(r.injection.includes(fmtSec(r.prediction.low)));
     assert.ok(r.injection.includes(fmtSec(r.prediction.high)));
   });
+
+  it('includes ANSI color sequences for the rendered ETA line', () => {
+    const r = evaluateAutoEta(baseParams());
+    assert.equal(r.action, 'inject');
+    assert.match(r.injection, /\u001b\[36m/);
+    assert.match(r.injection, /\u001b\[2m/);
+    assert.match(r.injection, /\u001b\[0m/);
+    assert.match(r.injection, /ANSI color pattern identical/);
+  });
 });
 
 // -- Self-check accuracy (tests 23-27) --
