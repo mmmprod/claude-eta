@@ -1,5 +1,6 @@
 ## Build
 node_modules/
+.tools/
 *.tsbuildinfo
 # NOTE: dist/ is intentionally committed.
 # Claude Code plugins are installed from a git checkout with no post-install build.

@@ -3,7 +3,7 @@
 # Simulated ETA demo for README GIF.
 # Run inside asciinema: asciinema rec docs/eta-demo.cast -c ./scripts/eta-demo-script.sh
 
-set -e
+set -euo pipefail
 
 CYAN='\033[0;36m'
 GREEN='\033[0;32m'
@@ -22,7 +22,8 @@ type_slow() {
   done
 }
 
-clear
+# Clear the frame buffer without depending on a fully featured TERM entry.
+printf '\033[2J\033[H'
 
 # Frame 1: Claude Code prompt
 echo ""
