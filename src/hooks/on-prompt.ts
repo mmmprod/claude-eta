@@ -11,17 +11,17 @@ import type { UserPromptSubmitStdin } from '../types.js';
 import { readStdin } from '../stdin.js';
 import { resolveProjectIdentity } from '../identity.js';
 import { getSession, getActiveTurn, startTurn, closeTurn } from '../event-store.js';
-import { loadCompletedTurnsCompat, turnsToAnalyticsTasks } from '../compat.js';
+import { loadCompletedTurnsCompat } from '../compat.js';
 import { loadPreferencesV2, savePreferencesV2 } from '../preferences.js';
 import { setLastEtaV2, consumeLastCompletedV2 } from '../ephemeral.js';
 import { checkDisableRequest, evaluateAutoEta } from '../auto-eta.js';
 import { loadProjectMeta } from '../project-meta.js';
+import { getProjectStats } from '../stats-cache.js';
 import { classifyPrompt, summarizePrompt, decidePromptTransition } from '../classify.js';
 import { extractFeatures } from '../features.js';
 import { detectRepairLoop } from '../loop-detector.js';
 import { estimateInitial, estimateWithTrace, toRemainingTaskEstimate, toTaskEstimate } from '../estimator.js';
 import {
-  computeStats,
   formatStatsContext,
   scorePromptComplexity,
   getDefaultEstimate,
@@ -62,8 +62,7 @@ async function main(): Promise<void> {
   // Load stats once — used by both continuation and new-task branches
   const existing = getActiveTurn(fp, sessionId, agentKey);
   const turns = loadCompletedTurnsCompat(cwd);
-  const tasks = turnsToAnalyticsTasks(turns);
-  const stats = computeStats(tasks);
+  const stats = getProjectStats(cwd);
 
   const transition = decidePromptTransition(prompt, classification, existing);
 

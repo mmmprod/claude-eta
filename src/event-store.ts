@@ -13,6 +13,7 @@ import { randomUUID } from 'node:crypto';
 // crypto no longer needed — atomicWrite moved to paths.ts
 import type { SessionMeta, ActiveTurnState, EventRecord, CompletedTurn, StopReason } from './types.js';
 import type { TurnEventType } from './types.js';
+import { markProjectHistoryChanged } from './history-signature.js';
 import { loadProjectMeta } from './project-meta.js';
 import {
   ensureDir,
@@ -514,6 +515,7 @@ export function closeTurn(
     const completedPath = getCompletedLogPath(projectFp, sessionId, agentKey);
     ensureDir(path.dirname(completedPath));
     fs.appendFileSync(completedPath, JSON.stringify(completed) + '\n');
+    markProjectHistoryChanged(projectFp);
 
     // Step 5: Append closing event (non-fatal)
     try {

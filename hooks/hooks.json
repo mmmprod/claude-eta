@@ -8,7 +8,7 @@
           {
             "type": "command",
             "command": "node ${CLAUDE_PLUGIN_ROOT}/dist/hooks/on-session-start.js",
-            "timeout": 5
+            "timeout": 3
           }
         ]
       }
@@ -30,7 +30,7 @@
           {
             "type": "command",
             "command": "node ${CLAUDE_PLUGIN_ROOT}/dist/hooks/on-tool-use.js",
-            "timeout": 5
+            "timeout": 1
           }
         ]
       }
@@ -41,7 +41,7 @@
           {
             "type": "command",
             "command": "node ${CLAUDE_PLUGIN_ROOT}/dist/hooks/on-tool-failure.js",
-            "timeout": 5
+            "timeout": 1
           }
         ]
       }
@@ -63,7 +63,7 @@
           {
             "type": "command",
             "command": "node ${CLAUDE_PLUGIN_ROOT}/dist/hooks/on-stop-failure.js",
-            "timeout": 5
+            "timeout": 3
           }
         ]
       }
@@ -74,7 +74,7 @@
           {
             "type": "command",
             "command": "node ${CLAUDE_PLUGIN_ROOT}/dist/hooks/on-subagent-start.js",
-            "timeout": 5
+            "timeout": 2
           }
         ]
       }
@@ -85,7 +85,7 @@
           {
             "type": "command",
             "command": "node ${CLAUDE_PLUGIN_ROOT}/dist/hooks/on-subagent-stop.js",
-            "timeout": 5
+            "timeout": 3
           }
         ]
       }

@@ -37,6 +37,23 @@ function extractHookTargets() {
   return targets;
 }
 
+function getHookTimeouts() {
+  const hooksConfig = readJson('hooks/hooks.json');
+  const timeouts = new Map();
+
+  for (const [eventName, entries] of Object.entries(hooksConfig.hooks)) {
+    for (const entry of entries) {
+      for (const hook of entry.hooks) {
+        if (hook.type === 'command') {
+          timeouts.set(eventName, hook.timeout);
+        }
+      }
+    }
+  }
+
+  return timeouts;
+}
+
 describe('plugin packaging', () => {
   it('keeps manifest versions aligned', () => {
     const packageJson = readJson('package.json');
@@ -55,6 +72,15 @@ describe('plugin packaging', () => {
       const absolutePath = path.join(REPO_ROOT, relativePath);
       assert.ok(fs.existsSync(absolutePath), `Missing hook runtime file: ${relativePath}`);
     }
+  });
+
+  it('uses tighter timeouts on hot-path hooks', () => {
+    const timeouts = getHookTimeouts();
+
+    assert.equal(timeouts.get('PostToolUse'), 1);
+    assert.equal(timeouts.get('PostToolUseFailure'), 1);
+    assert.equal(timeouts.get('UserPromptSubmit'), 5);
+    assert.equal(timeouts.get('Stop'), 5);
   });
 
   it('keeps dist committed and in sync after build', () => {
