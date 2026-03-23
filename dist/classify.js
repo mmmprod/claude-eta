@@ -99,8 +99,29 @@ const ADDITIVE_MARKERS = /\b(also|aussi|ensuite|and also|ajoute aussi|même fix|
 /** Common short words that inflate Jaccard similarity without indicating topic overlap.
  *  Classification markers (fix, bug) are excluded because they match across unrelated tasks. */
 const SIMILARITY_STOP_WORDS = new Set([
-    'the', 'and', 'for', 'not', 'but', 'can', 'has', 'was', 'are', 'all', 'any', 'its',
-    'fix', 'bug', 'les', 'des', 'une', 'par', 'sur', 'que', 'qui', 'est', 'dans',
+    'the',
+    'and',
+    'for',
+    'not',
+    'but',
+    'can',
+    'has',
+    'was',
+    'are',
+    'all',
+    'any',
+    'its',
+    'fix',
+    'bug',
+    'les',
+    'des',
+    'une',
+    'par',
+    'sur',
+    'que',
+    'qui',
+    'est',
+    'dans',
 ]);
 /** Extract content words (>2 chars, lowercased, excluding stop words) as a Set for Jaccard comparison.
  *  Threshold of 2 keeps short technical terms (api, css, sql, tsx, url). */
