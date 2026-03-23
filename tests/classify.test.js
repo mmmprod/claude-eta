@@ -181,8 +181,8 @@ describe('decidePromptTransition', () => {
     assert.equal(decidePromptTransition(prompt, classifyPrompt(prompt), null), 'new_work_item');
   });
 
-  it('same classification with additive marker stays same_work_item via similarity', () => {
-    const existing = makeActiveTurn({ classification: 'bugfix' });
+  it('same classification with additive marker + shared topic stays same_work_item via similarity', () => {
+    const existing = makeActiveTurn({ classification: 'bugfix', prompt_summary: 'couvrir aussi session_id manque dans Stop' });
     assert.equal(
       decidePromptTransition('tu peux aussi couvrir le cas où session_id manque dans Stop ?', 'bugfix', existing),
       'same_work_item',
@@ -194,16 +194,16 @@ describe('decidePromptTransition', () => {
     assert.equal(decidePromptTransition('debug the payment webhook crash', 'bugfix', existing), 'new_work_item');
   });
 
-  it('follow-up bugfix prompt stays same work item', () => {
-    const existing = makeActiveTurn({ classification: 'bugfix' });
+  it('follow-up bugfix prompt with shared topic stays same work item', () => {
+    const existing = makeActiveTurn({ classification: 'bugfix', prompt_summary: 'fix erreurs réseau dans compare' });
     assert.equal(
       decidePromptTransition('gère aussi les erreurs réseau dans compare', 'bugfix', existing),
       'same_work_item',
     );
   });
 
-  it('follow-up with SQL migration stays same work item', () => {
-    const existing = makeActiveTurn({ classification: 'bugfix' });
+  it('follow-up with SQL migration and shared topic stays same work item', () => {
+    const existing = makeActiveTurn({ classification: 'bugfix', prompt_summary: 'fais migration correspondante pour schema' });
     assert.equal(
       decidePromptTransition('ensuite fais la migration SQL correspondante pour ce fix', 'bugfix', existing),
       'same_work_item',
@@ -230,14 +230,15 @@ describe('decidePromptTransition', () => {
 });
 
 describe('computeSimilarityScore', () => {
-  it('scores same classification + additive marker high', () => {
+  it('scores same classification + additive marker without overlap below threshold', () => {
     const score = computeSimilarityScore(
       'gère aussi les erreurs réseau dans compare',
       'bugfix',
       'bugfix',
       'fix auth bug',
     );
-    assert.ok(score >= 0.5, `expected >= 0.5 but got ${score}`);
+    // cls (0.15) + additive (0.2) = 0.35, no word overlap → below 0.5
+    assert.ok(score < 0.5, `expected < 0.5 but got ${score}`);
   });
 
   it('scores different classification + no overlap low', () => {
@@ -247,10 +248,10 @@ describe('computeSimilarityScore', () => {
 
   it('scores same classification + high word overlap high', () => {
     const score = computeSimilarityScore(
-      'fix the remaining auth validation errors',
+      'fix the auth validation errors in login handler',
       'bugfix',
       'bugfix',
-      'fix auth validation bug',
+      'fix auth validation errors in login handler',
     );
     assert.ok(score >= 0.5, `expected >= 0.5 but got ${score}`);
   });
@@ -267,14 +268,14 @@ describe('computeSimilarityScore', () => {
 });
 
 describe('decidePromptTransition — similarity fallback', () => {
-  it('additive marker + same classification → same_work_item', () => {
-    const existing = makeActiveTurn({ classification: 'bugfix', prompt_summary: 'fix compare command' });
+  it('additive marker + same classification + shared topic → same_work_item', () => {
+    const existing = makeActiveTurn({ classification: 'bugfix', prompt_summary: 'fix compare command erreurs réseau' });
     const prompt = 'gère aussi les erreurs réseau dans compare';
     assert.equal(decidePromptTransition(prompt, classifyPrompt(prompt), existing), 'same_work_item');
   });
 
-  it('ensuite + pour ce fix → same_work_item', () => {
-    const existing = makeActiveTurn({ classification: 'bugfix', prompt_summary: 'fix database schema' });
+  it('ensuite + pour ce fix + shared topic → same_work_item', () => {
+    const existing = makeActiveTurn({ classification: 'bugfix', prompt_summary: 'fix migration SQL schema correspondante' });
     const prompt = 'ensuite fais la migration SQL correspondante pour ce fix';
     assert.equal(decidePromptTransition(prompt, classifyPrompt(prompt), existing), 'same_work_item');
   });
@@ -292,5 +293,75 @@ describe('decidePromptTransition — similarity fallback', () => {
     });
     const prompt = 'handle the remaining auth validation errors in the login handler';
     assert.equal(decidePromptTransition(prompt, classifyPrompt(prompt), existing), 'same_work_item');
+  });
+});
+
+describe('decidePromptTransition — weak vs strong patterns', () => {
+  it('weak additive marker + different classification → new_work_item (cross-classification fusion bug)', () => {
+    const existing = makeActiveTurn({ classification: 'bugfix', prompt_summary: 'fix login redirect bug in auth middleware' });
+    const prompt = 'ajoute aussi un endpoint analytics admin dashboard';
+    // "ajoute aussi" is a weak pattern, classification changes bugfix→feature → falls through to similarity
+    // cls mismatch (0) + additive (0.2) + no word overlap (0) = 0.2 < 0.5 → new_work_item
+    assert.equal(decidePromptTransition(prompt, classifyPrompt(prompt), existing), 'new_work_item');
+  });
+
+  it('strong pattern with classification change → same_work_item', () => {
+    const existing = makeActiveTurn({ classification: 'bugfix', prompt_summary: 'fix login redirect bug' });
+    const prompt = 'for the same fix, also add a test';
+    // "for the same fix" is a strong pattern → always bypasses scoring
+    assert.equal(decidePromptTransition(prompt, classifyPrompt(prompt), existing), 'same_work_item');
+  });
+
+  it('weak pattern + same classification → same_work_item', () => {
+    const existing = makeActiveTurn({ classification: 'feature', prompt_summary: 'add user dashboard' });
+    const prompt = 'also add a sidebar component';
+    // "also" is a weak pattern, same classification (feature) → bypass scoring
+    assert.equal(decidePromptTransition(prompt, classifyPrompt(prompt), existing), 'same_work_item');
+  });
+});
+
+describe('computeSimilarityScore — updated weights', () => {
+  it('same classification alone contributes 0.15', () => {
+    const score = computeSimilarityScore(
+      'completely different topic here',
+      'bugfix',
+      'bugfix',
+      'unrelated other subject matter',
+    );
+    // cls match (0.15) + no overlap + no additive = 0.15
+    assert.ok(score >= 0.14 && score <= 0.16, `expected ~0.15 but got ${score}`);
+  });
+
+  it('additive marker alone contributes 0.2', () => {
+    const score = computeSimilarityScore(
+      'also do something completely different',
+      'feature',
+      'bugfix',
+      'unrelated other subject',
+    );
+    // no cls match (0) + no overlap + additive (0.2) = 0.2
+    assert.ok(score >= 0.19 && score <= 0.21, `expected ~0.2 but got ${score}`);
+  });
+
+  it('cls + additive without overlap = 0.35, below threshold', () => {
+    const score = computeSimilarityScore(
+      'gère aussi les erreurs réseau',
+      'bugfix',
+      'bugfix',
+      'fix auth validation',
+    );
+    // cls (0.15) + additive (0.2) + no overlap = 0.35 < 0.5
+    assert.ok(score < 0.5, `expected < 0.5 but got ${score}`);
+  });
+
+  it('word overlap weight is 0.5 (full overlap gives 0.5)', () => {
+    const score = computeSimilarityScore(
+      'handle auth validation errors',
+      'other',
+      'other',
+      'handle auth validation errors',
+    );
+    // cls (0.15) + full Jaccard (1.0 * 0.5) = 0.65
+    assert.ok(score >= 0.64 && score <= 0.66, `expected ~0.65 but got ${score}`);
   });
 });

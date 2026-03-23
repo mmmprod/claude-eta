@@ -48,8 +48,13 @@ export function classifyPrompt(prompt: string): TaskClassification {
 export const CONTINUATION_PATTERNS =
   /^(merci|thanks|thank you|ok|oui|yes|non|no|continue|go|go ahead|sure|d'accord|parfait|cool|nice|got it|understood|proceed|do it|vas-?y|c'est bon|exactement|exactly|right|correct|yep|yup|ouais|ça marche|good|great|bien|super|entendu|compris|allez|let's go|on y va|fais[- ]le|make it so|ship it|lgtm)[\s!.]*$/i;
 
-const SAME_WORK_ITEM_PATTERNS = [
-  /^(continue(?:\s+(?:et|with))?|poursuis|keep going|still on|same\b|m[eê]me\b|also\b|ajoute aussi|add also|and also|without changing (?:the )?scope|sans changer le scope)/i,
+// Weak patterns — require same classification to bypass scoring
+const WEAK_SAME_PATTERNS = [
+  /^(continue(?:\s+(?:et|with))?|poursuis|keep going|still on|same\b|m[eê]me\b|also\b|ajoute aussi|add also|and also)/i,
+];
+
+// Strong patterns — always bypass scoring (explicit "same task/fix" intent)
+const STRONG_SAME_PATTERNS = [
   /\b(for the same (?:fix|task|issue)|same (?:fix|task|scope|issue|feature)|m[eê]me (?:fix|bug|scope|t[aâ]che|feature)|sur le m[eê]me (?:fix|bug|scope)|without changing (?:the )?scope|sans changer le scope|cas limites|edge cases)\b/i,
 ];
 
@@ -93,8 +98,14 @@ export function decidePromptTransition(
   // Explicit reset always wins
   if (EXPLICIT_RESET_PATTERNS.test(trimmed)) return 'new_work_item';
 
-  // Regex signal for same work item (works across classifications)
-  if (SAME_WORK_ITEM_PATTERNS.some((pattern) => pattern.test(trimmed))) return 'same_work_item';
+  // Strong same-work-item patterns always bypass scoring
+  if (STRONG_SAME_PATTERNS.some((p) => p.test(trimmed))) return 'same_work_item';
+
+  // Weak patterns only bypass when classification hasn't changed
+  if (WEAK_SAME_PATTERNS.some((p) => p.test(trimmed))) {
+    if (classification === existingActive.classification) return 'same_work_item';
+    // Classification changed with weak pattern → fall through to similarity scoring
+  }
 
   // Similarity fallback when regex doesn't match
   const score = computeSimilarityScore(
@@ -134,21 +145,21 @@ export function computeSimilarityScore(
 ): number {
   let score = 0;
 
-  // Same classification: +0.3
-  if (promptClassification === existingClassification) score += 0.3;
+  // Same classification: +0.15
+  if (promptClassification === existingClassification) score += 0.15;
 
-  // Word overlap (Jaccard on content words >3 chars, lowercased): up to +0.4
+  // Word overlap (Jaccard on content words >3 chars, lowercased): up to +0.5
   const wordsA = contentWords(prompt);
   const wordsB = contentWords(existingPromptSummary);
   if (wordsA.size > 0 && wordsB.size > 0) {
     let intersection = 0;
     for (const w of wordsA) if (wordsB.has(w)) intersection++;
     const union = new Set([...wordsA, ...wordsB]).size;
-    score += (intersection / union) * 0.4;
+    score += (intersection / union) * 0.5;
   }
 
-  // Additive markers: +0.3
-  if (ADDITIVE_MARKERS.test(prompt)) score += 0.3;
+  // Additive markers: +0.2
+  if (ADDITIVE_MARKERS.test(prompt)) score += 0.2;
 
   return Math.min(score, 1.0);
 }
