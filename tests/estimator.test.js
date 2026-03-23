@@ -164,7 +164,14 @@ describe('estimateInitial with communityPriors', () => {
   });
 
   it('community priors are used in shrinkage blend when stats exist', () => {
-    const stats = { totalCompleted: 3, overall: { median: 100, p25: 50, p75: 200, p80: 220 }, byClassification: [], byClassificationModel: [], byClassificationPhase: [], byClassificationModelPhase: [] };
+    const stats = {
+      totalCompleted: 3,
+      overall: { median: 100, p25: 50, p75: 200, p80: 220 },
+      byClassification: [],
+      byClassificationModel: [],
+      byClassificationPhase: [],
+      byClassificationModelPhase: [],
+    };
     const withCommunity = estimateInitial(stats, 'bugfix', 3, { communityPriors });
     const withoutCommunity = estimateInitial(stats, 'bugfix', 3);
     // With community priors (bugfix median=35), estimate should be much lower than
