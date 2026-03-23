@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.0](https://github.com/mmmprod/claude-eta/compare/claude-eta-v1.2.0...claude-eta-v1.3.0) (2026-03-23)
+
+
+### Features
+
+* **eta:** conditional directive injection and dynamic auto-activation ([#113](https://github.com/mmmprod/claude-eta/issues/113)) ([3af6a45](https://github.com/mmmprod/claude-eta/commit/3af6a45e7201f3b922dd9400d0f0403c1ec95c95))
+
 ## [1.2.0](https://github.com/mmmprod/claude-eta/compare/claude-eta-v1.1.1...claude-eta-v1.2.0) (2026-03-23)
 
 
