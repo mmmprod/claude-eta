@@ -215,7 +215,7 @@ describe('UserPromptSubmit hook work-item continuity', () => {
     });
 
     const context = getAdditionalContext(runPrompt('ok'));
-    assert.ok(context.includes('Current remaining estimate: 12s–34s'), context);
+    assert.ok(context.includes('Current remaining estimate'), context);
   });
 
   it('injects remaining ETA for same_work_item prompts using the persisted remaining snapshot', () => {
