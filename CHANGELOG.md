@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.0](https://github.com/mmmprod/claude-eta/compare/claude-eta-v1.1.1...claude-eta-v1.2.0) (2026-03-23)
+
+
+### Features
+
+* **cli:** refresh README and colorize eta output ([#111](https://github.com/mmmprod/claude-eta/issues/111)) ([b82a8ef](https://github.com/mmmprod/claude-eta/commit/b82a8efbe61232a20958157e09e6db92d021aecc))
+
 ## [1.1.1](https://github.com/mmmprod/claude-eta/compare/claude-eta-v1.1.0...claude-eta-v1.1.1) (2026-03-23)
 
 
