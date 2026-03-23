@@ -80,6 +80,39 @@ The key difference: in a loop, the same error keeps returning. claude-eta finger
 error content, normalizing away paths, numbers, and quoted values so structurally identical
 failures match.
 
+## Claude can't estimate time. claude-eta teaches it.
+
+Claude says "2 days" for a 12-minute task because it has zero feedback loop
+between what it promises and what actually happens. claude-eta creates that loop.
+
+After 5 tasks, Claude receives your real velocity data before responding:
+project medians, confidence intervals, per-type volatility. It stops guessing.
+
+`/eta auto on` enables Claude to show an ETA at the start of each response,
+calibrated on your history, with an accuracy self-check that auto-disables
+if predictions drop below 50%.
+
+The loop detector proves the plugin sees what Claude does. The ETA proves it
+learns from what it sees. Same mechanism: observe -> inject, applied twice.
+
+## Why not just `--max-turns`?
+
+| | `--max-turns` | claude-eta |
+|---|---|---|
+| Detection | Counts turns blindly | Fingerprints error content |
+| Trigger | After N turns (any turns) | After 3x same error |
+| Response | Kills the session | Injects correction context |
+| False positives | Cuts long legitimate sessions | Only fires on repeated identical errors |
+| Learning | None | Learns your project's patterns over time |
+
+`--max-turns 20` stops Claude after 20 turns whether it's stuck or productive.
+
+claude-eta only intervenes when the same error repeats, and instead of killing
+the session, it tells Claude what's going wrong and asks it to change strategy.
+
+They're complementary: use `--max-turns` as a hard ceiling, use claude-eta
+for intelligent early intervention.
+
 ## Privacy
 
 Everything is local by default. No cloud. No telemetry. No upload unless you explicitly opt in.
@@ -93,15 +126,6 @@ See [SECURITY.md](SECURITY.md) for the full storage and community-data details.
 ## Advanced
 
 <details>
-<summary>Auto-ETA (opt-in estimated duration at response start)</summary>
-
-`/eta auto on` enables automatic ETA injection when claude-eta has enough local calibration for the task type.
-
-`/eta auto` shows whether the feature is active and how accurate its recent interval coverage has been.
-
-</details>
-
-<details>
 <summary>Community baselines</summary>
 
 `/eta compare` is read-only and fetches aggregate community baselines.
@@ -109,6 +133,19 @@ See [SECURITY.md](SECURITY.md) for the full storage and community-data details.
 `/eta contribute` stays blocked until you explicitly run `/eta community on`.
 
 Only anonymized per-task aggregates are sent. Prompts, code, file paths, event logs, and project names are not uploaded.
+
+</details>
+
+<details>
+<summary>Self-hosting community baselines</summary>
+
+To point `/eta compare` and `/eta contribute` at your own Supabase project, set:
+
+- `CLAUDE_ETA_SUPABASE_URL`
+- `CLAUDE_ETA_SUPABASE_KEY`
+
+The shipped anon key is intentionally public and restricted to `INSERT velocity_records`
+and `SELECT baselines_cache`.
 
 </details>
 
@@ -130,6 +167,22 @@ Only anonymized per-task aggregates are sent. Prompts, code, file paths, event l
 `/eta`, `/eta history`, `/eta stats`, `/eta inspect`, `/eta insights`, `/eta eval`, `/eta compare`, `/eta export`, `/eta contribute`, `/eta community`, `/eta auto`, `/eta recap`, `/eta help`
 
 </details>
+
+## Performance
+
+claude-eta hooks run on every Claude Code lifecycle event. Measured overhead:
+
+| Hook | Avg latency | Frequency |
+|------|-------------|-----------|
+| PostToolUse | ~37ms | Every tool call |
+| PostToolUseFailure | ~37ms | Every tool failure |
+| UserPromptSubmit | ~42ms | Every prompt |
+| Stop | ~42ms | End of response |
+
+Benchmarked on Linux 6.6 WSL2 x86_64, 12th Gen Intel(R) Core(TM) i7-12700F, Node v20.20.0. Run `./scripts/bench-hooks.sh` to measure on yours.
+
+PostToolUse is the hot path. It reads and writes a single small JSON file (~1KB).
+No historical data is loaded. No stats are computed.
 
 ## Eval results
 

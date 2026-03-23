@@ -4,8 +4,9 @@
  */
 
 // Public anon key — not a secret. Committed intentionally.
-const SUPABASE_URL = 'https://wviehmnmvvekiuxtxmmd.supabase.co';
+const SUPABASE_URL = process.env.CLAUDE_ETA_SUPABASE_URL ?? 'https://wviehmnmvvekiuxtxmmd.supabase.co';
 const SUPABASE_ANON_KEY =
+  process.env.CLAUDE_ETA_SUPABASE_KEY ??
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind2aWVobW5tdnZla2l1eHR4bW1kIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM5MjM1MDksImV4cCI6MjA4OTQ5OTUwOX0.S6ZGSfA1WU8ec8kZtdiFIokDkutjY2Z4rDZaQ74LtIM';
 
 interface SupabaseResponse<T> {

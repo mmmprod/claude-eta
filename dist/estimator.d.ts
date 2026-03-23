@@ -2,7 +2,7 @@
  * ETA Estimator v2 — shrinkage quantile estimation.
  *
  * Replaces the hardcoded confidence 80/60/30 and linear shift formula
- * with a data-driven model that smoothly blends local and default baselines.
+ * with a data-driven model that smoothly blends local data and initial priors.
  *
  * Pure functions — no I/O.
  */
@@ -32,7 +32,7 @@ export interface EtaEstimate {
  * Hierarchy (most specific → least specific):
  *   1. Classification-specific local stats (if enough data)
  *   2. Global local stats (all classifications)
- *   3. Default cold baselines
+ *   3. Initial cold priors
  *
  * Each level is blended with the next using shrinkage weights:
  *   w = n / (n + W), where n = sample count, W = shrinkage denominator

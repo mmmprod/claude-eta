@@ -54,7 +54,23 @@ function getHookTimeouts() {
   return timeouts;
 }
 
-describe('plugin packaging', () => {
+const HAS_GIT = (() => {
+  try {
+    return git(['rev-parse', '--is-inside-work-tree']).trim() === 'true';
+  } catch {
+    return false;
+  }
+})();
+const HAS_CLEAN_WORKTREE = (() => {
+  if (!HAS_GIT) return false;
+  try {
+    return git(['status', '--porcelain', '--untracked-files=all']).trim() === '';
+  } catch {
+    return false;
+  }
+})();
+
+describe('plugin packaging', { skip: !HAS_GIT ? 'requires .git directory' : false }, () => {
   it('keeps manifest versions aligned', () => {
     const packageJson = readJson('package.json');
     const packageLock = readJson('package-lock.json');
@@ -83,8 +99,12 @@ describe('plugin packaging', () => {
     assert.equal(timeouts.get('Stop'), 5);
   });
 
-  it('keeps dist committed and in sync after build', () => {
-    const status = git(['status', '--porcelain', '--untracked-files=all', '--', 'dist']).trim();
-    assert.equal(status, '', `dist/ is missing, uncommitted, or stale after build:\n${status}`);
-  });
+  it(
+    'keeps dist committed and in sync after build',
+    { skip: !HAS_CLEAN_WORKTREE ? 'requires clean git worktree' : false },
+    () => {
+      const status = git(['status', '--porcelain', '--untracked-files=all', '--', 'dist']).trim();
+      assert.equal(status, '', `dist/ is missing, uncommitted, or stale after build:\n${status}`);
+    },
+  );
 });

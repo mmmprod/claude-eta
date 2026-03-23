@@ -47,7 +47,7 @@ describe('computeStats', () => {
     assert.equal(stats.overall.median, 180); // 3 minutes
   });
 
-  it('computes p80 that differs from p75 for non-degenerate data', () => {
+  it('p80 is strictly >= p75 for datasets with enough spread', () => {
     const tasks = [
       makeTask({ duration_seconds: 10 }),
       makeTask({ duration_seconds: 20 }),

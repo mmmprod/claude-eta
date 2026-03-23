@@ -1,12 +1,7 @@
 /**
- * @deprecated Legacy v1 store — kept ONLY for read access during migration/compat.
- * All runtime writes now go through v2 modules:
- *   - preferences.ts (user preferences)
- *   - ephemeral.ts (last_eta, last_completed)
- *   - event-store.ts (turns, events)
- *   - project-meta.ts (project metadata)
- *
- * Do NOT add new callers to this module.
+ * @deprecated — v1 legacy storage. Do not use for new code.
+ * Read-only access for migration purposes only.
+ * New code should use event-store.ts + paths.ts.
  */
 import * as fs from 'node:fs';
 import * as path from 'node:path';

@@ -215,6 +215,16 @@ Verified from the code and SQL in this repository:
 
 `/eta compare` also keeps a local cache at `cache/baselines.json` for 6 hours.
 
+### Self-hosting
+
+To use your own Supabase instance, set these environment variables:
+
+- `CLAUDE_ETA_SUPABASE_URL` — your Supabase project URL
+- `CLAUDE_ETA_SUPABASE_KEY` — your anon key
+
+The default key is intentionally public with restricted permissions (`INSERT velocity_records`, `SELECT baselines_cache` only).
+It cannot read, update, or delete individual records.
+
 ## Reporting vulnerabilities
 
 Do not open public GitHub issues for suspected vulnerabilities.

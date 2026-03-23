@@ -8,7 +8,10 @@ A Claude Code plugin that tracks task durations and calibrates Claude's time est
 
 ```bash
 npm run build        # tsc → dist/
-npm test             # ~268 tests (node:test)
+npm run test:unit    # fast unit suite, no spawned hooks/CLI
+npm run test:integration # local integration suite
+npm test             # full local suite
+npm run test:remote  # live Supabase contract test
 npm run lint         # tsc --noEmit (strict)
 npm run format:check # prettier
 ```
@@ -45,7 +48,8 @@ Data flow: counters accumulate in `active/<session_id>__<agent_key>.json` (tiny 
 - `types.ts` — All types: v1 legacy (TaskEntry, ProjectData, ActiveTask) + v2 (SessionMeta, ActiveTurnState, EventRecord, CompletedTurn, RunnerKind, StopReason) + all hook stdin types
 - `migrate.ts` — Idempotent legacy→v2 migration (reads `{slug}.json`, writes `completed/*.jsonl`)
 - `compat.ts` — Bridge layer: `loadCompletedTurnsCompat(cwd)` reads v2 or legacy, `turnsToTaskEntries()` for backward compat
-- `estimator.ts` — Shrinkage quantile ETA: blends classification→global→baseline with sample-size weights
+- `stats-cache.ts` — Cached stats loader: `getProjectStats(cwd)` with signature validation
+- `estimator.ts` — Shrinkage quantile ETA: blends classification→global→prior with sample-size weights
 - `features.ts` — Trace feature extraction + phase detection (explore→edit→validate→repair_loop)
 - `stats.ts` — Percentile, IQR, volatility computation, formatting helpers (fmtSec, formatStatsContext)
 - `classify.ts` — Keyword-based prompt classification (9 categories)
@@ -57,6 +61,44 @@ Data flow: counters accumulate in `active/<session_id>__<agent_key>.json` (tiny 
 - `auto-eta.ts` — Auto-ETA decision engine (9 activation conditions, pure, zero I/O)
 - `insights/` — 9 deep analyses (correlations, breakdowns, temporal patterns)
 - `cli/admin-export.ts` — Maintainer-only admin dashboard JSON export (7 sections: health, eta_accuracy, data_quality, supabase, predictor_eval, insights, subagents). Scans all projects, async Supabase fetch with fallback.
+
+## Module map — which module does what
+
+### Data flow (runtime)
+
+```text
+Hooks → event-store.ts → paths.ts → filesystem
+           ↓
+       stats-cache.ts → stats.ts (pure computation)
+           ↓
+       estimator.ts (pure computation, uses stats)
+           ↓
+       auto-eta.ts (decision logic, uses estimator)
+```
+
+### Legacy (do NOT use for new code)
+
+- `store.ts` — `@deprecated`, v1 JSON storage. Read-only, used by migrate.ts
+- `compat.ts` — bridge v1↔v2, converts between formats
+- `convert.ts` — format conversions
+- `migrate.ts` — one-shot v1→v2 migration
+
+### Statistics (5 modules, 2 concerns)
+
+- `stats.ts` — core percentile/median/IQR computation (pure, no I/O)
+- `stats-cache.ts` — cached wrapper around `stats.ts` (has I/O, signature-validated)
+- `estimator.ts` — ETA estimation using stats output (pure, no I/O)
+- `auto-eta.ts` — decision logic for auto-ETA display (pure, no I/O)
+- `eval.ts` — offline backtesting of estimator accuracy (pure, no I/O)
+
+Rule: if you need stats in a hook, call `getProjectStats(cwd)` from `stats-cache.ts`.
+
+Never call `computeStats()` directly from a hook (bypasses cache).
+
+### Loop detection
+
+- `loop-detector.ts` — fingerprinting + detection (pure, no I/O)
+- Integrated in: `on-tool-use.ts`, `on-tool-failure.ts` (fingerprint collection), `on-stop.ts` (5x block), `on-prompt.ts` (3x warning)
 
 ## Hook stdin/stdout protocol
 

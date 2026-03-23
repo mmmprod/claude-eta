@@ -2,6 +2,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { estimateInitial, estimateWithTrace, toRemainingTaskEstimate, toTaskEstimate } from '../dist/estimator.js';
 import { applyPhaseTransition, extractFeatures, detectPhase, recomputeRemaining } from '../dist/features.js';
+import { INITIAL_PRIORS } from '../dist/stats.js';
 
 function makeStats(clsName, clsCount, volatility = 'medium', overrides = {}) {
   return {
@@ -106,6 +107,30 @@ describe('estimateInitial', () => {
     assert.ok(!est.basis.includes('claude-sonnet-4'));
     assert.ok(est.basis.includes('similar bugfix'));
   });
+
+  it('bases p80_wall on the true 80th percentile, not a p75 proxy', () => {
+    const stats = {
+      totalCompleted: 30,
+      overall: { median: 300, p25: 120, p75: 360, p80: 720 },
+      byClassification: [
+        { classification: 'bugfix', count: 10, median: 200, p25: 100, p75: 220, p80: 500, volatility: 'medium' },
+      ],
+      byClassificationModel: [],
+      byClassificationPhase: [],
+      byClassificationModelPhase: [],
+    };
+
+    const est = estimateInitial(stats, 'bugfix', 3);
+    const wGlobal = 30 / 35;
+    const wCls = 10 / 18;
+    const blendedGlobalP80 = wGlobal * stats.overall.p80 + (1 - wGlobal) * INITIAL_PRIORS.bugfix.high;
+    const blendedGlobalP75 = wGlobal * stats.overall.p75 + (1 - wGlobal) * INITIAL_PRIORS.bugfix.high;
+    const expectedP80 = Math.round(wCls * 500 + (1 - wCls) * blendedGlobalP80);
+    const p75Proxy = Math.round(wCls * 220 + (1 - wCls) * blendedGlobalP75);
+
+    assert.equal(est.p80_wall, expectedP80);
+    assert.notEqual(est.p80_wall, p75Proxy);
+  });
 });
 
 // ── estimateWithTrace ────────────────────────────────────────
@@ -170,6 +195,35 @@ describe('estimateWithTrace', () => {
     });
     assert.ok(refined.basis.includes('edit traces'));
     assert.ok(refined.remaining_p50 < initial.remaining_p50);
+  });
+
+  it('uses the true phase p80 for remaining_p80 when trace data is trusted', () => {
+    const stats = {
+      ...makeStats('bugfix', 10),
+      byClassificationPhase: [
+        {
+          phase: 'edit',
+          classification: 'bugfix',
+          count: 6,
+          median: 70,
+          p25: 60,
+          p75: 75,
+          p80: 120,
+          volatility: 'medium',
+        },
+      ],
+      byClassificationModelPhase: [],
+    };
+
+    const initial = estimateInitial(stats, 'bugfix', 3);
+    const refined = estimateWithTrace(initial, 30, 'edit', {
+      stats,
+      classification: 'bugfix',
+    });
+
+    assert.equal(refined.remaining_p50, 70);
+    assert.equal(refined.remaining_p80, 120);
+    assert.notEqual(refined.remaining_p80, 75);
   });
 });
 
