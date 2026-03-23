@@ -54,6 +54,10 @@ export interface TaskEstimate {
 /** Minimum completed tasks before real stats kick in */
 export const CALIBRATION_THRESHOLD = 5;
 
+/** Injected when auto-ETA is active — prescriptive, no "do not volunteer" (would contradict auto-injection) */
+export const PRESCRIPTIVE_ETA_GUIDANCE =
+  'RULES FOR TIME ESTIMATES: Use ONLY the data above. Never guess durations. Format: "[type] tasks take [p25]-[p75] (median [median], [N] measured)."';
+
 /**
  * Hand-tuned initial priors for cold-start estimation.
  * These are rough order-of-magnitude values based on typical Claude Code tasks.
@@ -336,6 +340,7 @@ export function formatStatsContext(
   stats: ProjectStats,
   estimate?: TaskEstimate,
   estimateLabel = 'Current task estimate',
+  options?: { autoEtaActive?: boolean },
 ): string {
   const lines: string[] = [
     `[claude-eta] Project velocity (${stats.totalCompleted} completed tasks):`,
@@ -356,7 +361,9 @@ export function formatStatsContext(
   }
 
   lines.push(
-    'Use these project stats to calibrate any time estimates. Do not volunteer time estimates unless the user asks.',
+    options?.autoEtaActive
+      ? PRESCRIPTIVE_ETA_GUIDANCE
+      : 'Use these project stats to calibrate any time estimates. Do not volunteer time estimates unless the user asks.',
   );
 
   return lines.join('\n');
@@ -367,15 +374,17 @@ export function formatColdStartContext(
   estimate: TaskEstimate,
   tasksCompleted: number,
   estimateLabel = 'Current task estimate',
-  options?: { isCommunity?: boolean },
+  options?: { isCommunity?: boolean; autoEtaActive?: boolean },
 ): string {
   const isCommunity = options?.isCommunity ?? estimate.basis.startsWith('community ');
   const calibrationLine = isCommunity
     ? `[claude-eta] Calibration: ${tasksCompleted}/${CALIBRATION_THRESHOLD} tasks recorded. Using community baselines until calibrated.`
     : `[claude-eta] Calibration: ${tasksCompleted}/${CALIBRATION_THRESHOLD} tasks recorded. Estimates become project-specific after ${CALIBRATION_THRESHOLD} tasks.`;
-  const guidanceLine = isCommunity
-    ? 'Use these community baselines to calibrate any time estimates. Do not volunteer time estimates unless the user asks.'
-    : 'Use these initial priors to calibrate any time estimates. Do not volunteer time estimates unless the user asks.';
+  const guidanceLine = options?.autoEtaActive
+    ? PRESCRIPTIVE_ETA_GUIDANCE
+    : isCommunity
+      ? 'Use these community baselines to calibrate any time estimates. Do not volunteer time estimates unless the user asks.'
+      : 'Use these initial priors to calibrate any time estimates. Do not volunteer time estimates unless the user asks.';
 
   const lines: string[] = [
     calibrationLine,

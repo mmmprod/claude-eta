@@ -3,6 +3,8 @@ import { estimateInitial, toTaskEstimate } from './estimator.js';
 // ── Constants ─────────────────────────────────────────────────
 /** Minimum completed tasks before real stats kick in */
 export const CALIBRATION_THRESHOLD = 5;
+/** Injected when auto-ETA is active — prescriptive, no "do not volunteer" (would contradict auto-injection) */
+export const PRESCRIPTIVE_ETA_GUIDANCE = 'RULES FOR TIME ESTIMATES: Use ONLY the data above. Never guess durations. Format: "[type] tasks take [p25]-[p75] (median [median], [N] measured)."';
 /**
  * Hand-tuned initial priors for cold-start estimation.
  * These are rough order-of-magnitude values based on typical Claude Code tasks.
@@ -269,7 +271,7 @@ export function fmtSec(seconds) {
     return remainMin > 0 ? `${hr}h${remainMin}m` : `${hr}h`;
 }
 /** Format stats as a concise context string for Claude injection */
-export function formatStatsContext(stats, estimate, estimateLabel = 'Current task estimate') {
+export function formatStatsContext(stats, estimate, estimateLabel = 'Current task estimate', options) {
     const lines = [
         `[claude-eta] Project velocity (${stats.totalCompleted} completed tasks):`,
         `Overall: median ${fmtSec(stats.overall.median)}, range ${fmtSec(stats.overall.p25)}–${fmtSec(stats.overall.p75)}`,
@@ -281,7 +283,9 @@ export function formatStatsContext(stats, estimate, estimateLabel = 'Current tas
         const vol = estimate.volatility === 'high' ? ' — high volatility, wide range expected' : '';
         lines.push(`→ ${estimateLabel}: ${fmtSec(estimate.low)}–${fmtSec(estimate.high)} (${estimate.confidence}% confidence, ${estimate.basis}${vol})`);
     }
-    lines.push('Use these project stats to calibrate any time estimates. Do not volunteer time estimates unless the user asks.');
+    lines.push(options?.autoEtaActive
+        ? PRESCRIPTIVE_ETA_GUIDANCE
+        : 'Use these project stats to calibrate any time estimates. Do not volunteer time estimates unless the user asks.');
     return lines.join('\n');
 }
 /** Format context during cold start (< CALIBRATION_THRESHOLD tasks) */
@@ -290,9 +294,11 @@ export function formatColdStartContext(estimate, tasksCompleted, estimateLabel =
     const calibrationLine = isCommunity
         ? `[claude-eta] Calibration: ${tasksCompleted}/${CALIBRATION_THRESHOLD} tasks recorded. Using community baselines until calibrated.`
         : `[claude-eta] Calibration: ${tasksCompleted}/${CALIBRATION_THRESHOLD} tasks recorded. Estimates become project-specific after ${CALIBRATION_THRESHOLD} tasks.`;
-    const guidanceLine = isCommunity
-        ? 'Use these community baselines to calibrate any time estimates. Do not volunteer time estimates unless the user asks.'
-        : 'Use these initial priors to calibrate any time estimates. Do not volunteer time estimates unless the user asks.';
+    const guidanceLine = options?.autoEtaActive
+        ? PRESCRIPTIVE_ETA_GUIDANCE
+        : isCommunity
+            ? 'Use these community baselines to calibrate any time estimates. Do not volunteer time estimates unless the user asks.'
+            : 'Use these initial priors to calibrate any time estimates. Do not volunteer time estimates unless the user asks.';
     const lines = [
         calibrationLine,
         `→ ${estimateLabel}: ${fmtSec(estimate.low)}–${fmtSec(estimate.high)} (${estimate.confidence}% confidence, ${estimate.basis} — not calibrated to this project yet)`,

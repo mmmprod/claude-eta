@@ -16,7 +16,7 @@ LLMs have zero feedback between what they promise and what actually happens.
 claude-eta creates that loop: it times every task, learns your velocity,
 and feeds real data back into Claude before it responds.
 
-After enough history, ETAs appear automatically — calibrated on YOUR project.
+After 10 tasks of the same type, ETAs appear automatically — calibrated on YOUR project.
 
 <p align="center">
   <img src="docs/eta-demo.gif" alt="claude-eta ETA demo" width="979" />
@@ -28,7 +28,7 @@ After enough history, ETAs appear automatically — calibrated on YOUR project.
 2. claude-eta classifies it, starts a timer, injects your velocity stats
 3. Claude works. Tool calls, file ops, errors counted silently.
 4. Task completes. Real duration recorded. Next estimate improves.
-5. After enough tasks of the same type, ETAs appear automatically at the start of Claude's responses.
+5. After 10 tasks of the same type, ETAs appear automatically at the start of Claude's responses.
 
 ## Eval results
 

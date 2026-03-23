@@ -4,6 +4,7 @@ export const HIGH_VOL_INTERVAL_MULT = 1.5;
 export const HIGH_VOL_CONFIDENCE_PENALTY = 15;
 export const MAX_INTERVAL_RATIO = 5;
 export const COOLDOWN_INTERVAL = 5;
+export const AUTO_ACTIVATE_THRESHOLD = 10;
 export const ACCURACY_MIN_PREDICTIONS = 10;
 export const ACCURACY_MIN_RATE = 0.5;
 /** Loose conversational pattern — matches prompts starting with acknowledgements.
@@ -15,6 +16,19 @@ const CODING_TERMS = /\b(implement|refactor|code|module|function|file)\b/i;
 /** Check if the user wants to disable auto-eta via natural language. */
 export function checkDisableRequest(prompt) {
     return DISABLE_PATTERNS.test(prompt) && !CODING_TERMS.test(prompt);
+}
+/** Check if auto-ETA should activate dynamically for this classification. Pure function. */
+export function shouldAutoActivate(prefs, stats, classification) {
+    if (prefs.auto_eta_explicitly_set)
+        return false;
+    if (classification === 'other')
+        return false;
+    const clsStats = stats.byClassification.find((s) => s.classification === classification);
+    if (!clsStats || clsStats.count < AUTO_ACTIVATE_THRESHOLD)
+        return false;
+    if (clsStats.volatility === 'high')
+        return false;
+    return true;
 }
 /** Evaluate whether to inject an auto-ETA. Pure function — no I/O. */
 export function evaluateAutoEta(params) {

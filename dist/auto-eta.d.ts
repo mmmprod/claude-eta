@@ -9,6 +9,7 @@ export declare const HIGH_VOL_INTERVAL_MULT = 1.5;
 export declare const HIGH_VOL_CONFIDENCE_PENALTY = 15;
 export declare const MAX_INTERVAL_RATIO = 5;
 export declare const COOLDOWN_INTERVAL = 5;
+export declare const AUTO_ACTIVATE_THRESHOLD = 10;
 export declare const ACCURACY_MIN_PREDICTIONS = 10;
 export declare const ACCURACY_MIN_RATE = 0.5;
 /** Loose conversational pattern — matches prompts starting with acknowledgements.
@@ -30,9 +31,12 @@ export declare function checkDisableRequest(prompt: string): boolean;
 /** Minimal prefs shape needed by auto-eta — compatible with both v1 and v2 */
 export interface AutoEtaPrefs {
     auto_eta: boolean;
+    auto_eta_explicitly_set?: boolean;
     prompts_since_last_eta: number;
     last_eta_task_id?: string | null | undefined;
 }
+/** Check if auto-ETA should activate dynamically for this classification. Pure function. */
+export declare function shouldAutoActivate(prefs: AutoEtaPrefs, stats: ProjectStats, classification: TaskClassification): boolean;
 /** Evaluate whether to inject an auto-ETA. Pure function — no I/O. */
 export declare function evaluateAutoEta(params: {
     prefs: AutoEtaPrefs;

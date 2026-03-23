@@ -10,6 +10,7 @@ import { getConfigDir, ensureDir, atomicWrite, findLegacyFile } from './paths.js
 
 export interface UserPreferencesV2 {
   auto_eta: boolean;
+  auto_eta_explicitly_set: boolean;
   community_sharing: boolean;
   community_onboarding_seen: boolean;
   community_choice_made: boolean;
@@ -21,6 +22,7 @@ export interface UserPreferencesV2 {
 
 const DEFAULTS: UserPreferencesV2 = {
   auto_eta: false,
+  auto_eta_explicitly_set: false,
   community_sharing: false,
   community_onboarding_seen: false,
   community_choice_made: false,
@@ -51,6 +53,7 @@ function tryMigrateFromV1(): UserPreferencesV2 | null {
     };
     return {
       auto_eta: v1.auto_eta ?? false,
+      auto_eta_explicitly_set: false,
       community_sharing: v1.community_sharing ?? false,
       community_onboarding_seen: v1.community_onboarding_seen ?? false,
       community_choice_made: v1.community_choice_made ?? false,
@@ -71,6 +74,7 @@ export function loadPreferencesV2(): UserPreferencesV2 {
     const prefs = JSON.parse(content) as Partial<UserPreferencesV2>;
     return {
       auto_eta: prefs.auto_eta ?? DEFAULTS.auto_eta,
+      auto_eta_explicitly_set: prefs.auto_eta_explicitly_set ?? DEFAULTS.auto_eta_explicitly_set,
       community_sharing: prefs.community_sharing ?? DEFAULTS.community_sharing,
       community_onboarding_seen: prefs.community_onboarding_seen ?? DEFAULTS.community_onboarding_seen,
       community_choice_made: prefs.community_choice_made ?? DEFAULTS.community_choice_made,
