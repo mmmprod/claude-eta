@@ -32,26 +32,24 @@ After 10 tasks of the same type, ETAs appear automatically — calibrated on YOU
 
 ## Eval results
 
-Tested on 163 real completed work items from a single developer:
+Tested on 217 real completed work items from a single developer:
 
 | Metric | Value |
 |--------|-------|
-| p80 coverage at prompt | 79.1% |
+| p80 coverage at prompt | 77.9% |
 
 p80 coverage = how often the real duration fell at or below the predicted p80 upper bound (target ~80%).
 
-MdAPE (median absolute % error) = 81.6% — expected for a single-user dataset, improves with volume.
+MdAPE (median absolute % error) = 79.6% — expected for a single-user dataset, improves with volume.
 
 <details>
 <summary>Additional evaluator stages</summary>
 
 | Stage | MdAPE | p80 coverage |
 |-------|-------|--------------|
-| At prompt | 81.6% | 79.1% |
-| After first edit | 100.0% | 58.8% |
-| After first bash | 86.8% | 64.7% |
-
-Loop detector: 0 reconstructed loops across 9 persisted Bash-failure histories on this project, 0 potential false positives.
+| At prompt | 79.6% | 77.9% |
+| After first edit | 95.0% | 67.6% |
+| After first bash | 80.4% | 74.4% |
 
 </details>
 
