@@ -36,9 +36,9 @@ Tested on 163 real completed work items from a single developer:
 
 | Metric | Value |
 |--------|-------|
-| p80 interval coverage at prompt | 79.1% |
+| p80 coverage at prompt | 79.1% |
 
-p80 coverage = how often the real duration fell inside the predicted interval (target ~80%).
+p80 coverage = how often the real duration fell at or below the predicted p80 upper bound (target ~80%).
 
 MdAPE (median absolute % error) = 81.6% — expected for a single-user dataset, improves with volume.
 
@@ -117,7 +117,7 @@ Then restart Claude Code or run `/reload-plugins`.
 claude plugin uninstall claude-eta
 ```
 
-Local data stays in `~/.claude/plugins/claude-eta/` until you delete it manually.
+Local data stays under `${CLAUDE_PLUGIN_DATA}` (typically `~/.claude/plugins/data/claude-eta-*/`) until you delete it manually.
 
 ## Commands
 
@@ -207,7 +207,7 @@ failures match.
 
 `/eta auto on` enables automatic ETA injection when claude-eta has enough local calibration for the task type.
 
-`/eta auto` shows whether the feature is active and how accurate its recent interval coverage has been.
+`/eta auto` shows whether the feature is active and how accurate its recent p80 upper-bound coverage has been.
 
 </details>
 
