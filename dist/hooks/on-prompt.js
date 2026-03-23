@@ -69,22 +69,12 @@ async function main() {
             const initial = estimateInitial(stats, existing.classification, existing.prompt_complexity, {
                 model: existing.model,
             });
-            // Prefer refined_eta from phase-transition recalc (already computed by on-tool-use)
-            const hasRefinedEta = existing.refined_eta && existing.last_phase && existing.last_phase !== 'explore';
-            const refined = hasRefinedEta
-                ? {
-                    ...initial,
-                    remaining_p50: existing.refined_eta.p50,
-                    remaining_p80: existing.refined_eta.p80,
-                    calibration: 'project+trace',
-                    phase: features.phase,
-                }
-                : estimateWithTrace(initial, elapsed, features.phase, {
-                    stats,
-                    classification: existing.classification,
-                    model: existing.model,
-                    cumulativeWorkItemSeconds: existing.cumulative_work_item_seconds ?? 0,
-                });
+            const refined = estimateWithTrace(initial, elapsed, features.phase, {
+                stats,
+                classification: existing.classification,
+                model: existing.model,
+                cumulativeWorkItemSeconds: existing.cumulative_work_item_seconds ?? 0,
+            });
             const legacy = toRemainingTaskEstimate(refined, existing.prompt_complexity);
             contextParts.push(formatStatsContext(stats, legacy, 'Current remaining estimate', { autoEtaActive: effectiveAutoEta }));
             if (features.phase !== 'explore') {

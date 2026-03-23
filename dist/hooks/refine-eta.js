@@ -19,7 +19,7 @@ export function refineEtaOnTransition(state, cwd, newPhase, now) {
                 model: state.model,
                 cumulativeWorkItemSeconds: state.cumulative_work_item_seconds ?? 0,
             });
-            state.refined_eta = { p50: refined.remaining_p50, p80: refined.remaining_p80 };
+            state.refined_eta = { p50: refined.remaining_p50, p80: refined.remaining_p80, computed_at_ms: Date.now() };
         }
     }
     catch {

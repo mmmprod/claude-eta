@@ -11,7 +11,7 @@ import { getPluginDataDir } from '../paths.js';
 import { contributorHash, projectHash, normalizeModel, dedupKey } from '../anonymize.js';
 const EXPORT_DIR = path.join(getPluginDataDir(), 'export');
 export function anonymizeTask(task, projIdentifier, pluginVersion, projectMeta) {
-    if (task.duration_seconds == null || task.duration_seconds <= 0)
+    if (task.duration_seconds == null || task.duration_seconds <= 0 || task.duration_seconds >= 86400)
         return null;
     const contribHash = contributorHash();
     return {

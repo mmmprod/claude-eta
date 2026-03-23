@@ -151,6 +151,7 @@ export interface ActiveTurnState {
     refined_eta?: {
         p50: number;
         p80: number;
+        computed_at_ms?: number;
     } | null;
     /** Number of files edited after the first bash failure (for repair_loop detection) */
     files_edited_after_first_failure: number;

@@ -169,16 +169,10 @@ See [SECURITY.md](SECURITY.md) for the full storage and community-data details.
 
 ## Performance
 
-claude-eta hooks run on every Claude Code lifecycle event. Measured overhead:
+claude-eta hooks run on every Claude Code lifecycle event.
+Typical overhead is 30–50ms per hook on modern hardware (dominated by Node.js cold start).
 
-| Hook | Avg latency | Frequency |
-|------|-------------|-----------|
-| PostToolUse | ~37ms | Every tool call |
-| PostToolUseFailure | ~37ms | Every tool failure |
-| UserPromptSubmit | ~42ms | Every prompt |
-| Stop | ~42ms | End of response |
-
-Benchmarked on Linux 6.6 WSL2 x86_64, 12th Gen Intel(R) Core(TM) i7-12700F, Node v20.20.0. Run `./scripts/bench-hooks.sh` to measure on yours.
+Run `./scripts/bench-hooks.sh` to measure on your machine.
 
 PostToolUse is the hot path. It reads and writes a single small JSON file (~1KB).
 No historical data is loaded. No stats are computed.
