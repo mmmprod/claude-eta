@@ -54,9 +54,11 @@ async function main() {
     const stats = getProjectStats(cwd);
     // Load prefs once — used by both continuation and new-task branches
     const prefs = loadPreferencesV2();
+    // Evaluate disable request early so effectiveAutoEta reflects it
+    const isDisableRequest = checkDisableRequest(prompt);
     // Dynamic auto-activation: evaluated per-prompt, never persisted.
     // Uses a separate variable so prefs stays unmodified for persist paths.
-    const effectiveAutoEta = prefs.auto_eta || (!!stats && shouldAutoActivate(prefs, stats, classification));
+    const effectiveAutoEta = !isDisableRequest && (prefs.auto_eta || (!!stats && shouldAutoActivate(prefs, stats, classification)));
     const transition = decidePromptTransition(prompt, classification, existing);
     if (transition === 'continuation' && existing) {
         // ── Continuation: keep the active turn, inject phase-aware estimate ──
@@ -214,7 +216,7 @@ async function main() {
     }
     // Auto-ETA evaluation (only when calibrated)
     if (stats) {
-        if (checkDisableRequest(prompt)) {
+        if (isDisableRequest) {
             prefs.auto_eta = false;
             prefs.auto_eta_explicitly_set = true;
             prefs.updated_at = new Date().toISOString();

@@ -435,4 +435,11 @@ describe('formatColdStartContext', () => {
     assert.ok(ctx.includes('RULES FOR TIME ESTIMATES'));
     assert.ok(!ctx.includes('Do not volunteer'));
   });
+
+  it('uses passive guidance when autoEtaActive is false', () => {
+    const estimate = getDefaultEstimate('bugfix', 3);
+    const ctx = formatColdStartContext(estimate, 2, undefined, { autoEtaActive: false });
+    assert.ok(ctx.includes('Do not volunteer'));
+    assert.ok(!ctx.includes('RULES FOR TIME ESTIMATES'));
+  });
 });
