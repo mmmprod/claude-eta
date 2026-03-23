@@ -55,11 +55,13 @@ async function main(): Promise<void> {
       state.files_edited += 1;
       fileOp = 'edit';
       if (state.first_edit_at_ms === null) state.first_edit_at_ms = now;
+      if (state.first_bash_failure_at_ms !== null) state.files_edited_after_first_failure = (state.files_edited_after_first_failure ?? 0) + 1;
       break;
     case 'Write':
       state.files_created += 1;
       fileOp = 'create';
       if (state.first_edit_at_ms === null) state.first_edit_at_ms = now;
+      if (state.first_bash_failure_at_ms !== null) state.files_edited_after_first_failure = (state.files_edited_after_first_failure ?? 0) + 1;
       break;
   }
 
@@ -94,6 +96,7 @@ async function main(): Promise<void> {
     if (typeof resp.exit_code === 'number' && resp.exit_code !== 0) {
       state.errors += 1;
       state.bash_failures += 1;
+      if (state.first_bash_failure_at_ms === null) state.first_bash_failure_at_ms = now;
       // Loop detector: fingerprint the error output (capped to avoid unbounded growth)
       const stderr = String(resp.stderr ?? resp.stdout ?? '');
       if (stderr.length > 0 && state.error_fingerprints.length < 50) {

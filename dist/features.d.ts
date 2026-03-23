@@ -3,7 +3,7 @@
  * Pure functions — no I/O.
  */
 import type { ActiveTurnState } from './types.js';
-export type TaskPhase = 'explore' | 'edit' | 'validate' | 'repair_loop';
+export type TaskPhase = 'explore' | 'edit' | 'validate' | 'validate_failed' | 'repair_loop';
 export interface TraceFeatures {
     elapsed_wall_ms: number;
     tool_calls: number;

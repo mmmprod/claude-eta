@@ -62,6 +62,8 @@ export function createActiveTurn(params: CreateTurnParams): ActiveTurnState {
     live_remaining_p50: null,
     live_remaining_p80: null,
     live_phase: null,
+    files_edited_after_first_failure: 0,
+    first_bash_failure_at_ms: null,
     cumulative_work_item_seconds: 0,
   };
 }

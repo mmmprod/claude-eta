@@ -148,6 +148,8 @@ async function main() {
         live_phase: null,
         last_phase: null,
         refined_eta: null,
+        files_edited_after_first_failure: 0,
+        first_bash_failure_at_ms: null,
         cumulative_work_item_seconds: cumulativeSeconds,
     };
     // Cache ETA snapshot before startTurn so it's persisted in a single write

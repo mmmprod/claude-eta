@@ -44,6 +44,7 @@ async function main(): Promise<void> {
     state.bash_calls += 1;
     state.bash_failures += 1;
     if (state.first_bash_at_ms === null) state.first_bash_at_ms = now;
+    if (state.first_bash_failure_at_ms === null) state.first_bash_failure_at_ms = now;
   }
 
   // Repair-loop tracking is intentionally scoped to Bash failures.

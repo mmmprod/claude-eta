@@ -152,6 +152,10 @@ export interface ActiveTurnState {
         p50: number;
         p80: number;
     } | null;
+    /** Number of files edited after the first bash failure (for repair_loop detection) */
+    files_edited_after_first_failure: number;
+    /** Timestamp of the first bash failure (ms since epoch) */
+    first_bash_failure_at_ms: number | null;
     /** Cumulative wall-clock seconds already spent on this work item across prior turns */
     cumulative_work_item_seconds: number;
 }

@@ -174,6 +174,8 @@ async function main(): Promise<void> {
     live_phase: null,
     last_phase: null,
     refined_eta: null,
+    files_edited_after_first_failure: 0,
+    first_bash_failure_at_ms: null,
     cumulative_work_item_seconds: cumulativeSeconds,
   };
 

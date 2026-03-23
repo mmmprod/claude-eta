@@ -132,6 +132,7 @@ export function estimateWithTrace(
     explore: 1.05,
     edit: 1,
     validate: 0.95,
+    validate_failed: 1.0,
     repair_loop: 1.15,
   };
   const baselineP50 = Math.max(0, initial.p50_wall - elapsedSeconds);
@@ -140,7 +141,7 @@ export function estimateWithTrace(
   let remainP80 = Math.max(remainP50 + (remainP50 === 0 ? 0 : 1), Math.round(baselineP80 * phaseMultipliers[phase]));
   let basis = initial.basis;
 
-  const phaseBucket = phase === 'validate' ? 'validate' : phase === 'edit' || phase === 'repair_loop' ? 'edit' : null;
+  const phaseBucket = phase === 'validate' || phase === 'validate_failed' ? 'validate' : phase === 'edit' || phase === 'repair_loop' ? 'edit' : null;
   const stats = context?.stats ?? null;
   const classification = context?.classification;
   const normalizedModel = context?.model ? normalizeModel(context.model) : null;

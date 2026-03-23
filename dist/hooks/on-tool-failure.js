@@ -32,6 +32,8 @@ async function main() {
         state.bash_failures += 1;
         if (state.first_bash_at_ms === null)
             state.first_bash_at_ms = now;
+        if (state.first_bash_failure_at_ms === null)
+            state.first_bash_failure_at_ms = now;
     }
     // Repair-loop tracking is intentionally scoped to Bash failures.
     if (toolName === 'Bash' && stdin.error && stdin.error.length > 0 && state.error_fingerprints.length < 50) {
