@@ -48,6 +48,7 @@ export declare function estimateWithTrace(initial: EtaEstimate, elapsedSeconds: 
     stats?: ProjectStats | null;
     classification?: TaskClassification;
     model?: string | null;
+    cumulativeWorkItemSeconds?: number;
 }): EtaEstimate;
 /** Convert EtaEstimate to the legacy TaskEstimate shape for existing consumers */
 export declare function toTaskEstimate(est: EtaEstimate, complexity: number): import('./stats.js').TaskEstimate;

@@ -409,3 +409,56 @@ describe('cumulative work item ETA adjustment', () => {
     assert.equal(adjusted.p80_wall, initial.p80_wall);
   });
 });
+
+// ── estimateWithTrace cumulativeWorkItemSeconds ──────────────
+
+describe('estimateWithTrace cumulativeWorkItemSeconds', () => {
+  it('accounts for cumulative work item seconds', () => {
+    const initial = estimateInitial(makeStats('bugfix', 10), 'bugfix', 3);
+    // p50_wall ~ 200, p80_wall ~ 440 (from makeStats)
+    const elapsedSeconds = 10;
+    const cumulativeWorkItemSeconds = 50;
+
+    const withCumulative = estimateWithTrace(initial, elapsedSeconds, 'edit', {
+      cumulativeWorkItemSeconds,
+    });
+    const withoutCumulative = estimateWithTrace(initial, elapsedSeconds, 'edit');
+
+    // effective elapsed = 10 + 50 = 60 vs just 10
+    // So remaining should be smaller when cumulative is accounted for
+    assert.ok(
+      withCumulative.remaining_p50 < withoutCumulative.remaining_p50,
+      `remaining_p50 with cumulative (${withCumulative.remaining_p50}) should be less than without (${withoutCumulative.remaining_p50})`,
+    );
+    assert.ok(
+      withCumulative.remaining_p80 < withoutCumulative.remaining_p80,
+      `remaining_p80 with cumulative (${withCumulative.remaining_p80}) should be less than without (${withoutCumulative.remaining_p80})`,
+    );
+  });
+
+  it('zero cumulative seconds leaves estimate unchanged', () => {
+    const initial = estimateInitial(makeStats('bugfix', 10), 'bugfix', 3);
+    const elapsedSeconds = 30;
+
+    const withZero = estimateWithTrace(initial, elapsedSeconds, 'edit', {
+      cumulativeWorkItemSeconds: 0,
+    });
+    const withoutParam = estimateWithTrace(initial, elapsedSeconds, 'edit');
+
+    assert.equal(withZero.remaining_p50, withoutParam.remaining_p50);
+    assert.equal(withZero.remaining_p80, withoutParam.remaining_p80);
+  });
+
+  it('omitting cumulativeWorkItemSeconds is backward compatible', () => {
+    const initial = estimateInitial(makeStats('bugfix', 10), 'bugfix', 3);
+    const elapsedSeconds = 30;
+
+    const withUndefined = estimateWithTrace(initial, elapsedSeconds, 'edit', {
+      cumulativeWorkItemSeconds: undefined,
+    });
+    const withoutContext = estimateWithTrace(initial, elapsedSeconds, 'edit');
+
+    assert.equal(withUndefined.remaining_p50, withoutContext.remaining_p50);
+    assert.equal(withUndefined.remaining_p80, withoutContext.remaining_p80);
+  });
+});
