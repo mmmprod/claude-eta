@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.4](https://github.com/mmmprod/claude-eta/compare/claude-eta-v1.3.3...claude-eta-v1.3.4) (2026-03-23)
+
+
+### Bug Fixes
+
+* p80 upper-bound semantics + stabilization sprint ([#121](https://github.com/mmmprod/claude-eta/issues/121)) ([d90cb94](https://github.com/mmmprod/claude-eta/commit/d90cb943b4bb3aa1e576fa83fdd82f4465d70e7b))
+
 ## [1.3.3](https://github.com/mmmprod/claude-eta/compare/claude-eta-v1.3.2...claude-eta-v1.3.3) (2026-03-23)
 
 
