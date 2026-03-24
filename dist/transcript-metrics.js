@@ -84,8 +84,11 @@ function extractTurnDurationMs(entry) {
     const duration = entry.durationMs;
     return typeof duration === 'number' && Number.isFinite(duration) && duration >= 0 ? duration : null;
 }
+function hasTranscriptActivity(turn) {
+    return turn.has_activity || turn.duration_ms != null;
+}
 function toSummary(turn) {
-    if (!turn.has_activity)
+    if (!hasTranscriptActivity(turn))
         return null;
     return {
         started_at: turn.started_at,
@@ -103,7 +106,7 @@ function toSummary(turn) {
     };
 }
 function finalizeDerivedTurn(turn) {
-    if (!turn || !turn.has_activity)
+    if (!turn || !hasTranscriptActivity(turn))
         return null;
     if (turn.duration_ms == null) {
         turn.duration_ms = Math.max(0, turn.last_relevant_ms - turn.started_at_ms);
@@ -209,7 +212,13 @@ function getTranscriptCachePath(projectFp, sessionId) {
     return path.join(getCacheDir(projectFp), 'transcript-turns', `${sessionId}.json`);
 }
 function loadTranscriptSummaryFromCache(projectFp, sessionId, transcriptPath) {
-    const mtimeMs = fs.statSync(transcriptPath).mtimeMs;
+    let mtimeMs;
+    try {
+        mtimeMs = fs.statSync(transcriptPath).mtimeMs;
+    }
+    catch {
+        return null;
+    }
     const cacheKey = `${projectFp}:${sessionId}:${transcriptPath}`;
     const inMemory = transcriptSummaryCache.get(cacheKey);
     if (inMemory && inMemory.transcript_mtime_ms === mtimeMs)

@@ -1,6 +1,7 @@
 import { describe, it, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import * as fs from 'node:fs';
+import { createRequire, syncBuiltinESMExports } from 'node:module';
 import * as os from 'node:os';
 import * as path from 'node:path';
 
@@ -29,6 +30,8 @@ function writeTranscript(sessionId, lines) {
   fs.writeFileSync(transcriptPath, lines.map((line) => JSON.stringify(line)).join('\n') + '\n');
   return transcriptPath;
 }
+
+const require = createRequire(import.meta.url);
 
 function makeCompletedTurn(overrides = {}) {
   return {
@@ -174,6 +177,80 @@ describe('transcript metrics', () => {
     assert.equal(turns.length, 1);
     assert.equal(turns[0].thinking_seconds, 7);
     assert.equal(turns[0].tool_seconds, 2);
+  });
+
+  it('keeps duration-only turns when turn_duration is the only transcript signal', async () => {
+    const { loadTranscriptTurnSummaries } = await loadModule();
+    const sessionId = 'sess-transcript-duration-only';
+    const transcriptPath = writeTranscript(sessionId, [
+      {
+        type: 'user',
+        isMeta: false,
+        timestamp: '2026-03-24T10:00:00.000Z',
+        message: { role: 'user', content: '/batch' },
+      },
+      {
+        type: 'system',
+        subtype: 'turn_duration',
+        timestamp: '2026-03-24T10:00:08.000Z',
+        durationMs: 8000,
+      },
+    ]);
+
+    const turns = loadTranscriptTurnSummaries('proj-fp-1', sessionId, transcriptPath);
+
+    assert.equal(turns.length, 1);
+    assert.equal(turns[0].duration_seconds, 8);
+    assert.equal(turns[0].duration_source, 'turn_duration');
+    assert.equal(turns[0].prompt_to_first_assistant_seconds, null);
+  });
+
+  it('treats transcript stat races as cache misses instead of throwing', async () => {
+    const { loadTranscriptTurnSummaries } = await loadModule();
+    const sessionId = 'sess-transcript-race';
+    const transcriptPath = writeTranscript(sessionId, [
+      {
+        type: 'user',
+        isMeta: false,
+        timestamp: '2026-03-24T10:00:00.000Z',
+        message: { role: 'user', content: 'inspect transcript cache race' },
+      },
+      {
+        type: 'assistant',
+        timestamp: '2026-03-24T10:00:03.000Z',
+        message: { role: 'assistant', content: [{ type: 'text', text: 'done' }] },
+      },
+      {
+        type: 'system',
+        subtype: 'turn_duration',
+        timestamp: '2026-03-24T10:00:05.000Z',
+        durationMs: 5000,
+      },
+    ]);
+
+    const fsCjs = require('node:fs');
+    const originalStatSync = fsCjs.statSync;
+    let transcriptStatCalls = 0;
+    fsCjs.statSync = (target, ...args) => {
+      if (String(target) === transcriptPath) {
+        transcriptStatCalls += 1;
+        if (transcriptStatCalls === 2) {
+          const err = new Error('ENOENT: transcript disappeared');
+          err.code = 'ENOENT';
+          throw err;
+        }
+      }
+      return originalStatSync(target, ...args);
+    };
+    syncBuiltinESMExports();
+
+    try {
+      const turns = loadTranscriptTurnSummaries('proj-fp-1', sessionId, transcriptPath);
+      assert.deepEqual(turns, []);
+    } finally {
+      fsCjs.statSync = originalStatSync;
+      syncBuiltinESMExports();
+    }
   });
 
   it('enriches completed turns with transcript-derived metrics', async () => {

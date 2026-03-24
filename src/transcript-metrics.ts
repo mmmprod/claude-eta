@@ -122,8 +122,12 @@ function extractTurnDurationMs(entry: Record<string, unknown>): number | null {
   return typeof duration === 'number' && Number.isFinite(duration) && duration >= 0 ? duration : null;
 }
 
+function hasTranscriptActivity(turn: TranscriptTurnAccumulator): boolean {
+  return turn.has_activity || turn.duration_ms != null;
+}
+
 function toSummary(turn: TranscriptTurnAccumulator): TranscriptTurnSummary | null {
-  if (!turn.has_activity) return null;
+  if (!hasTranscriptActivity(turn)) return null;
   return {
     started_at: turn.started_at,
     started_at_ms: turn.started_at_ms,
@@ -143,7 +147,7 @@ function toSummary(turn: TranscriptTurnAccumulator): TranscriptTurnSummary | nul
 }
 
 function finalizeDerivedTurn(turn: TranscriptTurnAccumulator | null): TranscriptTurnSummary | null {
-  if (!turn || !turn.has_activity) return null;
+  if (!turn || !hasTranscriptActivity(turn)) return null;
   if (turn.duration_ms == null) {
     turn.duration_ms = Math.max(0, turn.last_relevant_ms - turn.started_at_ms);
     turn.duration_source = 'derived';
@@ -256,7 +260,12 @@ function loadTranscriptSummaryFromCache(
   sessionId: string,
   transcriptPath: string,
 ): TranscriptCachePayload | null {
-  const mtimeMs = fs.statSync(transcriptPath).mtimeMs;
+  let mtimeMs: number;
+  try {
+    mtimeMs = fs.statSync(transcriptPath).mtimeMs;
+  } catch {
+    return null;
+  }
   const cacheKey = `${projectFp}:${sessionId}:${transcriptPath}`;
   const inMemory = transcriptSummaryCache.get(cacheKey);
   if (inMemory && inMemory.transcript_mtime_ms === mtimeMs) return inMemory;
