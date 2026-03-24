@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.8](https://github.com/mmmprod/claude-eta/compare/claude-eta-v1.3.7...claude-eta-v1.3.8) (2026-03-24)
+
+
+### Bug Fixes
+
+* **eta:** improve transcript metrics and slash command coverage ([#131](https://github.com/mmmprod/claude-eta/issues/131)) ([a4990cd](https://github.com/mmmprod/claude-eta/commit/a4990cd81c663141c73cb057f59ef24ce3f446f7))
+
 ## [1.3.7](https://github.com/mmmprod/claude-eta/compare/claude-eta-v1.3.6...claude-eta-v1.3.7) (2026-03-23)
 
 
