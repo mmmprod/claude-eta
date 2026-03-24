@@ -29,6 +29,7 @@ export const DISABLE_PATTERNS =
   /^.{0,50}\b(stop|disable|remove|hide|arr\u00eate|d\u00e9sactive|enl\u00e8ve)\b.{0,20}\bauto.?eta\b/i;
 
 const CODING_TERMS = /\b(implement|refactor|code|module|function|file)\b/i;
+const SLASH_COMMAND_PATTERN = /^\/[a-z0-9][\w-]*(?:\s|$)/i;
 
 export type AutoEtaDecision =
   | { action: 'inject'; injection: string; prediction: LastEtaPrediction }
@@ -38,6 +39,11 @@ export type AutoEtaDecision =
 /** Check if the user wants to disable auto-eta via natural language. */
 export function checkDisableRequest(prompt: string): boolean {
   return DISABLE_PATTERNS.test(prompt) && !CODING_TERMS.test(prompt);
+}
+
+function isShortNonCommandPrompt(prompt: string): boolean {
+  const trimmed = prompt.trim();
+  return trimmed.length < 20 && !SLASH_COMMAND_PATTERN.test(trimmed);
 }
 
 /** Minimal prefs shape needed by auto-eta — compatible with both v1 and v2 */
@@ -98,7 +104,7 @@ export function evaluateAutoEta(params: {
   if (!clsStats || clsStats.count < MIN_TYPE_TASKS) return { action: 'skip' };
 
   // 4. Not conversational
-  if (prompt.length < 20 || CONVERSATIONAL_PATTERNS.test(prompt)) return { action: 'skip' };
+  if (isShortNonCommandPrompt(prompt) || CONVERSATIONAL_PATTERNS.test(prompt)) return { action: 'skip' };
 
   // 5. Compute estimate (pass model for model-specific calibration)
   const complexity = scorePromptComplexity(prompt);

@@ -115,6 +115,17 @@ describe('classifyPrompt', () => {
     assert.equal(classifyPrompt(''), 'other');
   });
 
+  it('classifies slash command fallbacks for ETA-eligible commands', () => {
+    assert.equal(classifyPrompt('/batch'), 'feature');
+    assert.equal(classifyPrompt('/bmad-bmm-sprint-planning'), 'docs');
+    assert.equal(classifyPrompt('/superpowers-sprint-planning'), 'docs');
+    assert.equal(classifyPrompt('/superpowers-dev-story'), 'feature');
+    assert.equal(classifyPrompt('/bmad-check-implementation-readiness'), 'review');
+    assert.equal(classifyPrompt('/superpowers-validate-prd'), 'review');
+    assert.equal(classifyPrompt('/bmad-retrospective'), 'docs');
+    assert.equal(classifyPrompt('/superpowers-market-research'), 'docs');
+  });
+
   it('uses first match priority (bugfix > feature for "fix")', () => {
     // "fix" matches bugfix before feature's "add"
     assert.equal(classifyPrompt('fix and add something'), 'bugfix');

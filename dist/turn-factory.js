@@ -36,6 +36,7 @@ export function createActiveTurn(params) {
         first_bash_at_ms: null,
         last_event_at_ms: null,
         last_assistant_message: null,
+        transcript_path: params.transcript_path ?? null,
         model: params.model,
         source: params.source,
         status: 'active',

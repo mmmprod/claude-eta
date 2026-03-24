@@ -9,7 +9,7 @@
 import * as crypto from 'node:crypto';
 import { readStdin } from '../stdin.js';
 import { resolveProjectIdentity } from '../identity.js';
-import { getSession, getActiveTurn, setActiveTurn, startTurn, closeTurn } from '../event-store.js';
+import { getSession, getActiveTurn, setActiveTurn, startTurn, closeTurn, upsertSession } from '../event-store.js';
 import { loadCompletedTurnsCompat } from '../compat.js';
 import { loadPreferencesV2, savePreferencesV2 } from '../preferences.js';
 import { setLastEtaV2, consumeLastCompletedV2 } from '../ephemeral.js';
@@ -63,6 +63,9 @@ async function main() {
     if (transition === 'continuation' && existing) {
         // ── Continuation: keep the active turn, inject phase-aware estimate ──
         const contextParts = [];
+        if (stdin.transcript_path) {
+            existing.transcript_path = stdin.transcript_path;
+        }
         if (stats) {
             const features = extractFeatures(existing);
             const elapsed = Math.round(features.elapsed_wall_ms / 1000);
@@ -83,6 +86,9 @@ async function main() {
             if (features.phase !== 'explore') {
                 contextParts.push(`[claude-eta] Phase: ${features.phase}, elapsed ${fmtSec(elapsed)}, remaining ~${fmtSec(refined.remaining_p50)}–${fmtSec(refined.remaining_p80)}`);
             }
+        }
+        if (!stats) {
+            setActiveTurn(existing);
         }
         respond(contextParts.join('\n'));
         return;
@@ -105,6 +111,13 @@ async function main() {
     const lastCompleted = consumeLastCompletedV2(fp, sessionId);
     // Get model from SessionMeta (source of truth, set in SessionStart)
     const sessionMeta = getSession(fp, sessionId);
+    if (sessionMeta && stdin.transcript_path && sessionMeta.transcript_path !== stdin.transcript_path) {
+        upsertSession({
+            ...sessionMeta,
+            transcript_path: stdin.transcript_path,
+            last_seen_at: new Date().toISOString(),
+        });
+    }
     const model = sessionMeta?.model ?? null;
     const promptSummary = summarizePrompt(prompt);
     // Load project meta once — used for community priors and auto-eta accuracy
@@ -146,6 +159,7 @@ async function main() {
         first_bash_at_ms: null,
         last_event_at_ms: null,
         last_assistant_message: null,
+        transcript_path: stdin.transcript_path ?? sessionMeta?.transcript_path ?? null,
         model,
         source: sessionMeta?.source ?? null,
         status: 'active',

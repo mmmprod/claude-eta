@@ -50,6 +50,7 @@ async function main(): Promise<void> {
     model,
     source: stdin.source ?? null,
     session_agent_type: stdin.agent_type ?? null,
+    transcript_path: stdin.transcript_path ?? null,
     started_at: now,
     last_seen_at: now,
   };

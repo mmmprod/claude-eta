@@ -12,6 +12,7 @@ interface CreateTurnParams {
     prompt_complexity: number;
     model: string | null;
     source: string | null;
+    transcript_path?: string | null;
 }
 export declare function createActiveTurn(params: CreateTurnParams): ActiveTurnState;
 export {};

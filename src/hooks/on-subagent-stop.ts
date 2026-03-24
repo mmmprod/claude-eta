@@ -6,7 +6,7 @@
 import type { SubagentStopStdin } from '../types.js';
 import { readStdin } from '../stdin.js';
 import { resolveProjectIdentity } from '../identity.js';
-import { closeTurn } from '../event-store.js';
+import { closeTurn, getActiveTurn, setActiveTurn } from '../event-store.js';
 
 async function main(): Promise<void> {
   const stdin = await readStdin<SubagentStopStdin>();
@@ -16,6 +16,11 @@ async function main(): Promise<void> {
   if (!cwd || !sessionId || !agentId) return;
 
   const { fp } = resolveProjectIdentity(cwd);
+  const active = getActiveTurn(fp, sessionId, agentId);
+  if (active && (stdin.agent_transcript_path || stdin.transcript_path)) {
+    active.transcript_path = stdin.agent_transcript_path ?? stdin.transcript_path ?? null;
+    setActiveTurn(active);
+  }
   closeTurn(fp, sessionId, agentId, 'subagent_stop');
 }
 
