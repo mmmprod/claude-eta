@@ -86,9 +86,9 @@ function seedActiveTurn(overrides = {}) {
   return { fp, activePath: path.join(activeDir, `${SESSION_ID}__main.json`) };
 }
 
-function runPrompt(prompt) {
+function runPrompt(prompt, overrides = {}) {
   return execFileSync('node', ['dist/hooks/on-prompt.js'], {
-    input: JSON.stringify({ cwd: TEST_CWD, session_id: SESSION_ID, prompt }),
+    input: JSON.stringify({ cwd: TEST_CWD, session_id: SESSION_ID, prompt, ...overrides }),
     encoding: 'utf8',
     timeout: 5000,
     env: { ...process.env, CLAUDE_PLUGIN_DATA: TEST_DATA_DIR },
@@ -184,6 +184,17 @@ describe('UserPromptSubmit hook work-item continuity', () => {
     assert.equal(completed.turn_id, 'turn-existing');
     assert.equal(completed.work_item_id, 'wi-existing');
     assert.equal(completed.stop_reason, 'replaced_by_new_prompt');
+  });
+
+  it('stores transcript_path on the active turn when provided by the hook runtime', () => {
+    const { activePath } = seedActiveTurn();
+    const transcriptPath = path.join(TEST_CWD, 'session.jsonl');
+    fs.writeFileSync(transcriptPath, '');
+
+    runPrompt('continue', { transcript_path: transcriptPath });
+
+    const active = JSON.parse(fs.readFileSync(activePath, 'utf8'));
+    assert.equal(active.transcript_path, transcriptPath);
   });
 
   it('starts a new work item for explicit topic switches', () => {
@@ -282,5 +293,21 @@ describe('UserPromptSubmit hook work-item continuity', () => {
     assert.ok(context.includes('Current remaining estimate:'), context);
     assert.doesNotMatch(context, /⏱ Estimated:/u);
     assert.doesNotMatch(context, /\[claude-eta auto-eta]/);
+  });
+
+  it('injects Auto-ETA for short slash commands when feature history is calibrated', () => {
+    seedLegacyData(
+      Array.from({ length: 10 }, () =>
+        makeLegacyTask({
+          classification: 'feature',
+          prompt_summary: '/bmad-create-story',
+        }),
+      ),
+    );
+    seedPreferences({ auto_eta: true, auto_eta_explicitly_set: true });
+
+    const context = getAdditionalContext(runPrompt('/bmad-create-story'));
+
+    assert.match(context, /\[claude-eta auto-eta]/);
   });
 });

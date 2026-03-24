@@ -1,5 +1,7 @@
 import type { TaskClassification, ActiveTurnState } from './types.js';
 export declare function classifyPrompt(prompt: string): TaskClassification;
+/** Recover useful classifications from stored prompt summaries when older data was persisted as "other". */
+export declare function normalizeStoredClassification(classification: TaskClassification, promptSummary: string): TaskClassification;
 /** Conversational / continuation patterns — short acknowledgements, not new tasks.
  *  Also used by auto-eta.ts to skip ETA injection on conversational prompts. */
 export declare const CONTINUATION_PATTERNS: RegExp;

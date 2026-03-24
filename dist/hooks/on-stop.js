@@ -55,6 +55,9 @@ async function main() {
     if (stdin.last_assistant_message) {
         active.last_assistant_message = stdin.last_assistant_message;
     }
+    if (stdin.transcript_path) {
+        active.transcript_path = stdin.transcript_path;
+    }
     // ── Loop detector (≥5 same errors → block) ─────────────────
     const loopResult = detectRepairLoop(active.error_fingerprints, 5);
     if (loopResult) {
@@ -92,6 +95,7 @@ async function main() {
     }
     // ── Normal close ───────────────────────────────────────────
     const savedFingerprints = active.error_fingerprints;
+    setActiveTurn(active);
     const completed = closeTurn(fp, sessionId, agentKey, 'stop');
     if (completed) {
         recordRecap(fp, sessionId, completed, savedFingerprints);

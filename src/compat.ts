@@ -11,9 +11,38 @@ import { resolveProjectIdentity } from './identity.js';
 import { needsMigration, legacySlug } from './migrate.js';
 import { findLegacyFile } from './paths.js';
 import { taskEntryToCompletedTurn } from './convert.js';
+import { normalizeStoredClassification } from './classify.js';
 
 // Re-export for external callers
 export { taskEntryToCompletedTurn } from './convert.js';
+
+function toRoundedSeconds(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) ? Math.max(0, Math.round(value)) : null;
+}
+
+function transcriptDurationFloor(turn: CompletedTurn): number {
+  const firstEditOffsetSeconds = toRoundedSeconds(turn.first_edit_offset_seconds);
+  const firstBashOffsetSeconds = toRoundedSeconds(turn.first_bash_offset_seconds);
+  const promptToFirstAssistantSeconds = toRoundedSeconds(turn.transcript_prompt_to_first_assistant_seconds);
+  const activeSpanSeconds = turn.tool_calls > 0 ? toRoundedSeconds(turn.span_until_last_event_seconds) : null;
+
+  return Math.max(
+    1,
+    firstEditOffsetSeconds ?? 0,
+    firstBashOffsetSeconds ?? 0,
+    promptToFirstAssistantSeconds ?? 0,
+    activeSpanSeconds ?? 0,
+  );
+}
+
+function effectiveTurnDurationSeconds(turn: CompletedTurn): number {
+  const transcriptDuration = toRoundedSeconds(turn.transcript_duration_seconds);
+  if (transcriptDuration === null) return Math.max(0, turn.wall_seconds ?? 0);
+
+  const requiredFloor = transcriptDurationFloor(turn);
+
+  return transcriptDuration >= requiredFloor ? transcriptDuration : Math.max(0, turn.wall_seconds ?? 0);
+}
 
 /**
  * Load completed turns from the best available source.
@@ -68,9 +97,9 @@ export function turnsToTaskEntries(turns: CompletedTurn[]): TaskEntry[] {
     project: t.project_display_name,
     timestamp_start: t.started_at,
     timestamp_end: t.ended_at,
-    duration_seconds: t.wall_seconds,
+    duration_seconds: effectiveTurnDurationSeconds(t),
     prompt_summary: t.prompt_summary,
-    classification: t.classification,
+    classification: normalizeStoredClassification(t.classification, t.prompt_summary),
     tool_calls: t.tool_calls,
     files_read: t.files_read,
     files_edited: t.files_edited,
@@ -95,7 +124,11 @@ function compareTurns(left: CompletedTurn, right: CompletedTurn): number {
 }
 
 function representativeClassification(turns: CompletedTurn[]): CompletedTurn['classification'] {
-  return turns.find((turn) => turn.classification !== 'other')?.classification ?? turns[0].classification;
+  return (
+    turns
+      .map((turn) => normalizeStoredClassification(turn.classification, turn.prompt_summary))
+      .find((classification) => classification !== 'other') ?? turns[0].classification
+  );
 }
 
 function aggregateFirstObservedOffset(
@@ -108,7 +141,7 @@ function aggregateFirstObservedOffset(
     if (typeof offset === 'number' && Number.isFinite(offset)) {
       return elapsed + Math.max(0, offset);
     }
-    elapsed += Math.max(0, turn.wall_seconds ?? 0);
+    elapsed += effectiveTurnDurationSeconds(turn);
   }
   return null;
 }
@@ -140,7 +173,7 @@ export function turnsToAnalyticsTasks(turns: CompletedTurn[]): AnalyticsTask[] {
         project: first.project_display_name,
         timestamp_start: first.started_at,
         timestamp_end: last.ended_at,
-        duration_seconds: group.reduce((sum, turn) => sum + turn.wall_seconds, 0),
+        duration_seconds: group.reduce((sum, turn) => sum + effectiveTurnDurationSeconds(turn), 0),
         prompt_summary: first.prompt_summary,
         prompt_complexity: first.prompt_complexity ?? 0,
         classification: representativeClassification(group),

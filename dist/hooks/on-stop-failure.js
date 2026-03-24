@@ -14,8 +14,10 @@ async function main() {
     // Persist error details on active turn before closeTurn re-reads from disk
     if (stdin.last_assistant_message) {
         active.last_assistant_message = stdin.last_assistant_message;
-        setActiveTurn(active);
     }
+    if (stdin.transcript_path)
+        active.transcript_path = stdin.transcript_path;
+    setActiveTurn(active);
     const completed = closeTurn(fp, stdin.session_id, agentKey, 'stop_failure');
     if (completed) {
         setLastCompletedV2(fp, stdin.session_id, {

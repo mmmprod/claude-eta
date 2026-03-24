@@ -37,6 +37,7 @@ async function main(): Promise<void> {
     prompt_complexity: 1,
     model: null,
     source: null,
+    transcript_path: stdin.transcript_path ?? null,
   });
 
   startTurn(state);

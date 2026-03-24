@@ -16,9 +16,14 @@ const ANSI_RESET = '\u001b[0m';
 export const CONVERSATIONAL_PATTERNS = /^(merci|thanks|ok|oui|yes|non|no|continue|go|sure|d'accord|parfait|cool|nice|got it|understood|tell me about|what is a |how does .{0,10} work)/i;
 export const DISABLE_PATTERNS = /^.{0,50}\b(stop|disable|remove|hide|arr\u00eate|d\u00e9sactive|enl\u00e8ve)\b.{0,20}\bauto.?eta\b/i;
 const CODING_TERMS = /\b(implement|refactor|code|module|function|file)\b/i;
+const SLASH_COMMAND_PATTERN = /^\/[a-z0-9][\w-]*(?:\s|$)/i;
 /** Check if the user wants to disable auto-eta via natural language. */
 export function checkDisableRequest(prompt) {
     return DISABLE_PATTERNS.test(prompt) && !CODING_TERMS.test(prompt);
+}
+function isShortNonCommandPrompt(prompt) {
+    const trimmed = prompt.trim();
+    return trimmed.length < 20 && !SLASH_COMMAND_PATTERN.test(trimmed);
 }
 function formatAutoEtaExample(low, high, confidence, count, classification) {
     return (`${ANSI_CYAN}\u23F1 Estimated: ${fmtSec(low)}\u2013${fmtSec(high)}${ANSI_RESET} ` +
@@ -51,7 +56,7 @@ export function evaluateAutoEta(params) {
     if (!clsStats || clsStats.count < MIN_TYPE_TASKS)
         return { action: 'skip' };
     // 4. Not conversational
-    if (prompt.length < 20 || CONVERSATIONAL_PATTERNS.test(prompt))
+    if (isShortNonCommandPrompt(prompt) || CONVERSATIONAL_PATTERNS.test(prompt))
         return { action: 'skip' };
     // 5. Compute estimate (pass model for model-specific calibration)
     const complexity = scorePromptComplexity(prompt);

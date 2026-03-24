@@ -89,6 +89,7 @@ export interface LastEtaPrediction {
 }
 export type RunnerKind = 'main' | 'subagent';
 export type StopReason = 'stop' | 'stop_failure' | 'session_end' | 'replaced_by_new_prompt' | 'subagent_stop' | 'migrated';
+export type TranscriptDurationSource = 'turn_duration' | 'derived';
 export type TurnEventType = 'turn_started' | 'tool_ok' | 'tool_fail' | 'turn_stopped' | 'turn_stop_failure' | 'turn_replaced' | 'turn_migrated' | 'session_ended' | 'subagent_started' | 'subagent_stopped';
 /** Session-level metadata (one per session per project) */
 export interface SessionMeta {
@@ -99,6 +100,7 @@ export interface SessionMeta {
     model: string | null;
     source: string | null;
     session_agent_type: string | null;
+    transcript_path?: string | null;
     started_at: string;
     last_seen_at: string;
 }
@@ -133,6 +135,7 @@ export interface ActiveTurnState {
     first_bash_at_ms: number | null;
     last_event_at_ms: number | null;
     last_assistant_message: string | null;
+    transcript_path?: string | null;
     model: string | null;
     source: string | null;
     status: 'active' | 'stop_blocked';
@@ -209,6 +212,12 @@ export interface CompletedTurn {
     errors: number;
     model: string | null;
     source: string | null;
+    transcript_path?: string | null;
+    transcript_duration_seconds?: number | null;
+    transcript_duration_source?: TranscriptDurationSource | null;
+    transcript_prompt_to_first_assistant_seconds?: number | null;
+    transcript_tool_seconds?: number | null;
+    transcript_thinking_seconds?: number | null;
     stop_reason: StopReason;
     repo_loc_bucket: string | null;
     repo_file_count_bucket: string | null;

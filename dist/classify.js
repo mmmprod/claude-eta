@@ -31,13 +31,54 @@ const PATTERNS = [
         /\b(add(ing|ed|s)?|creat(e[ds]?|ing)|implement(ing|ed|s)?|build(ing|s)?|new|feature|component|page|endpoint|api|hook|integrat(e[ds]?|ing)|ajout(e[rs]?|é)?|crée[rs]?|implémente[rs]?|construi[ts]?|fai[ts]? (un|une|le|la|des|les|moi)|génère|développe[rs]?|met[ts]?\s+(en place|un |une ))\b/i,
     ],
 ];
+const SLASH_COMMAND_UTILITY_PATTERNS = [
+    /^\/eta(?:\s|$)/i,
+    /^\/using-superpowers(?:\s|$)/i,
+    /^\/superpowers(?:\s|$)/i,
+    /^\/bmad-help(?:\s|$)/i,
+];
+const SLASH_COMMAND_TOKEN_FALLBACKS = [
+    ['review', /(?:^|[-/])(review|audit|validate|validation|readiness|check-implementation-readiness|check-readiness)(?:$|[-/])/i],
+    ['refactor', /(?:^|[-/])(simplify|refactor|cleanup|clean-up)(?:$|[-/])/i],
+    ['test', /(?:^|[-/])(test|tests|qa|e2e|tdd|atdd)(?:$|[-/])/i],
+    ['debug', /(?:^|[-/])(debug|diagnose|diagnostic|investigate|investigation)(?:$|[-/])/i],
+    ['bugfix', /(?:^|[-/])(bugfix|hotfix|fix|patch|repair)(?:$|[-/])/i],
+    ['feature', /(?:^|[-/])(batch|dev|quick-dev|dev-story|implement|implementation|build|builder|agent-builder|workflow-builder|create|generate|workflow)(?:$|[-/])/i],
+    ['docs', /(?:^|[-/])(prd|architecture|architect|ux|design|epics|stories|story|planning|plan|sprint-planning|retrospective|retro|context|brief|spec|specs|docs|documentation|research|analysis|strategy|roadmap|market|product)(?:$|[-/])/i],
+];
+function extractSlashCommandToken(prompt) {
+    const token = prompt.trim().split(/\s+/, 1)[0]?.toLowerCase() ?? '';
+    return token.startsWith('/') ? token : null;
+}
+function classifySlashCommandFallback(prompt) {
+    const token = extractSlashCommandToken(prompt);
+    if (!token)
+        return null;
+    if (SLASH_COMMAND_UTILITY_PATTERNS.some((pattern) => pattern.test(token)))
+        return null;
+    for (const [classification, pattern] of SLASH_COMMAND_TOKEN_FALLBACKS) {
+        if (pattern.test(token))
+            return classification;
+    }
+    return null;
+}
 export function classifyPrompt(prompt) {
     for (const [classification, pattern] of PATTERNS) {
         if (pattern.test(prompt)) {
             return classification;
         }
     }
+    const slashFallback = classifySlashCommandFallback(prompt);
+    if (slashFallback)
+        return slashFallback;
     return 'other';
+}
+/** Recover useful classifications from stored prompt summaries when older data was persisted as "other". */
+export function normalizeStoredClassification(classification, promptSummary) {
+    if (classification !== 'other')
+        return classification;
+    const inferred = classifyPrompt(promptSummary);
+    return inferred === 'other' ? classification : inferred;
 }
 /** Conversational / continuation patterns — short acknowledgements, not new tasks.
  *  Also used by auto-eta.ts to skip ETA injection on conversational prompts. */

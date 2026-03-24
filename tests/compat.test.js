@@ -89,6 +89,49 @@ describe('turnsToAnalyticsTasks', () => {
     assert.equal(tasks[0].source_turn_count, 2);
   });
 
+  it('prefers transcript duration when it is coherent with phase offsets', () => {
+    const turns = [
+      makeTurn({
+        turn_id: 'turn-transcript',
+        work_item_id: 'wi-transcript',
+        wall_seconds: 30,
+        tool_calls: 0,
+        files_read: 0,
+        files_edited: 0,
+        files_created: 0,
+        bash_calls: 0,
+        span_until_last_event_seconds: 30,
+        transcript_duration_seconds: 12,
+        transcript_duration_source: 'turn_duration',
+        transcript_prompt_to_first_assistant_seconds: 4,
+      }),
+    ];
+
+    const tasks = turnsToAnalyticsTasks(turns);
+
+    assert.equal(tasks.length, 1);
+    assert.equal(tasks[0].duration_seconds, 12);
+  });
+
+  it('falls back to wall_seconds when transcript duration is shorter than observed tool span', () => {
+    const turns = [
+      makeTurn({
+        turn_id: 'turn-transcript-short',
+        work_item_id: 'wi-transcript-short',
+        wall_seconds: 30,
+        span_until_last_event_seconds: 25,
+        transcript_duration_seconds: 12,
+        transcript_duration_source: 'turn_duration',
+        transcript_prompt_to_first_assistant_seconds: 3,
+      }),
+    ];
+
+    const tasks = turnsToAnalyticsTasks(turns);
+
+    assert.equal(tasks.length, 1);
+    assert.equal(tasks[0].duration_seconds, 30);
+  });
+
   it('aggregates first observed phase offsets across the whole work item', () => {
     const turns = [
       makeTurn({
@@ -216,6 +259,29 @@ describe('turnsToAnalyticsTasks', () => {
 
     assert.equal(tasks.length, 1);
     assert.equal(tasks[0].analytics_id, 'wi-main');
+  });
+
+  it('reclassifies stored slash-command history previously saved as other', () => {
+    const turns = [
+      makeTurn({
+        turn_id: 'turn-batch',
+        work_item_id: 'wi-batch',
+        classification: 'other',
+        prompt_summary: '/batch',
+      }),
+      makeTurn({
+        turn_id: 'turn-plan',
+        work_item_id: 'wi-plan',
+        classification: 'other',
+        prompt_summary: '/bmad-bmm-sprint-planning',
+      }),
+    ];
+
+    const tasks = turnsToAnalyticsTasks(turns);
+
+    assert.equal(tasks.length, 2);
+    assert.equal(tasks.find((task) => task.work_item_id === 'wi-batch')?.classification, 'feature');
+    assert.equal(tasks.find((task) => task.work_item_id === 'wi-plan')?.classification, 'docs');
   });
 });
 

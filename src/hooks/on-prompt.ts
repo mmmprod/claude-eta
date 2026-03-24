@@ -10,7 +10,7 @@ import * as crypto from 'node:crypto';
 import type { UserPromptSubmitStdin } from '../types.js';
 import { readStdin } from '../stdin.js';
 import { resolveProjectIdentity } from '../identity.js';
-import { getSession, getActiveTurn, setActiveTurn, startTurn, closeTurn } from '../event-store.js';
+import { getSession, getActiveTurn, setActiveTurn, startTurn, closeTurn, upsertSession } from '../event-store.js';
 import { loadCompletedTurnsCompat } from '../compat.js';
 import { loadPreferencesV2, savePreferencesV2 } from '../preferences.js';
 import { setLastEtaV2, consumeLastCompletedV2 } from '../ephemeral.js';
@@ -81,6 +81,9 @@ async function main(): Promise<void> {
   if (transition === 'continuation' && existing) {
     // ── Continuation: keep the active turn, inject phase-aware estimate ──
     const contextParts: string[] = [];
+    if (stdin.transcript_path) {
+      existing.transcript_path = stdin.transcript_path;
+    }
 
     if (stats) {
       const features = extractFeatures(existing);
@@ -111,6 +114,10 @@ async function main(): Promise<void> {
       }
     }
 
+    if (!stats) {
+      setActiveTurn(existing);
+    }
+
     respond(contextParts.join('\n'));
     return;
   }
@@ -135,6 +142,13 @@ async function main(): Promise<void> {
 
   // Get model from SessionMeta (source of truth, set in SessionStart)
   const sessionMeta = getSession(fp, sessionId);
+  if (sessionMeta && stdin.transcript_path && sessionMeta.transcript_path !== stdin.transcript_path) {
+    upsertSession({
+      ...sessionMeta,
+      transcript_path: stdin.transcript_path,
+      last_seen_at: new Date().toISOString(),
+    });
+  }
   const model = sessionMeta?.model ?? null;
 
   const promptSummary = summarizePrompt(prompt);
@@ -180,6 +194,7 @@ async function main(): Promise<void> {
     first_bash_at_ms: null,
     last_event_at_ms: null,
     last_assistant_message: null,
+    transcript_path: stdin.transcript_path ?? sessionMeta?.transcript_path ?? null,
     model,
     source: sessionMeta?.source ?? null,
     status: 'active',

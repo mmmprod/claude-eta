@@ -105,6 +105,10 @@ describe('evaluateAutoEta conditions', () => {
     const r = evaluateAutoEta(baseParams({ prompt: 'fix it' }));
     assert.equal(r.action, 'skip');
   });
+  it('injects for short slash commands when the task type is calibrated', () => {
+    const r = evaluateAutoEta(baseParams({ classification: 'feature', stats: makeStats('feature', 10), prompt: '/bmad-create-story' }));
+    assert.equal(r.action, 'inject');
+  });
   it('skips for conversational prompt', () => {
     const r = evaluateAutoEta(baseParams({ prompt: 'merci beaucoup pour ton aide' }));
     assert.equal(r.action, 'skip');

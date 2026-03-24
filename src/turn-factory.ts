@@ -18,6 +18,7 @@ interface CreateTurnParams {
   prompt_complexity: number;
   model: string | null;
   source: string | null;
+  transcript_path?: string | null;
 }
 
 export function createActiveTurn(params: CreateTurnParams): ActiveTurnState {
@@ -53,6 +54,7 @@ export function createActiveTurn(params: CreateTurnParams): ActiveTurnState {
     first_bash_at_ms: null,
     last_event_at_ms: null,
     last_assistant_message: null,
+    transcript_path: params.transcript_path ?? null,
     model: params.model,
     source: params.source,
     status: 'active',

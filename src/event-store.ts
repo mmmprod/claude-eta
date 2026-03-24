@@ -15,6 +15,7 @@ import type { SessionMeta, ActiveTurnState, EventRecord, CompletedTurn, StopReas
 import type { TurnEventType } from './types.js';
 import { markProjectHistoryChanged } from './history-signature.js';
 import { loadProjectMeta } from './project-meta.js';
+import { enrichCompletedTurnsWithTranscriptMetrics } from './transcript-metrics.js';
 import {
   ensureDir,
   ensureProjectDirs,
@@ -56,6 +57,7 @@ function normalizeActiveTurnState(raw: ActiveTurnState): ActiveTurnState {
             typeof value.preview === 'string',
         )
       : [],
+    transcript_path: typeof raw.transcript_path === 'string' && raw.transcript_path.length > 0 ? raw.transcript_path : null,
     cumulative_work_item_seconds: raw.cumulative_work_item_seconds ?? 0,
   };
 }
@@ -79,6 +81,23 @@ function normalizeCompletedTurn(raw: CompletedTurn): CompletedTurn {
     Math.max(0, wallSeconds - spanUntilLastEventSeconds),
     Math.max(0, raw.tail_after_last_event_seconds ?? raw.wait_seconds ?? wallSeconds - spanUntilLastEventSeconds),
   );
+  const transcriptDurationSeconds =
+    typeof raw.transcript_duration_seconds === 'number' && Number.isFinite(raw.transcript_duration_seconds)
+      ? Math.max(0, Math.round(raw.transcript_duration_seconds))
+      : null;
+  const transcriptPromptToFirstAssistantSeconds =
+    typeof raw.transcript_prompt_to_first_assistant_seconds === 'number' &&
+    Number.isFinite(raw.transcript_prompt_to_first_assistant_seconds)
+      ? Math.max(0, Math.round(raw.transcript_prompt_to_first_assistant_seconds))
+      : null;
+  const transcriptToolSeconds =
+    typeof raw.transcript_tool_seconds === 'number' && Number.isFinite(raw.transcript_tool_seconds)
+      ? Math.max(0, Math.round(raw.transcript_tool_seconds))
+      : null;
+  const transcriptThinkingSeconds =
+    typeof raw.transcript_thinking_seconds === 'number' && Number.isFinite(raw.transcript_thinking_seconds)
+      ? Math.max(0, Math.round(raw.transcript_thinking_seconds))
+      : null;
 
   return {
     ...raw,
@@ -88,6 +107,15 @@ function normalizeCompletedTurn(raw: CompletedTurn): CompletedTurn {
     first_bash_offset_seconds: firstBashOffsetSeconds,
     span_until_last_event_seconds: spanUntilLastEventSeconds,
     tail_after_last_event_seconds: tailAfterLastEventSeconds,
+    transcript_path: typeof raw.transcript_path === 'string' && raw.transcript_path.length > 0 ? raw.transcript_path : null,
+    transcript_duration_seconds: transcriptDurationSeconds,
+    transcript_duration_source:
+      raw.transcript_duration_source === 'turn_duration' || raw.transcript_duration_source === 'derived'
+        ? raw.transcript_duration_source
+        : null,
+    transcript_prompt_to_first_assistant_seconds: transcriptPromptToFirstAssistantSeconds,
+    transcript_tool_seconds: transcriptToolSeconds,
+    transcript_thinking_seconds: transcriptThinkingSeconds,
     // Legacy aliases kept for backward compatibility with existing exports and fixtures.
     active_seconds: spanUntilLastEventSeconds,
     wait_seconds: tailAfterLastEventSeconds,
@@ -260,6 +288,12 @@ function buildCompletedTurn(
     errors: active.errors,
     model: active.model,
     source: active.source,
+    transcript_path: active.transcript_path ?? null,
+    transcript_duration_seconds: null,
+    transcript_duration_source: null,
+    transcript_prompt_to_first_assistant_seconds: null,
+    transcript_tool_seconds: null,
+    transcript_thinking_seconds: null,
     stop_reason: reason,
     repo_loc_bucket: locBucket,
     repo_file_count_bucket: fileCountBucket,
@@ -640,5 +674,5 @@ function readAllCompletedJsonl(projectFp: string): CompletedTurn[] {
   // Sort by started_at ascending with stable tie-breakers for deterministic output.
   turns.sort(compareCompletedTurns);
 
-  return turns;
+  return enrichCompletedTurnsWithTranscriptMetrics(projectFp, turns);
 }

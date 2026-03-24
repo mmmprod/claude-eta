@@ -28,6 +28,7 @@ async function main() {
         prompt_complexity: 1,
         model: null,
         source: null,
+        transcript_path: stdin.transcript_path ?? null,
     });
     startTurn(state);
 }
