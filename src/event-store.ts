@@ -57,7 +57,8 @@ function normalizeActiveTurnState(raw: ActiveTurnState): ActiveTurnState {
             typeof value.preview === 'string',
         )
       : [],
-    transcript_path: typeof raw.transcript_path === 'string' && raw.transcript_path.length > 0 ? raw.transcript_path : null,
+    transcript_path:
+      typeof raw.transcript_path === 'string' && raw.transcript_path.length > 0 ? raw.transcript_path : null,
     cumulative_work_item_seconds: raw.cumulative_work_item_seconds ?? 0,
   };
 }
@@ -107,7 +108,8 @@ function normalizeCompletedTurn(raw: CompletedTurn): CompletedTurn {
     first_bash_offset_seconds: firstBashOffsetSeconds,
     span_until_last_event_seconds: spanUntilLastEventSeconds,
     tail_after_last_event_seconds: tailAfterLastEventSeconds,
-    transcript_path: typeof raw.transcript_path === 'string' && raw.transcript_path.length > 0 ? raw.transcript_path : null,
+    transcript_path:
+      typeof raw.transcript_path === 'string' && raw.transcript_path.length > 0 ? raw.transcript_path : null,
     transcript_duration_seconds: transcriptDurationSeconds,
     transcript_duration_source:
       raw.transcript_duration_source === 'turn_duration' || raw.transcript_duration_source === 'derived'

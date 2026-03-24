@@ -38,13 +38,22 @@ const SLASH_COMMAND_UTILITY_PATTERNS = [
     /^\/bmad-help(?:\s|$)/i,
 ];
 const SLASH_COMMAND_TOKEN_FALLBACKS = [
-    ['review', /(?:^|[-/])(review|audit|validate|validation|readiness|check-implementation-readiness|check-readiness)(?:$|[-/])/i],
+    [
+        'review',
+        /(?:^|[-/])(review|audit|validate|validation|readiness|check-implementation-readiness|check-readiness)(?:$|[-/])/i,
+    ],
     ['refactor', /(?:^|[-/])(simplify|refactor|cleanup|clean-up)(?:$|[-/])/i],
     ['test', /(?:^|[-/])(test|tests|qa|e2e|tdd|atdd)(?:$|[-/])/i],
     ['debug', /(?:^|[-/])(debug|diagnose|diagnostic|investigate|investigation)(?:$|[-/])/i],
     ['bugfix', /(?:^|[-/])(bugfix|hotfix|fix|patch|repair)(?:$|[-/])/i],
-    ['feature', /(?:^|[-/])(batch|dev|quick-dev|dev-story|implement|implementation|build|builder|agent-builder|workflow-builder|create|generate|workflow)(?:$|[-/])/i],
-    ['docs', /(?:^|[-/])(prd|architecture|architect|ux|design|epics|stories|story|planning|plan|sprint-planning|retrospective|retro|context|brief|spec|specs|docs|documentation|research|analysis|strategy|roadmap|market|product)(?:$|[-/])/i],
+    [
+        'feature',
+        /(?:^|[-/])(batch|dev|quick-dev|dev-story|implement|implementation|build|builder|agent-builder|workflow-builder|create|generate|workflow)(?:$|[-/])/i,
+    ],
+    [
+        'docs',
+        /(?:^|[-/])(prd|architecture|architect|ux|design|epics|stories|story|planning|plan|sprint-planning|retrospective|retro|context|brief|spec|specs|docs|documentation|research|analysis|strategy|roadmap|market|product)(?:$|[-/])/i,
+    ],
 ];
 function extractSlashCommandToken(prompt) {
     const token = prompt.trim().split(/\s+/, 1)[0]?.toLowerCase() ?? '';

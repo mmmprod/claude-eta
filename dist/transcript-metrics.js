@@ -91,7 +91,9 @@ function toSummary(turn) {
         started_at: turn.started_at,
         started_at_ms: turn.started_at_ms,
         ended_at: turn.ended_at,
-        duration_seconds: typeof turn.duration_ms === 'number' && Number.isFinite(turn.duration_ms) ? Math.max(0, Math.round(turn.duration_ms / 1000)) : null,
+        duration_seconds: typeof turn.duration_ms === 'number' && Number.isFinite(turn.duration_ms)
+            ? Math.max(0, Math.round(turn.duration_ms / 1000))
+            : null,
         duration_source: turn.duration_source,
         prompt_to_first_assistant_seconds: typeof turn.prompt_to_first_assistant_ms === 'number' && Number.isFinite(turn.prompt_to_first_assistant_ms)
             ? Math.max(0, Math.round(turn.prompt_to_first_assistant_ms / 1000))

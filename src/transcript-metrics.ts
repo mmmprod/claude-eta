@@ -129,7 +129,9 @@ function toSummary(turn: TranscriptTurnAccumulator): TranscriptTurnSummary | nul
     started_at_ms: turn.started_at_ms,
     ended_at: turn.ended_at,
     duration_seconds:
-      typeof turn.duration_ms === 'number' && Number.isFinite(turn.duration_ms) ? Math.max(0, Math.round(turn.duration_ms / 1000)) : null,
+      typeof turn.duration_ms === 'number' && Number.isFinite(turn.duration_ms)
+        ? Math.max(0, Math.round(turn.duration_ms / 1000))
+        : null,
     duration_source: turn.duration_source,
     prompt_to_first_assistant_seconds:
       typeof turn.prompt_to_first_assistant_ms === 'number' && Number.isFinite(turn.prompt_to_first_assistant_ms)
@@ -249,7 +251,11 @@ function getTranscriptCachePath(projectFp: string, sessionId: string): string {
   return path.join(getCacheDir(projectFp), 'transcript-turns', `${sessionId}.json`);
 }
 
-function loadTranscriptSummaryFromCache(projectFp: string, sessionId: string, transcriptPath: string): TranscriptCachePayload | null {
+function loadTranscriptSummaryFromCache(
+  projectFp: string,
+  sessionId: string,
+  transcriptPath: string,
+): TranscriptCachePayload | null {
   const mtimeMs = fs.statSync(transcriptPath).mtimeMs;
   const cacheKey = `${projectFp}:${sessionId}:${transcriptPath}`;
   const inMemory = transcriptSummaryCache.get(cacheKey);
@@ -414,7 +420,8 @@ export function enrichCompletedTurnsWithTranscriptMetrics(projectFp: string, tur
   }
 
   for (const [sessionId, sessionTurns] of bySession) {
-    const preferredPath = sessionTurns.find((turn) => typeof turn.transcript_path === 'string')?.transcript_path ?? null;
+    const preferredPath =
+      sessionTurns.find((turn) => typeof turn.transcript_path === 'string')?.transcript_path ?? null;
     const transcriptPath = resolveTranscriptPathForSession(projectFp, sessionId, preferredPath);
     if (!transcriptPath) continue;
 
