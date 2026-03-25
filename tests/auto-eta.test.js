@@ -101,7 +101,7 @@ describe('evaluateAutoEta conditions', () => {
   it('injects for classification "other" using overall stats', () => {
     const r = evaluateAutoEta(baseParams({ classification: 'other', stats: makeStats('other', 10) }));
     assert.equal(r.action, 'inject');
-    assert.ok(r.injection.includes('other'));
+    assert.ok(r.injection.includes('completed tasks'));
   });
   it('skips for short prompt', () => {
     const r = evaluateAutoEta(baseParams({ prompt: 'fix it' }));
