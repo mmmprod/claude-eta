@@ -10,6 +10,7 @@ import {
   AUTO_ACTIVATE_THRESHOLD,
   MIN_TYPE_TASKS,
   COOLDOWN_INTERVAL,
+  MIN_CONFIDENCE,
 } from '../dist/auto-eta.js';
 import { fmtSec } from '../dist/stats.js';
 import { loadProject, saveProject, setLastEta, consumeLastEta } from '../dist/store.js';
@@ -97,9 +98,10 @@ describe('evaluateAutoEta conditions', () => {
     const r = evaluateAutoEta(baseParams({ stats: makeStats('bugfix', 10, 'high') }));
     assert.equal(r.action, 'inject');
   });
-  it('skips for classification "other"', () => {
+  it('injects for classification "other" using overall stats', () => {
     const r = evaluateAutoEta(baseParams({ classification: 'other', stats: makeStats('other', 10) }));
-    assert.equal(r.action, 'skip');
+    assert.equal(r.action, 'inject');
+    assert.ok(r.injection.includes('completed tasks'));
   });
   it('skips for short prompt', () => {
     const r = evaluateAutoEta(baseParams({ prompt: 'fix it' }));
@@ -115,9 +117,9 @@ describe('evaluateAutoEta conditions', () => {
     const r = evaluateAutoEta(baseParams({ prompt: 'merci beaucoup pour ton aide' }));
     assert.equal(r.action, 'skip');
   });
-  it('skips when interval too wide', () => {
-    // With shrinkage estimator, extreme local stats are blended with baselines.
-    // Use very extreme values with high volatility adjustment to trigger MAX_INTERVAL_RATIO gate.
+  it('skips when raw estimate interval too wide (before volatility widening)', () => {
+    // Interval ratio check applies to the raw estimate (pre-widening).
+    // Use extreme stats where even the shrinkage-blended estimate has ratio > MAX_INTERVAL_RATIO.
     const r = evaluateAutoEta(
       baseParams({
         stats: {
@@ -357,6 +359,74 @@ describe('calibration-based confidence', () => {
     assert.ok(match, 'injection should contain a percentage');
     const pct = parseInt(match[1], 10);
     assert.ok(pct > 0 && pct <= 80, `expected confidence between 1 and 80, got ${pct}`);
+  });
+});
+
+// -- "other" edge cases --
+
+describe('other classification edge cases', () => {
+  it('applies both other + high-vol confidence penalties (50%)', () => {
+    const r = evaluateAutoEta(baseParams({ classification: 'other', stats: makeStats('other', 20, 'high') }));
+    // Confidence should reflect both penalties: 75 - 15 - 10 = 50%
+    assert.equal(r.action, 'inject', `expected action "inject" but got: ${r.action}`);
+    assert.ok(r.injection.includes('50%'), `expected 50% in injection but got: ${r.injection}`);
+  });
+
+  it('injects for "other" without clsStats in byClassification (using totalCompleted)', () => {
+    // Stats with NO "other" entry but totalCompleted >= MIN_TYPE_TASKS
+    const stats = {
+      totalCompleted: 20,
+      overall: { median: 60, p25: 50, p75: 80, p80: 86 },
+      byClassification: [
+        { classification: 'bugfix', count: 15, median: 60, p25: 50, p75: 80, p80: 86, volatility: 'medium' },
+      ],
+      byClassificationModel: [],
+      byClassificationPhase: [],
+      byClassificationModelPhase: [],
+    };
+    const r = evaluateAutoEta(
+      baseParams({ classification: 'other', stats, prompt: 'do something interesting with the code' }),
+    );
+    assert.equal(r.action, 'inject', `expected action "inject" but got: ${r.action}`);
+    assert.ok(
+      r.injection.includes('completed tasks'),
+      `expected injection to use "completed tasks" label but got: ${r.injection}`,
+    );
+    assert.ok(r.injection.includes('20'), `expected injection to reflect totalCompleted=20 but got: ${r.injection}`);
+  });
+
+  it('uses "completed tasks" label (not "similar other tasks") in injection', () => {
+    const r = evaluateAutoEta(baseParams({ classification: 'other', stats: makeStats('other', 10) }));
+    assert.equal(r.action, 'inject');
+    assert.ok(r.injection.includes('completed tasks'), `expected "completed tasks" but got: ${r.injection}`);
+    assert.ok(!r.injection.includes('similar other'), `should not contain "similar other" but got: ${r.injection}`);
+  });
+});
+
+// -- Confidence and display ratio guards --
+
+describe('confidence and display ratio guards', () => {
+  it('skips when post-widening display ratio exceeds MAX_DISPLAY_RATIO', () => {
+    // The estimator applies shrinkage blending, so exact ratio depends on estimator internals.
+    // Use stats with wide spread (p25=5, p80=100) + high volatility.
+    // Raw estimate ratio ~4-5 (passes MAX_INTERVAL_RATIO=5), but after ×2.25 widening > MAX_DISPLAY_RATIO=8.
+    const stats = {
+      totalCompleted: 100,
+      overall: { median: 20, p25: 5, p75: 60, p80: 100 },
+      byClassification: [
+        { classification: 'bugfix', count: 80, median: 20, p25: 5, p75: 60, p80: 100, volatility: 'high' },
+      ],
+      byClassificationModel: [],
+      byClassificationPhase: [],
+      byClassificationModelPhase: [],
+    };
+    const r = evaluateAutoEta(baseParams({ stats }));
+    // Either the raw ratio or the post-widening ratio should trigger a skip
+    assert.equal(r.action, 'skip', `expected skip due to wide interval but got: ${r.action}`);
+  });
+
+  it('MIN_CONFIDENCE is 25', () => {
+    assert.strictEqual(MIN_CONFIDENCE, 25);
   });
 });
 
