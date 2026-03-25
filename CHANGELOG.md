@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.10](https://github.com/mmmprod/claude-eta/compare/claude-eta-v1.3.9...claude-eta-v1.3.10) (2026-03-25)
+
+
+### Bug Fixes
+
+* **eta:** improve auto-ETA coverage and add display guardrails ([#135](https://github.com/mmmprod/claude-eta/issues/135)) ([c59f17d](https://github.com/mmmprod/claude-eta/commit/c59f17df32dff00c0a52fa04da4760243c2c0e0f))
+
 ## [1.3.9](https://github.com/mmmprod/claude-eta/compare/claude-eta-v1.3.8...claude-eta-v1.3.9) (2026-03-25)
 
 
