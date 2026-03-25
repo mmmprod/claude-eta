@@ -365,13 +365,11 @@ describe('calibration-based confidence', () => {
 // -- "other" edge cases --
 
 describe('other classification edge cases', () => {
-  it('applies both other + high-vol confidence penalties', () => {
+  it('applies both other + high-vol confidence penalties (50%)', () => {
     const r = evaluateAutoEta(baseParams({ classification: 'other', stats: makeStats('other', 20, 'high') }));
-    // If it injects, confidence should reflect both penalties: 75 - 15 - 10 = 50%
-    if (r.action === 'inject') {
-      assert.ok(r.injection.includes('50%'), `expected 50% in injection but got: ${r.injection}`);
-    }
-    // If it skips due to ratio/confidence floor, that's also acceptable behavior
+    // Confidence should reflect both penalties: 75 - 15 - 10 = 50%
+    assert.equal(r.action, 'inject', `expected action "inject" but got: ${r.action}`);
+    assert.ok(r.injection.includes('50%'), `expected 50% in injection but got: ${r.injection}`);
   });
 
   it('injects for "other" without clsStats in byClassification (using totalCompleted)', () => {
@@ -389,16 +387,19 @@ describe('other classification edge cases', () => {
     const r = evaluateAutoEta(
       baseParams({ classification: 'other', stats, prompt: 'do something interesting with the code' }),
     );
-    // Should not crash, should either inject or skip gracefully
-    assert.ok(r.action === 'inject' || r.action === 'skip');
+    assert.equal(r.action, 'inject', `expected action "inject" but got: ${r.action}`);
+    assert.ok(
+      r.injection.includes('completed tasks'),
+      `expected injection to use "completed tasks" label but got: ${r.injection}`,
+    );
+    assert.ok(r.injection.includes('20'), `expected injection to reflect totalCompleted=20 but got: ${r.injection}`);
   });
 
   it('uses "completed tasks" label (not "similar other tasks") in injection', () => {
     const r = evaluateAutoEta(baseParams({ classification: 'other', stats: makeStats('other', 10) }));
-    if (r.action === 'inject') {
-      assert.ok(r.injection.includes('completed tasks'), `expected "completed tasks" but got: ${r.injection}`);
-      assert.ok(!r.injection.includes('similar other'), `should not contain "similar other" but got: ${r.injection}`);
-    }
+    assert.equal(r.action, 'inject');
+    assert.ok(r.injection.includes('completed tasks'), `expected "completed tasks" but got: ${r.injection}`);
+    assert.ok(!r.injection.includes('similar other'), `should not contain "similar other" but got: ${r.injection}`);
   });
 });
 
@@ -406,30 +407,26 @@ describe('other classification edge cases', () => {
 
 describe('confidence and display ratio guards', () => {
   it('skips when post-widening display ratio exceeds MAX_DISPLAY_RATIO', () => {
-    // Craft stats where raw ratio < MAX_INTERVAL_RATIO (5) but post-widening > MAX_DISPLAY_RATIO (8)
-    // Raw: p25=10, p75=45 → estimate ratio ~4.5 (passes raw check)
-    // High vol widening: low/1.5=~6.7, high*1.5=~67.5 → display ratio ~10 (fails display check)
+    // The estimator applies shrinkage blending, so exact ratio depends on estimator internals.
+    // Use stats with wide spread (p25=5, p80=100) + high volatility.
+    // Raw estimate ratio ~4-5 (passes MAX_INTERVAL_RATIO=5), but after ×2.25 widening > MAX_DISPLAY_RATIO=8.
     const stats = {
       totalCompleted: 100,
-      overall: { median: 25, p25: 10, p75: 45, p80: 50 },
+      overall: { median: 20, p25: 5, p75: 60, p80: 100 },
       byClassification: [
-        { classification: 'bugfix', count: 50, median: 25, p25: 10, p75: 45, p80: 50, volatility: 'high' },
+        { classification: 'bugfix', count: 80, median: 20, p25: 5, p75: 60, p80: 100, volatility: 'high' },
       ],
       byClassificationModel: [],
       byClassificationPhase: [],
       byClassificationModelPhase: [],
     };
     const r = evaluateAutoEta(baseParams({ stats }));
-    // With shrinkage blending against priors, the exact outcome depends on the estimator,
-    // but if display ratio > 8 after widening, it should skip
-    assert.ok(r.action === 'inject' || r.action === 'skip');
+    // Either the raw ratio or the post-widening ratio should trigger a skip
+    assert.equal(r.action, 'skip', `expected skip due to wide interval but got: ${r.action}`);
   });
-});
 
-describe('MIN_CONFIDENCE floor', () => {
-  it('exported constant is a positive number', () => {
-    assert.ok(MIN_CONFIDENCE > 0);
-    assert.ok(MIN_CONFIDENCE <= 50);
+  it('MIN_CONFIDENCE is 25', () => {
+    assert.strictEqual(MIN_CONFIDENCE, 25);
   });
 });
 
