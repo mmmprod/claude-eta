@@ -2,7 +2,10 @@ import { estimateTask, scorePromptComplexity, fmtSec } from './stats.js';
 export const MIN_TYPE_TASKS = 5;
 export const HIGH_VOL_INTERVAL_MULT = 1.5;
 export const HIGH_VOL_CONFIDENCE_PENALTY = 15;
+export const OTHER_CONFIDENCE_PENALTY = 10;
 export const MAX_INTERVAL_RATIO = 5;
+export const MAX_DISPLAY_RATIO = 8;
+export const MIN_CONFIDENCE = 25;
 export const COOLDOWN_INTERVAL = 5;
 export const AUTO_ACTIVATE_THRESHOLD = 10;
 export const ACCURACY_MIN_PREDICTIONS = 10;
@@ -26,8 +29,10 @@ function isShortNonCommandPrompt(prompt) {
     return trimmed.length < 20 && !SLASH_COMMAND_PATTERN.test(trimmed);
 }
 function formatAutoEtaExample(low, high, confidence, count, classification) {
+    // "other" uses totalCompleted as count — don't say "similar other tasks" (misleading)
+    const taskDesc = classification === 'other' ? `${count} completed tasks` : `${count} similar ${classification} tasks`;
     return (`${ANSI_CYAN}\u23F1 Estimated: ${fmtSec(low)}\u2013${fmtSec(high)}${ANSI_RESET} ` +
-        `${ANSI_DIM}(${confidence}%, based on ${count} similar ${classification} tasks)${ANSI_RESET}`);
+        `${ANSI_DIM}(${confidence}%, based on ${taskDesc})${ANSI_RESET}`);
 }
 /** Check if auto-ETA should activate dynamically for this classification. Pure function. */
 export function shouldAutoActivate(prefs, stats, classification) {
@@ -48,33 +53,41 @@ export function evaluateAutoEta(params) {
     // 1. Master switch
     if (!prefs.auto_eta)
         return { action: 'skip' };
-    // 2. Not "other"
-    if (classification === 'other')
-        return { action: 'skip' };
-    // 3. Min type tasks
+    // 2. Min type tasks — for "other", use overall count (catch-all has no coherent per-type distribution)
     const clsStats = stats.byClassification.find((s) => s.classification === classification);
-    if (!clsStats || clsStats.count < MIN_TYPE_TASKS)
+    const effectiveCount = classification === 'other' ? stats.totalCompleted : (clsStats?.count ?? 0);
+    if (effectiveCount < MIN_TYPE_TASKS)
         return { action: 'skip' };
-    // 4. Not conversational
+    // 3. Not conversational
     if (isShortNonCommandPrompt(prompt) || CONVERSATIONAL_PATTERNS.test(prompt))
         return { action: 'skip' };
-    // 5. Compute estimate (pass model for model-specific calibration)
+    // 4. Compute estimate (pass model for model-specific calibration)
     const complexity = scorePromptComplexity(prompt);
     const estimate = estimateTask(stats, classification, complexity, { model });
+    // 5. Interval sanity — check on RAW estimate, before volatility widening.
+    //    Widening adjusts the display range but shouldn't cause rejection.
+    if (estimate.high > estimate.low * MAX_INTERVAL_RATIO)
+        return { action: 'skip' };
     // 6. Volatility adjustment (no mutation — create new object)
-    const adjusted = clsStats.volatility === 'high'
+    const effectiveVolatility = clsStats?.volatility ?? 'medium';
+    const adjusted = effectiveVolatility === 'high'
         ? {
             ...estimate,
             low: Math.max(1, Math.round(estimate.low / HIGH_VOL_INTERVAL_MULT)),
             high: Math.round(estimate.high * HIGH_VOL_INTERVAL_MULT),
         }
         : estimate;
-    // Derive confidence from the estimator's calibration level (already mapped from CalibrationLevel)
-    const confidence = clsStats.volatility === 'high'
-        ? Math.max(10, estimate.confidence - HIGH_VOL_CONFIDENCE_PENALTY)
-        : estimate.confidence;
-    // 7. Interval sanity
-    if (adjusted.high > adjusted.low * MAX_INTERVAL_RATIO)
+    // 7. Derive confidence from the estimator's calibration level
+    let confidence = estimate.confidence;
+    if (effectiveVolatility === 'high')
+        confidence = Math.max(10, confidence - HIGH_VOL_CONFIDENCE_PENALTY);
+    if (classification === 'other')
+        confidence = Math.max(10, confidence - OTHER_CONFIDENCE_PENALTY);
+    // 7b. Post-widening display ratio guard — reject truly absurd displayed ranges
+    if (adjusted.high > adjusted.low * MAX_DISPLAY_RATIO)
+        return { action: 'skip' };
+    // 7c. Confidence floor — don't show ETAs the user can't trust
+    if (confidence < MIN_CONFIDENCE)
         return { action: 'skip' };
     // 8. Per-type accuracy gate
     const acc = etaAccuracy[classification];
@@ -90,7 +103,8 @@ export function evaluateAutoEta(params) {
         return { action: 'cooldown' };
     }
     // All conditions pass — build injection
-    const exampleLine = formatAutoEtaExample(adjusted.low, adjusted.high, confidence, clsStats.count, classification);
+    const displayCount = classification === 'other' ? stats.totalCompleted : (clsStats?.count ?? effectiveCount);
+    const exampleLine = formatAutoEtaExample(adjusted.low, adjusted.high, confidence, displayCount, classification);
     const injection = `[claude-eta auto-eta] At the very start of your response, display a single ETA line in the SAME LANGUAGE as the user's prompt, using ANSI terminal colors in this exact pattern:\n` +
         `"${exampleLine}"\n` +
         `Adapt only the word "Estimated" to the user's language (e.g. "Estim\u00e9" in French, "Gesch\u00e4tzt" in German), but keep the ANSI color pattern identical: cyan for the ETA range, dim for the parenthetical details.\n` +
