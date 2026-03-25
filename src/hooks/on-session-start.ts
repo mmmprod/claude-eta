@@ -91,6 +91,7 @@ async function main(): Promise<void> {
       `[claude-eta] Plugin active — tracking task durations. Data is 100% local.\n` +
       `Calibration: 0/${CALIBRATION_THRESHOLD} tasks. Estimates unlock after a few completed tasks.`;
     if (communityOnboardingNote) message += `\n${communityOnboardingNote}`;
+    message += `\nBriefly mention to the user that eta is active and calibrating.`;
     process.stdout.write(message);
     return;
   }
@@ -98,6 +99,7 @@ async function main(): Promise<void> {
   if (completed < CALIBRATION_THRESHOLD) {
     let message = `[claude-eta] Calibration: ${completed}/${CALIBRATION_THRESHOLD} tasks recorded. Estimates improving with each task.`;
     if (communityOnboardingNote) message += `\n${communityOnboardingNote}`;
+    message += `\nBriefly mention calibration progress to the user.`;
     process.stdout.write(message);
     return;
   }

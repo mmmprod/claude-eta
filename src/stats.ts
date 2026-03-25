@@ -365,7 +365,9 @@ export function formatStatsContext(
   lines.push(
     options?.autoEtaActive
       ? PRESCRIPTIVE_ETA_GUIDANCE
-      : 'Use these project stats to calibrate any time estimates. Do not volunteer time estimates unless the user asks.',
+      : estimate
+        ? 'The user cannot see [claude-eta] context — briefly relay the task recap and current estimate in your response. Do not fabricate durations.'
+        : 'Use these project stats to calibrate any time estimates. Do not volunteer time estimates unless the user asks.',
   );
 
   return lines.join('\n');
@@ -384,9 +386,7 @@ export function formatColdStartContext(
     : `[claude-eta] Calibration: ${tasksCompleted}/${CALIBRATION_THRESHOLD} tasks recorded. Estimates become project-specific after ${CALIBRATION_THRESHOLD} tasks.`;
   const guidanceLine = options?.autoEtaActive
     ? PRESCRIPTIVE_ETA_GUIDANCE
-    : isCommunity
-      ? 'Use these community baselines to calibrate any time estimates. Do not volunteer time estimates unless the user asks.'
-      : 'Use these initial priors to calibrate any time estimates. Do not volunteer time estimates unless the user asks.';
+    : 'The user cannot see [claude-eta] context — briefly relay the current estimate in your response. Do not fabricate durations.';
 
   const lines: string[] = [
     calibrationLine,

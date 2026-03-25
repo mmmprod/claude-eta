@@ -200,7 +200,7 @@ async function main() {
             const loopResult = detectRepairLoop(lastCompleted.loop_error_fingerprints, 3);
             if (loopResult) {
                 contextParts.push(`[claude-eta] Warning: your previous attempt hit the same error ${loopResult.count} times: "${loopResult.preview}".\n` +
-                    `Before trying again, reconsider your approach. Don't retry the same strategy.`);
+                    `Tell the user about this repeated error pattern and suggest a fundamentally different approach. Don't retry the same strategy.`);
             }
         }
     }
@@ -229,7 +229,7 @@ async function main() {
             prefs.auto_eta_explicitly_set = true;
             prefs.updated_at = new Date().toISOString();
             savePreferencesV2(prefs);
-            contextParts.push('[claude-eta] Auto-ETA disabled. Re-enable anytime with /eta auto on.');
+            contextParts.push('[claude-eta] Auto-ETA disabled. Inform the user: auto-ETA is now off. They can re-enable with /eta auto on.');
         }
         else if (!isOngoing) {
             // Use hoisted project meta for the auto-eta accuracy gate

@@ -402,7 +402,7 @@ describe('formatColdStartContext', () => {
     const ctx = formatColdStartContext(estimate, 2, undefined, { isCommunity: true });
     assert.ok(ctx.includes('Using community baselines'));
     assert.ok(ctx.includes('community bugfix baseline'));
-    assert.ok(ctx.includes('community baselines to calibrate'));
+    assert.ok(ctx.includes('briefly relay'));
   });
 
   it('detects community from basis string when no explicit flag', () => {
@@ -420,7 +420,7 @@ describe('formatColdStartContext', () => {
     const ctx = formatColdStartContext(estimate, 2);
     assert.ok(ctx.includes('Estimates become project-specific'));
     assert.ok(ctx.includes('initial bugfix prior'));
-    assert.ok(ctx.includes('initial priors to calibrate'));
+    assert.ok(ctx.includes('briefly relay'));
   });
 
   it('shows calibration progress', () => {
@@ -436,10 +436,10 @@ describe('formatColdStartContext', () => {
     assert.ok(!ctx.includes('Do not volunteer'));
   });
 
-  it('uses passive guidance when autoEtaActive is false', () => {
+  it('uses relay guidance when autoEtaActive is false', () => {
     const estimate = getDefaultEstimate('bugfix', 3);
     const ctx = formatColdStartContext(estimate, 2, undefined, { autoEtaActive: false });
-    assert.ok(ctx.includes('Do not volunteer'));
+    assert.ok(ctx.includes('briefly relay'));
     assert.ok(!ctx.includes('RULES FOR TIME ESTIMATES'));
   });
 });
