@@ -285,7 +285,9 @@ export function formatStatsContext(stats, estimate, estimateLabel = 'Current tas
     }
     lines.push(options?.autoEtaActive
         ? PRESCRIPTIVE_ETA_GUIDANCE
-        : 'Use these project stats to calibrate any time estimates. Do not volunteer time estimates unless the user asks.');
+        : estimate
+            ? 'The user cannot see [claude-eta] context — briefly relay the task recap and current estimate in your response. Do not fabricate durations.'
+            : 'Use these project stats to calibrate any time estimates. Do not volunteer time estimates unless the user asks.');
     return lines.join('\n');
 }
 /** Format context during cold start (< CALIBRATION_THRESHOLD tasks) */
@@ -296,9 +298,7 @@ export function formatColdStartContext(estimate, tasksCompleted, estimateLabel =
         : `[claude-eta] Calibration: ${tasksCompleted}/${CALIBRATION_THRESHOLD} tasks recorded. Estimates become project-specific after ${CALIBRATION_THRESHOLD} tasks.`;
     const guidanceLine = options?.autoEtaActive
         ? PRESCRIPTIVE_ETA_GUIDANCE
-        : isCommunity
-            ? 'Use these community baselines to calibrate any time estimates. Do not volunteer time estimates unless the user asks.'
-            : 'Use these initial priors to calibrate any time estimates. Do not volunteer time estimates unless the user asks.';
+        : 'The user cannot see [claude-eta] context — briefly relay the current estimate in your response. Do not fabricate durations.';
     const lines = [
         calibrationLine,
         `→ ${estimateLabel}: ${fmtSec(estimate.low)}–${fmtSec(estimate.high)} (${estimate.confidence}% confidence, ${estimate.basis} — not calibrated to this project yet)`,
