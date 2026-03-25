@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.9](https://github.com/mmmprod/claude-eta/compare/claude-eta-v1.3.8...claude-eta-v1.3.9) (2026-03-25)
+
+
+### Bug Fixes
+
+* add relay instructions so Claude shows eta data to users ([#133](https://github.com/mmmprod/claude-eta/issues/133)) ([4b94d8f](https://github.com/mmmprod/claude-eta/commit/4b94d8fd7995c13313b9217391b6e199230b7a42))
+
 ## [1.3.8](https://github.com/mmmprod/claude-eta/compare/claude-eta-v1.3.7...claude-eta-v1.3.8) (2026-03-24)
 
 
