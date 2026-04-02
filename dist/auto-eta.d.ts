@@ -4,6 +4,7 @@
  */
 import type { LastEtaPrediction, TaskClassification } from './types.js';
 import type { ProjectStats } from './stats.js';
+import { type TaskEstimate } from './stats.js';
 export declare const MIN_TYPE_TASKS = 5;
 export declare const HIGH_VOL_INTERVAL_MULT = 1.5;
 export declare const HIGH_VOL_CONFIDENCE_PENALTY = 15;
@@ -40,7 +41,9 @@ export interface AutoEtaPrefs {
 }
 /** Check if auto-ETA should activate dynamically for this classification. Pure function. */
 export declare function shouldAutoActivate(prefs: AutoEtaPrefs, stats: ProjectStats, classification: TaskClassification): boolean;
-/** Evaluate whether to inject an auto-ETA. Pure function — no I/O. */
+/** Evaluate whether to inject an auto-ETA. Pure function — no I/O.
+ *  When `precomputedEstimate` is provided, it is used directly instead of
+ *  recomputing — this ensures the auto-ETA line matches the stats context. */
 export declare function evaluateAutoEta(params: {
     prefs: AutoEtaPrefs;
     stats: ProjectStats;
@@ -52,5 +55,6 @@ export declare function evaluateAutoEta(params: {
     prompt: string;
     taskId: string;
     model?: string | null;
+    precomputedEstimate?: TaskEstimate;
 }): AutoEtaDecision;
 //# sourceMappingURL=auto-eta.d.ts.map

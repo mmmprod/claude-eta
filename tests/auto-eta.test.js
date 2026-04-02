@@ -98,10 +98,11 @@ describe('evaluateAutoEta conditions', () => {
     const r = evaluateAutoEta(baseParams({ stats: makeStats('bugfix', 10, 'high') }));
     assert.equal(r.action, 'inject');
   });
-  it('injects for classification "other" using overall stats', () => {
+  it('injects for classification "other" using estimator basis', () => {
     const r = evaluateAutoEta(baseParams({ classification: 'other', stats: makeStats('other', 10) }));
     assert.equal(r.action, 'inject');
-    assert.ok(r.injection.includes('completed tasks'));
+    // basis comes from estimator — includes task count and classification info
+    assert.ok(r.injection.includes('other'), `expected basis to mention "other" but got: ${r.injection}`);
   });
   it('skips for short prompt', () => {
     const r = evaluateAutoEta(baseParams({ prompt: 'fix it' }));
@@ -388,18 +389,16 @@ describe('other classification edge cases', () => {
       baseParams({ classification: 'other', stats, prompt: 'do something interesting with the code' }),
     );
     assert.equal(r.action, 'inject', `expected action "inject" but got: ${r.action}`);
-    assert.ok(
-      r.injection.includes('completed tasks'),
-      `expected injection to use "completed tasks" label but got: ${r.injection}`,
-    );
+    // With no clsStats for "other", estimator basis says "N tasks (no other-specific data)"
     assert.ok(r.injection.includes('20'), `expected injection to reflect totalCompleted=20 but got: ${r.injection}`);
+    assert.ok(r.injection.includes('other'), `expected basis to mention "other" but got: ${r.injection}`);
   });
 
-  it('uses "completed tasks" label (not "similar other tasks") in injection', () => {
+  it('uses estimator basis consistently in injection', () => {
     const r = evaluateAutoEta(baseParams({ classification: 'other', stats: makeStats('other', 10) }));
     assert.equal(r.action, 'inject');
-    assert.ok(r.injection.includes('completed tasks'), `expected "completed tasks" but got: ${r.injection}`);
-    assert.ok(!r.injection.includes('similar other'), `should not contain "similar other" but got: ${r.injection}`);
+    // basis comes from estimator — consistent with stats context display
+    assert.ok(r.injection.includes('other'), `expected basis to mention "other" but got: ${r.injection}`);
   });
 });
 
