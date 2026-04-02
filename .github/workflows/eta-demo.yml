@@ -57,7 +57,7 @@ jobs:
         run: ./scripts/build-eta-gif.sh
 
       - name: Create asset refresh PR when outputs drift
-        uses: peter-evans/create-pull-request@v7
+        uses: peter-evans/create-pull-request@v8
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           commit-message: "docs: refresh ETA demo assets"
