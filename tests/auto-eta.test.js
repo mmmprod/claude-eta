@@ -390,7 +390,7 @@ describe('other classification edge cases', () => {
     );
     assert.equal(r.action, 'inject', `expected action "inject" but got: ${r.action}`);
     // With no clsStats for "other", estimator basis says "N tasks (no other-specific data)"
-    assert.ok(r.injection.includes('20'), `expected injection to reflect totalCompleted=20 but got: ${r.injection}`);
+    assert.ok(r.injection.includes('based on 20'), `expected basis to contain "based on 20" but got: ${r.injection}`);
     assert.ok(r.injection.includes('other'), `expected basis to mention "other" but got: ${r.injection}`);
   });
 
