@@ -255,9 +255,14 @@ async function main(): Promise<void> {
       ? toRemainingTaskEstimate(displayEta, complexity)
       : toTaskEstimate(displayEta, complexity);
     contextParts.push(
-      formatStatsContext(stats, computedEstimate, isOngoingWorkItem ? 'Current remaining estimate' : 'Current task estimate', {
-        autoEtaActive: effectiveAutoEta,
-      }),
+      formatStatsContext(
+        stats,
+        computedEstimate,
+        isOngoingWorkItem ? 'Current remaining estimate' : 'Current task estimate',
+        {
+          autoEtaActive: effectiveAutoEta,
+        },
+      ),
     );
   } else {
     const completedCount = turns.length;

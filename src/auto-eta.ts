@@ -57,12 +57,7 @@ export interface AutoEtaPrefs {
   last_eta_task_id?: string | null | undefined;
 }
 
-function formatAutoEtaExample(
-  low: number,
-  high: number,
-  confidence: number,
-  basis: string,
-): string {
+function formatAutoEtaExample(low: number, high: number, confidence: number, basis: string): string {
   return (
     `${ANSI_CYAN}\u23F1 Estimated: ${fmtSec(low)}\u2013${fmtSec(high)}${ANSI_RESET} ` +
     `${ANSI_DIM}(${confidence}%, based on ${basis})${ANSI_RESET}`
