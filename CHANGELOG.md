@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.11](https://github.com/mmmprod/claude-eta/compare/claude-eta-v1.3.10...claude-eta-v1.3.11) (2026-04-02)
+
+
+### Bug Fixes
+
+* **eta:** use pre-computed estimate for consistent auto-ETA display ([#139](https://github.com/mmmprod/claude-eta/issues/139)) ([e6a17d1](https://github.com/mmmprod/claude-eta/commit/e6a17d175b5caa7159fc02569770b7dd7b98e069))
+
 ## [1.3.10](https://github.com/mmmprod/claude-eta/compare/claude-eta-v1.3.9...claude-eta-v1.3.10) (2026-03-25)
 
 
