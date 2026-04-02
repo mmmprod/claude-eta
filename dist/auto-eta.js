@@ -28,11 +28,9 @@ function isShortNonCommandPrompt(prompt) {
     const trimmed = prompt.trim();
     return trimmed.length < 20 && !SLASH_COMMAND_PATTERN.test(trimmed);
 }
-function formatAutoEtaExample(low, high, confidence, count, classification) {
-    // "other" uses totalCompleted as count — don't say "similar other tasks" (misleading)
-    const taskDesc = classification === 'other' ? `${count} completed tasks` : `${count} similar ${classification} tasks`;
+function formatAutoEtaExample(low, high, confidence, basis) {
     return (`${ANSI_CYAN}\u23F1 Estimated: ${fmtSec(low)}\u2013${fmtSec(high)}${ANSI_RESET} ` +
-        `${ANSI_DIM}(${confidence}%, based on ${taskDesc})${ANSI_RESET}`);
+        `${ANSI_DIM}(${confidence}%, based on ${basis})${ANSI_RESET}`);
 }
 /** Check if auto-ETA should activate dynamically for this classification. Pure function. */
 export function shouldAutoActivate(prefs, stats, classification) {
@@ -47,9 +45,11 @@ export function shouldAutoActivate(prefs, stats, classification) {
         return false;
     return true;
 }
-/** Evaluate whether to inject an auto-ETA. Pure function — no I/O. */
+/** Evaluate whether to inject an auto-ETA. Pure function — no I/O.
+ *  When `precomputedEstimate` is provided, it is used directly instead of
+ *  recomputing — this ensures the auto-ETA line matches the stats context. */
 export function evaluateAutoEta(params) {
-    const { prefs, stats, etaAccuracy, classification, prompt, taskId, model } = params;
+    const { prefs, stats, etaAccuracy, classification, prompt, taskId, model, precomputedEstimate } = params;
     // 1. Master switch
     if (!prefs.auto_eta)
         return { action: 'skip' };
@@ -61,9 +61,8 @@ export function evaluateAutoEta(params) {
     // 3. Not conversational
     if (isShortNonCommandPrompt(prompt) || CONVERSATIONAL_PATTERNS.test(prompt))
         return { action: 'skip' };
-    // 4. Compute estimate (pass model for model-specific calibration)
-    const complexity = scorePromptComplexity(prompt);
-    const estimate = estimateTask(stats, classification, complexity, { model });
+    // 4. Use pre-computed estimate if available, otherwise compute fresh
+    const estimate = precomputedEstimate ?? estimateTask(stats, classification, scorePromptComplexity(prompt), { model });
     // 5. Interval sanity — check on RAW estimate, before volatility widening.
     //    Widening adjusts the display range but shouldn't cause rejection.
     if (estimate.high > estimate.low * MAX_INTERVAL_RATIO)
@@ -102,9 +101,8 @@ export function evaluateAutoEta(params) {
     if (!isNewTask && prefs.prompts_since_last_eta < COOLDOWN_INTERVAL) {
         return { action: 'cooldown' };
     }
-    // All conditions pass — build injection
-    const displayCount = classification === 'other' ? stats.totalCompleted : (clsStats?.count ?? effectiveCount);
-    const exampleLine = formatAutoEtaExample(adjusted.low, adjusted.high, confidence, displayCount, classification);
+    // All conditions pass — build injection using estimate.basis for consistent display
+    const exampleLine = formatAutoEtaExample(adjusted.low, adjusted.high, confidence, estimate.basis);
     const injection = `[claude-eta auto-eta] At the very start of your response, display a single ETA line in the SAME LANGUAGE as the user's prompt, using ANSI terminal colors in this exact pattern:\n` +
         `"${exampleLine}"\n` +
         `Adapt only the word "Estimated" to the user's language (e.g. "Estim\u00e9" in French, "Gesch\u00e4tzt" in German), but keep the ANSI color pattern identical: cyan for the ETA range, dim for the parenthetical details.\n` +

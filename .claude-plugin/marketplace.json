@@ -6,7 +6,7 @@
   },
   "metadata": {
     "description": "Repair loop detector and ETA calibrator for Claude Code",
-    "version": "1.3.10"
+    "version": "1.3.11"
   },
   "plugins": [
     {

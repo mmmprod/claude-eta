@@ -28,6 +28,7 @@ import {
   formatColdStartContext,
   formatTaskRecap,
   fmtSec,
+  type TaskEstimate,
 } from '../stats.js';
 import { loadCachedBaselines, baselinesToPriors, type CommunityPriors } from '../baselines-cache.js';
 import type { ActiveTurnState } from '../types.js';
@@ -246,15 +247,22 @@ async function main(): Promise<void> {
     }
   }
 
+  // Compute estimate once — used by both stats context and auto-ETA injection
+  let computedEstimate: TaskEstimate | null = null;
   if (stats) {
     const isOngoingWorkItem = transition === 'same_work_item' || cumulativeSeconds > 0;
-    const estimate = isOngoingWorkItem
+    computedEstimate = isOngoingWorkItem
       ? toRemainingTaskEstimate(displayEta, complexity)
       : toTaskEstimate(displayEta, complexity);
     contextParts.push(
-      formatStatsContext(stats, estimate, isOngoingWorkItem ? 'Current remaining estimate' : 'Current task estimate', {
-        autoEtaActive: effectiveAutoEta,
-      }),
+      formatStatsContext(
+        stats,
+        computedEstimate,
+        isOngoingWorkItem ? 'Current remaining estimate' : 'Current task estimate',
+        {
+          autoEtaActive: effectiveAutoEta,
+        },
+      ),
     );
   } else {
     const completedCount = turns.length;
@@ -303,6 +311,7 @@ async function main(): Promise<void> {
         prompt,
         taskId: workItemId,
         model,
+        precomputedEstimate: computedEstimate ?? undefined,
       });
 
       switch (decision.action) {
