@@ -204,12 +204,14 @@ async function main() {
             }
         }
     }
+    // Compute estimate once — used by both stats context and auto-ETA injection
+    let computedEstimate = null;
     if (stats) {
         const isOngoingWorkItem = transition === 'same_work_item' || cumulativeSeconds > 0;
-        const estimate = isOngoingWorkItem
+        computedEstimate = isOngoingWorkItem
             ? toRemainingTaskEstimate(displayEta, complexity)
             : toTaskEstimate(displayEta, complexity);
-        contextParts.push(formatStatsContext(stats, estimate, isOngoingWorkItem ? 'Current remaining estimate' : 'Current task estimate', {
+        contextParts.push(formatStatsContext(stats, computedEstimate, isOngoingWorkItem ? 'Current remaining estimate' : 'Current task estimate', {
             autoEtaActive: effectiveAutoEta,
         }));
     }
@@ -249,6 +251,7 @@ async function main() {
                 prompt,
                 taskId: workItemId,
                 model,
+                precomputedEstimate: computedEstimate ?? undefined,
             });
             switch (decision.action) {
                 case 'inject':
