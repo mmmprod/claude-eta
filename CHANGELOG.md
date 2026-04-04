@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.12](https://github.com/mmmprod/claude-eta/compare/claude-eta-v1.3.11...claude-eta-v1.3.12) (2026-04-04)
+
+
+### Bug Fixes
+
+* **auto-eta:** remove ANSI escape codes from ETA injection ([#141](https://github.com/mmmprod/claude-eta/issues/141)) ([2591966](https://github.com/mmmprod/claude-eta/commit/2591966390c7d45ace6d5cb4d12303e36c162223))
+
 ## [1.3.11](https://github.com/mmmprod/claude-eta/compare/claude-eta-v1.3.10...claude-eta-v1.3.11) (2026-04-02)
 
 
