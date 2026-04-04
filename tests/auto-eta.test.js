@@ -213,13 +213,11 @@ describe('injection format', () => {
     assert.ok(r.injection.includes(fmtSec(r.prediction.high)));
   });
 
-  it('includes ANSI color sequences for the rendered ETA line', () => {
+  it('does not include raw ANSI escape sequences in the rendered ETA line', () => {
     const r = evaluateAutoEta(baseParams());
     assert.equal(r.action, 'inject');
-    assert.match(r.injection, /\u001b\[36m/);
-    assert.match(r.injection, /\u001b\[2m/);
-    assert.match(r.injection, /\u001b\[0m/);
-    assert.match(r.injection, /ANSI color pattern identical/);
+    assert.ok(!r.injection.includes('\u001b'), 'injection must not contain ANSI escape chars');
+    assert.match(r.injection, /\u23F1 Estimated:/);
   });
 });
 

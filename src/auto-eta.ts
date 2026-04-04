@@ -18,10 +18,6 @@ export const AUTO_ACTIVATE_THRESHOLD = 10;
 export const ACCURACY_MIN_PREDICTIONS = 10;
 export const ACCURACY_MIN_RATE = 0.5;
 
-const ANSI_CYAN = '\u001b[36m';
-const ANSI_DIM = '\u001b[2m';
-const ANSI_RESET = '\u001b[0m';
-
 /** Loose conversational pattern — matches prompts starting with acknowledgements.
  *  Permissive (prefix match): used to skip ETA injection, where false positives are cheap.
  *  See also CONTINUATION_PATTERNS in classify.ts (strict end-anchored, for turn continuation). */
@@ -58,10 +54,7 @@ export interface AutoEtaPrefs {
 }
 
 function formatAutoEtaExample(low: number, high: number, confidence: number, basis: string): string {
-  return (
-    `${ANSI_CYAN}\u23F1 Estimated: ${fmtSec(low)}\u2013${fmtSec(high)}${ANSI_RESET} ` +
-    `${ANSI_DIM}(${confidence}%, based on ${basis})${ANSI_RESET}`
-  );
+  return `\u23F1 Estimated: ${fmtSec(low)}\u2013${fmtSec(high)} (${confidence}%, based on ${basis})`;
 }
 
 /** Check if auto-ETA should activate dynamically for this classification. Pure function. */
@@ -151,9 +144,9 @@ export function evaluateAutoEta(params: {
   // All conditions pass — build injection using estimate.basis for consistent display
   const exampleLine = formatAutoEtaExample(adjusted.low, adjusted.high, confidence, estimate.basis);
   const injection =
-    `[claude-eta auto-eta] At the very start of your response, display a single ETA line in the SAME LANGUAGE as the user's prompt, using ANSI terminal colors in this exact pattern:\n` +
+    `[claude-eta auto-eta] At the very start of your response, display a single ETA line in the SAME LANGUAGE as the user's prompt, in this exact format:\n` +
     `"${exampleLine}"\n` +
-    `Adapt only the word "Estimated" to the user's language (e.g. "Estim\u00e9" in French, "Gesch\u00e4tzt" in German), but keep the ANSI color pattern identical: cyan for the ETA range, dim for the parenthetical details.\n` +
+    `Adapt only the word "Estimated" to the user's language (e.g. "Estim\u00e9" in French, "Gesch\u00e4tzt" in German).\n` +
     `Do not elaborate on it, do not caveat it, do not discuss it unless the user asks.`;
 
   const prediction: LastEtaPrediction = {
