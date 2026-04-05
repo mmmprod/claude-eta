@@ -76,12 +76,31 @@ function classifySlashCommandFallback(prompt: string): TaskClassification | null
   return null;
 }
 
+/** Domain-specific classifications that should override bugfix when both match.
+ *  "fix the eslint config" → bugfix + config → prefer config.
+ *  Feature and docs are excluded: "fix and add something" stays bugfix,
+ *  "fix comment submission bug" stays bugfix (docs pattern matches "comment"). */
+const BUGFIX_YIELD_TO = new Set<TaskClassification>(['config', 'test', 'debug', 'refactor', 'review']);
+
 export function classifyPrompt(prompt: string): TaskClassification {
+  let firstMatch: TaskClassification | null = null;
+  const allMatches: TaskClassification[] = [];
+
   for (const [classification, pattern] of PATTERNS) {
     if (pattern.test(prompt)) {
-      return classification;
+      if (!firstMatch) firstMatch = classification;
+      allMatches.push(classification);
     }
   }
+
+  // Bugfix yields to domain-specific matches (see BUGFIX_YIELD_TO).
+  if (firstMatch === 'bugfix' && allMatches.length > 1) {
+    const specific = allMatches.find((c) => BUGFIX_YIELD_TO.has(c));
+    if (specific) return specific;
+  }
+
+  if (firstMatch) return firstMatch;
+
   const slashFallback = classifySlashCommandFallback(prompt);
   if (slashFallback) return slashFallback;
   return 'other';
