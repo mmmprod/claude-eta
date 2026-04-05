@@ -78,8 +78,9 @@ function classifySlashCommandFallback(prompt: string): TaskClassification | null
 
 /** Domain-specific classifications that should override bugfix when both match.
  *  "fix the eslint config" → bugfix + config → prefer config.
- *  Feature is excluded: "fix and add something" stays bugfix. */
-const BUGFIX_YIELD_TO = new Set<TaskClassification>(['config', 'test', 'debug', 'docs', 'refactor', 'review']);
+ *  Feature and docs are excluded: "fix and add something" stays bugfix,
+ *  "fix comment submission bug" stays bugfix (docs pattern matches "comment"). */
+const BUGFIX_YIELD_TO = new Set<TaskClassification>(['config', 'test', 'debug', 'refactor', 'review']);
 
 export function classifyPrompt(prompt: string): TaskClassification {
   let firstMatch: TaskClassification | null = null;

@@ -142,6 +142,10 @@ describe('classifyPrompt', () => {
   it('classifies "fix the failing test" as test, not bugfix', () => {
     assert.equal(classifyPrompt('fix the failing test'), 'test');
   });
+
+  it('classifies "fix comment submission bug" as bugfix, not docs', () => {
+    assert.equal(classifyPrompt('fix comment submission bug'), 'bugfix');
+  });
 });
 
 describe('summarizePrompt', () => {
