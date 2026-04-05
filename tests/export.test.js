@@ -209,6 +209,36 @@ describe('anonymizeTask', () => {
     const record = anonymizeTask(task, 'test-project', '1.0.0');
     assert.equal(record.model, 'claude-sonnet-4');
   });
+
+  it('nullifies non-Claude model for Supabase safety', async () => {
+    const ts = Date.now() + Math.random();
+    const { anonymizeTask } = await import(`../dist/cli/export.js?t=${ts}`);
+    const task = {
+      analytics_id: 'work-1',
+      work_item_id: 'work-1',
+      session_id: 'sess-1',
+      project: 'test',
+      timestamp_start: new Date().toISOString(),
+      timestamp_end: new Date().toISOString(),
+      duration_seconds: 60,
+      prompt_summary: 'test',
+      prompt_complexity: 1,
+      classification: 'bugfix',
+      tool_calls: 0,
+      files_read: 0,
+      files_edited: 0,
+      files_created: 0,
+      errors: 0,
+      model: 'gpt-4',
+      first_edit_offset_seconds: null,
+      first_bash_offset_seconds: null,
+      runner_kind: 'main',
+      source_turn_count: 1,
+    };
+
+    const record = anonymizeTask(task, 'test-project', '1.0.0');
+    assert.equal(record.model, null, 'non-Claude model must be nullified');
+  });
 });
 
 describe('anonymizeProject (v2 compat)', () => {

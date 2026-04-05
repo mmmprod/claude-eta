@@ -130,6 +130,18 @@ describe('classifyPrompt', () => {
     // "fix" matches bugfix before feature's "add"
     assert.equal(classifyPrompt('fix and add something'), 'bugfix');
   });
+
+  it('classifies "fix the eslint config" as config, not bugfix', () => {
+    assert.equal(classifyPrompt('fix the eslint config'), 'config');
+  });
+
+  it('classifies "fix the auth bug" as bugfix', () => {
+    assert.equal(classifyPrompt('fix the auth bug'), 'bugfix');
+  });
+
+  it('classifies "fix the failing test" as test, not bugfix', () => {
+    assert.equal(classifyPrompt('fix the failing test'), 'test');
+  });
 });
 
 describe('summarizePrompt', () => {

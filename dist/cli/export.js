@@ -10,9 +10,12 @@ import { loadProjectMeta } from '../project-meta.js';
 import { getPluginDataDir } from '../paths.js';
 import { contributorHash, projectHash, normalizeModel, dedupKey } from '../anonymize.js';
 const EXPORT_DIR = path.join(getPluginDataDir(), 'export');
+const CLAUDE_MODEL_RE = /^claude-(opus|sonnet|haiku)-[0-9]/;
 export function anonymizeTask(task, projIdentifier, pluginVersion, projectMeta) {
     if (task.duration_seconds == null || task.duration_seconds <= 0 || task.duration_seconds >= 86400)
         return null;
+    const normalized = task.model && task.model !== 'unknown' ? normalizeModel(task.model) : null;
+    const model = normalized && CLAUDE_MODEL_RE.test(normalized) ? normalized : null;
     const contribHash = contributorHash();
     return {
         task_type: task.classification,
@@ -22,7 +25,7 @@ export function anonymizeTask(task, projIdentifier, pluginVersion, projectMeta) 
         files_edited: task.files_edited,
         files_created: task.files_created,
         errors: task.errors,
-        model: task.model && task.model !== 'unknown' ? normalizeModel(task.model) : null,
+        model,
         project_hash: projectHash(projIdentifier),
         project_file_count: projectMeta?.file_count ?? null,
         project_loc_bucket: projectMeta?.loc_bucket ?? null,
