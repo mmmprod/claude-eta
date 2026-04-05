@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.13](https://github.com/mmmprod/claude-eta/compare/claude-eta-v1.3.12...claude-eta-v1.3.13) (2026-04-05)
+
+
+### Bug Fixes
+
+* **hardening:** filter non-Claude models, improve classify accuracy, pin CI actions ([#143](https://github.com/mmmprod/claude-eta/issues/143)) ([e659ae6](https://github.com/mmmprod/claude-eta/commit/e659ae671d5e2d3274051bfe4c110159dc48340c))
+
 ## [1.3.12](https://github.com/mmmprod/claude-eta/compare/claude-eta-v1.3.11...claude-eta-v1.3.12) (2026-04-04)
 
 
