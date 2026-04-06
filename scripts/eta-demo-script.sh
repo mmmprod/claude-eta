@@ -40,9 +40,8 @@ echo ""
 echo ""
 sleep 0.3
 
-# Frame 3: claude-eta injects context (simulated additionalContext)
-printf "${DIM}[claude-eta] injecting velocity context...${RESET}\n"
-sleep 0.4
+# Frame 3: Claude's response opens with the calibrated ETA (auto-eta injects this
+# at the start of every response when activated; Claude relays it to the user).
 printf "${CYAN}⏱ Estimated: 4m–12m${RESET} ${DIM}(75%%, based on 14 similar feature tasks)${RESET}\n"
 echo ""
 sleep 1.5
@@ -60,15 +59,9 @@ printf "${DIM}  Running npm test...${RESET}\n"
 sleep 0.8
 printf "${GREEN}  ✓ 12 tests passed${RESET}\n"
 echo ""
-sleep 0.5
+sleep 1.8
 
-# Frame 5: Task complete — claude-eta records
-printf "${CYAN}[claude-eta]${RESET} Task completed: feature, ${BOLD}6m 14s${RESET}, 8 tool calls, 4 files\n"
-printf "${DIM}             Within predicted interval [4m–12m] ✓${RESET}\n"
-echo ""
-sleep 1.5
-
-# Frame 6: /eta stats
+# Frame 5: /eta stats — surfaces the accumulated, real velocity data
 printf "${GREEN}❯${RESET} "
 type_slow "/eta stats"
 echo ""
