@@ -1,22 +1,22 @@
-# Eval Snapshot — v1.3.6
+# Eval Snapshot — v1.3.13
 
 Generated with `/eta eval` on the claude-eta repository.
 
 ## Summary
 
-- Work items: 217
+- Work items: 285
 
-- p80 coverage at prompt: 77.9%
+- p80 coverage at prompt: 76.8%
 
-- MdAPE at prompt: 79.6%
+- MdAPE at prompt: 79.0%
 
 ## Full report
 
 | Stage | MdAPE | p80 coverage |
 |-------|-------|--------------|
-| At prompt | 79.6% | 77.9% |
-| After first edit | 95.0% | 67.6% |
-| After first bash | 80.4% | 74.4% |
+| At prompt | 79.0% | 76.8% |
+| After first edit | 82.3% | 66.0% |
+| After first bash | 87.0% | 72.5% |
 
 ## Reproduce
 
