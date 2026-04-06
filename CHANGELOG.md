@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.14](https://github.com/mmmprod/claude-eta/compare/claude-eta-v1.3.13...claude-eta-v1.3.14) (2026-04-06)
+
+
+### Bug Fixes
+
+* **commands:** make /eta slash command reliable via inline shell execution ([#148](https://github.com/mmmprod/claude-eta/issues/148)) ([e62d437](https://github.com/mmmprod/claude-eta/commit/e62d4372674a6b03ea5308ff4b28288bc6112d13))
+
 ## [1.3.13](https://github.com/mmmprod/claude-eta/compare/claude-eta-v1.3.12...claude-eta-v1.3.13) (2026-04-05)
 
 
