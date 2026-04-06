@@ -40,8 +40,6 @@ pause(0.5);
 emit(CRLF + CRLF);
 pause(0.3);
 
-emit('\u001b[2m[claude-eta] injecting velocity context...\u001b[0m' + CRLF);
-pause(0.4);
 emit('\u001b[0;36m⏱ Estimated: 4m–12m\u001b[0m \u001b[2m(75%, based on 14 similar feature tasks)\u001b[0m' + CRLF + CRLF);
 pause(1.5);
 
@@ -56,11 +54,7 @@ pause(0.4);
 emit('\u001b[2m  Running npm test...\u001b[0m' + CRLF);
 pause(0.8);
 emit('\u001b[0;32m  ✓ 12 tests passed\u001b[0m' + CRLF + CRLF);
-pause(0.5);
-
-emit('\u001b[0;36m[claude-eta]\u001b[0m Task completed: feature, \u001b[1m6m 14s\u001b[0m, 8 tool calls, 4 files' + CRLF);
-emit('\u001b[2m             Within predicted interval [4m–12m] ✓\u001b[0m' + CRLF + CRLF);
-pause(1.5);
+pause(1.8);
 
 emit('\u001b[0;32m❯\u001b[0m ');
 typeText('/eta stats');
