@@ -32,28 +32,12 @@ After 10 tasks of the same type, ETAs appear automatically — calibrated on YOU
 
 ## Eval results
 
-Tested on 217 real completed work items from a single developer:
+Walk-forward replay over real, single-developer task history.
 
-| Metric | Value |
-|--------|-------|
-| p80 coverage at prompt | 77.9% |
+- **p80 coverage at prompt** typically lands in the **75–80% target range** (target: ~80%, since p80 is by definition the value the real duration should fall at or below 80% of the time).
+- **MdAPE** (median absolute % error) sits in the **70–95% range** depending on the evaluator stage (`prompt` / `first edit` / `first bash`) — expected for a single-user dataset and tightens as task volume grows.
 
-p80 coverage = how often the real duration fell at or below the predicted p80 upper bound (target ~80%).
-
-MdAPE (median absolute % error) = 79.6% — expected for a single-user dataset, improves with volume.
-
-<details>
-<summary>Additional evaluator stages</summary>
-
-| Stage | MdAPE | p80 coverage |
-|-------|-------|--------------|
-| At prompt | 79.6% | 77.9% |
-| After first edit | 95.0% | 67.6% |
-| After first bash | 80.4% | 74.4% |
-
-</details>
-
-See [docs/eval-snapshot.md](docs/eval-snapshot.md) for the committed snapshot and reproduction command. Run `/eta eval` on your own data.
+The exact numbers, the per-stage breakdown, and the version they were captured at live in [docs/eval-snapshot.md](docs/eval-snapshot.md), refreshed at each release. Run `/eta eval` to compute the same report on your own local task history.
 
 ### Also catches repair loops
 
