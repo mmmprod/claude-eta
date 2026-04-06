@@ -40,8 +40,8 @@ echo ""
 echo ""
 sleep 0.3
 
-# Frame 3: Claude's response opens with the calibrated ETA (auto-eta injects this
-# at the start of every response when activated; Claude relays it to the user).
+# Frame 3: Claude's response opens with the calibrated ETA (shown here when
+# auto-eta injects it; Claude relays the injected line to the user).
 printf "${CYAN}⏱ Estimated: 4m–12m${RESET} ${DIM}(75%%, based on 14 similar feature tasks)${RESET}\n"
 echo ""
 sleep 1.5
