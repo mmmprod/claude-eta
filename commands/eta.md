@@ -5,6 +5,6 @@ allowed-tools: Bash
 disable-model-invocation: true
 ---
 
-!`node "${CLAUDE_PLUGIN_ROOT}/dist/cli/eta.js" $ARGUMENTS "$(pwd)"`
+!`node "${CLAUDE_PLUGIN_ROOT:?CLAUDE_PLUGIN_ROOT is not set}/dist/cli/eta.js" $ARGUMENTS "$(pwd)"`
 
 The block above is the live output of the claude-eta CLI. Display it to the user exactly as printed — do not interpret, summarize, paraphrase, or add any commentary. Output the text and stop.
