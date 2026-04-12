@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.15](https://github.com/mmmprod/claude-eta/compare/claude-eta-v1.3.14...claude-eta-v1.3.15) (2026-04-12)
+
+
+### Bug Fixes
+
+* **ci:** use tag refs for scorecard action (SHA was unresolvable) ([#153](https://github.com/mmmprod/claude-eta/issues/153)) ([896b313](https://github.com/mmmprod/claude-eta/commit/896b313e73be5e964d8f3e3572956723cc84d284))
+
 ## [1.3.14](https://github.com/mmmprod/claude-eta/compare/claude-eta-v1.3.13...claude-eta-v1.3.14) (2026-04-06)
 
 
