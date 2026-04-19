@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.16](https://github.com/mmmprod/claude-eta/compare/claude-eta-v1.3.15...claude-eta-v1.3.16) (2026-04-19)
+
+
+### Bug Fixes
+
+* **ci:** surface refresh-baselines HTTP error body and status code ([#161](https://github.com/mmmprod/claude-eta/issues/161)) ([e0f886e](https://github.com/mmmprod/claude-eta/commit/e0f886e6d3a8108c2a9816f3fa868a2ff4524877))
+
 ## [1.3.15](https://github.com/mmmprod/claude-eta/compare/claude-eta-v1.3.14...claude-eta-v1.3.15) (2026-04-12)
 
 
