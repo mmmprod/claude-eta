@@ -15,17 +15,27 @@ jobs:
           SECRET: ${{ secrets.REFRESH_SECRET }}
         run: |
           response=$(mktemp)
+          trap 'rm -f "${response}"' EXIT
+          curl_exit=0
           http_code=$(curl -sS -X POST \
             -o "${response}" \
             -w "%{http_code}" \
             "${FUNCTION_URL}/refresh-baselines" \
             -H "Authorization: Bearer ${ANON_KEY}" \
             -H "x-refresh-secret: ${SECRET}" \
-            -H "Content-Type: application/json")
+            -H "Content-Type: application/json") || curl_exit=$?
+          if [ "${curl_exit}" -ne 0 ]; then
+            echo "curl failed before producing an HTTP response (exit ${curl_exit})"
+            exit 1
+          fi
+          if ! [[ "${http_code}" =~ ^[0-9]+$ ]]; then
+            echo "Invalid HTTP code: ${http_code:-<empty>}"
+            exit 1
+          fi
           echo "HTTP ${http_code}"
-          echo "Response body:"
-          cat "${response}"
-          echo
           if [ "${http_code}" -ge 400 ]; then
+            echo "Response body:"
+            cat "${response}"
+            echo
             exit 1
           fi
