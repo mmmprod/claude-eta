@@ -14,8 +14,18 @@ jobs:
           ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
           SECRET: ${{ secrets.REFRESH_SECRET }}
         run: |
-          curl -s -f -X POST \
+          response=$(mktemp)
+          http_code=$(curl -sS -X POST \
+            -o "${response}" \
+            -w "%{http_code}" \
             "${FUNCTION_URL}/refresh-baselines" \
             -H "Authorization: Bearer ${ANON_KEY}" \
             -H "x-refresh-secret: ${SECRET}" \
-            -H "Content-Type: application/json"
+            -H "Content-Type: application/json")
+          echo "HTTP ${http_code}"
+          echo "Response body:"
+          cat "${response}"
+          echo
+          if [ "${http_code}" -ge 400 ]; then
+            exit 1
+          fi
